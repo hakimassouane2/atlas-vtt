@@ -6,23 +6,28 @@ import type { SettingsService } from '../services/SettingsService';
 import { OnlineFrameStream, type OnlineFrameSource } from './OnlineFrameStream';
 import { OnlineSessionServer } from './OnlineSessionServer';
 import { PlayerControls } from './PlayerControls';
+import { parseCameraRequest } from './playerStreamRequest';
 
 export interface OnlineSessionState {
   isRunning: boolean;
   /** Browsers currently connected with the player link. */
   playerCount: number;
+  /** Players see through the DM's camera instead of their own. */
+  isFollowingDm: boolean;
 }
 
 /** Read by the dashboard; one session per plugin, like the player window. */
 export const onlineSessionStore: StoreApi<OnlineSessionState> = createStore<OnlineSessionState>(() => ({
   isRunning: false,
   playerCount: 0,
+  isFollowingDm: false,
 }));
 
 /**
  * Lets players join from a browser with a link. The server runs on this computer;
- * players see the scene the DM presents, exactly as the local player window shows it,
- * and move and heal the tokens the DM gave them.
+ * players see the scene the DM presents, as the local player window shows it, through
+ * their own camera unless the DM makes them follow theirs, and move and heal the tokens
+ * the DM gave them.
  */
 export class OnlineSession {
   private static instance: OnlineSession | null = null;
@@ -30,12 +35,17 @@ export class OnlineSession {
   private readonly stream: OnlineFrameStream;
   private readonly controls: PlayerControls;
   private stopWatchingTab: (() => void) | null = null;
+  /** The presented scene tab; presenting another one recenters every player. */
+  private presentedTabId: string | null = null;
   /** Views that already release the stream when they close. */
   private readonly viewsReleasingOnClose = new WeakSet<AtlasView>();
 
   constructor(private readonly settingsService: SettingsService) {
-    this.stream = new OnlineFrameStream(settingsService, (image, view) => this.server?.publishFrame(image, view));
-    this.controls = new PlayerControls((state) => this.server?.publishState(state));
+    this.stream = new OnlineFrameStream(settingsService, {
+      isReady: (playerId) => this.server?.isReady(playerId) ?? false,
+      send: (playerId, image, view, isDmCamera) => this.server?.sendFrame(playerId, image, view, isDmCamera),
+    });
+    this.controls = new PlayerControls((state) => this.server?.share('state', state));
     OnlineSession.instance = this;
   }
 
@@ -57,13 +67,24 @@ export class OnlineSession {
       : 'Player link copied. It only works on this computer until you set your public address in the Atlas settings.');
   }
 
+  /** Makes every player see through the DM's camera, or lets them move their own again. */
+  toggleFollowingDm(): void {
+    const isFollowingDm = !onlineSessionStore.getState().isFollowingDm;
+    onlineSessionStore.setState({ isFollowingDm });
+    this.stream.setFollowingDm(isFollowingDm);
+    this.server?.share('mode', { isFollowingDm });
+    new Notice(isFollowingDm ? 'Online players follow your camera' : 'Online players move their own camera');
+  }
+
   stop(): void {
     this.stopWatchingTab?.();
+    this.presentedTabId = null;
+    this.stream.setFollowingDm(false);
     this.stream.stop();
     this.controls.destroy();
     this.server?.close();
     this.server = null;
-    onlineSessionStore.setState({ isRunning: false, playerCount: 0 });
+    onlineSessionStore.setState({ isRunning: false, playerCount: 0, isFollowingDm: false });
   }
 
   /**
@@ -72,6 +93,8 @@ export class OnlineSession {
    */
   present(view: AtlasView, tabId: string, source: PlayerFrameSource, resolveSource: () => Promise<PlayerFrameSource | null>): void {
     this.setSource(view, source);
+    if (tabId !== this.presentedTabId) this.recenterAll();
+    this.presentedTabId = tabId;
     this.stopWatchingTab?.();
     const stopWatching = view.tabMetaStore.subscribe((state, previous) => {
       if (state.activeTabId === previous.activeTabId) return;
@@ -112,6 +135,12 @@ export class OnlineSession {
     this.controls.setSource(onlineSource);
   }
 
+  /** Players see the DM's framing again: their camera from another scene means nothing here. */
+  private recenterAll(): void {
+    this.stream.recenterAll();
+    this.server?.broadcast('recenter', {});
+  }
+
   /** Players keep the last frame and cannot act until the scene is live again. */
   private hold(): void {
     this.stream.hold();
@@ -124,10 +153,22 @@ export class OnlineSession {
       this.settingsService.setOnlineSessionSettings({ secret: crypto.randomUUID().replace(/-/g, '') });
       settings = this.settingsService.getOnlineSessionSettings();
     }
-    const server = new OnlineSessionServer(settings.secret, (request, playerCount) => {
-      onlineSessionStore.setState({ playerCount });
-      this.stream.setRequest(request);
-    }, (command) => this.controls.apply(command));
+    const server = new OnlineSessionServer(settings.secret, {
+      onJoin: (playerId, request) => {
+        this.stream.addViewer(playerId, request);
+        onlineSessionStore.setState({ playerCount: server.playerCount });
+      },
+      onLeave: (playerId) => {
+        this.stream.removeViewer(playerId);
+        onlineSessionStore.setState({ playerCount: server.playerCount });
+      },
+      onCamera: (playerId, body) => {
+        const camera = parseCameraRequest(body);
+        if (camera) this.stream.setViewerCamera(playerId, camera === 'recenter' ? null : camera);
+      },
+      onCommand: (body) => this.controls.apply(body),
+    });
+    server.share('mode', { isFollowingDm: onlineSessionStore.getState().isFollowingDm });
     try {
       await server.listen(settings.port);
     } catch (error) {

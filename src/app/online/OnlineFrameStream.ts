@@ -14,57 +14,97 @@ export interface OnlineFrameSource {
   getCamera(): PlayerCameraState | undefined;
 }
 
+/** Where frames go: `isReady` says whether a player's connection takes one now. */
+export interface FrameSink {
+  isReady(playerId: string): boolean;
+  /** `isDmCamera`: the frame shows the DM's framing, which a recentering player adopts. */
+  send(playerId: string, image: Uint8Array, view: FrameView, isDmCamera: boolean): void;
+}
+
+interface Viewer {
+  request: PlayerStreamRequest;
+  /** The player's own camera; null shows the DM's until the player moves. */
+  camera: PlayerCameraState | null;
+  renderer: PlayerFrameRenderer;
+  isStale: boolean;
+  isEncoding: boolean;
+  lastRenderedFrames: number | undefined;
+  lastSentAt: number;
+}
+
 /**
- * Renders the player-safe frame of the presented scene at the players' screen size
- * whenever the DM canvas renders, at most at the rate players asked for, and hands
- * it to `publish` as JPEG. While the DM works on another tab the last frame stays.
+ * Renders the player-safe frame of the presented scene for each player: at their
+ * screen size, through their own camera (or the DM's when they follow it), at most
+ * at their frame rate, and only when the scene or their camera changed. While the
+ * DM works on another tab, players keep their last frame.
  */
 export class OnlineFrameStream {
   private source: OnlineFrameSource | null = null;
-  private request: PlayerStreamRequest | null = null;
+  private readonly viewers = new Map<string, Viewer>();
   private isHeld = false;
-  private isStale = true;
-  private isEncoding = false;
-  private lastRenderedFrames: number | undefined;
-  private lastSentAt = 0;
+  private isFollowingDm = false;
   private animationFrame: number | null = null;
-  private readonly frameRenderer = new PlayerFrameRenderer();
 
   constructor(
     private readonly settingsService: SettingsService,
-    private readonly publish: (image: Uint8Array, view: FrameView) => void,
+    private readonly sink: FrameSink,
   ) {}
 
-  /** What connected players ask for; null pauses the stream, since nobody watches. */
-  setRequest(request: PlayerStreamRequest | null): void {
-    this.request = request;
-    this.isStale = true;
-    if (!request) {
-      this.pause();
-    } else if (this.animationFrame === null) {
-      this.tick();
-    }
+  addViewer(playerId: string, request: PlayerStreamRequest): void {
+    this.viewers.set(playerId, {
+      request, camera: null, renderer: new PlayerFrameRenderer(),
+      isStale: true, isEncoding: false, lastRenderedFrames: undefined, lastSentAt: 0,
+    });
+    if (this.animationFrame === null) this.tick();
+  }
+
+  removeViewer(playerId: string): void {
+    this.viewers.get(playerId)?.renderer.destroy();
+    this.viewers.delete(playerId);
+    if (this.viewers.size === 0) this.pause();
+  }
+
+  /** The player moved their camera; null goes back to the DM's framing. */
+  setViewerCamera(playerId: string, camera: PlayerCameraState | null): void {
+    const viewer = this.viewers.get(playerId);
+    if (!viewer) return;
+    viewer.camera = camera;
+    viewer.isStale = true;
+  }
+
+  /** Every player sees through the DM's camera while this is on. */
+  setFollowingDm(isFollowing: boolean): void {
+    this.isFollowingDm = isFollowing;
+    this.recenterAll();
+  }
+
+  /** Back to the DM's framing for everyone, e.g. when another scene is presented. */
+  recenterAll(): void {
+    this.viewers.forEach((viewer) => {
+      viewer.camera = null;
+      viewer.isStale = true;
+    });
   }
 
   stop(): void {
     this.pause();
     this.source = null;
-    this.frameRenderer.destroy();
+    [...this.viewers.keys()].forEach((playerId) => this.removeViewer(playerId));
   }
 
   /** Stream `source` live from now on. */
   setSource(source: OnlineFrameSource): void {
     this.source = source;
     this.isHeld = false;
-    this.isStale = true;
+    this.viewers.forEach((viewer) => { viewer.isStale = true; });
   }
 
-  /** Keep players on the last frame. */
+  /** Keep players on their last frame. */
   hold(): void {
     this.isHeld = true;
   }
 
-  /** The map view owning `store` is closing: keep the last frame and forget the view. */
+  /** The map view owning `store` is closing: keep the last frames and forget the view. */
   releaseSource(store: StoreApi<ViewAtlasState>): void {
     if (this.source?.store !== store) return;
     this.hold();
@@ -78,40 +118,44 @@ export class OnlineFrameStream {
 
   private readonly tick = (): void => {
     this.animationFrame = window.requestAnimationFrame(this.tick);
-    const { source, request } = this;
-    if (!source || !request || this.isHeld || this.isEncoding) return;
-    const now = performance.now();
-    if (now - this.lastSentAt < 1000 / request.fps) return;
-
-    // A frame only changes when the DM canvas rendered something new
+    const source = this.source;
+    if (!source || this.isHeld) return;
     const renderedFrames = source.getRenderedFrames();
-    if (!this.isStale && renderedFrames !== undefined && renderedFrames === this.lastRenderedFrames) return;
-    const camera = source.getCamera();
-    if (!camera) return;
-    this.isStale = false;
-    this.lastRenderedFrames = renderedFrames;
-    this.lastSentAt = now;
-
-    let frame: PlayerFrame | null = null;
-    try {
-      frame = this.frameRenderer.render(source.renderer, this.settingsService.getLocalPlayerViewSettings(), camera, request.screen);
-    } catch (error) {
-      console.error('[OnlineFrameStream] Could not render the player frame:', error);
+    const now = performance.now();
+    for (const [playerId, viewer] of this.viewers) {
+      if (viewer.isEncoding || now - viewer.lastSentAt < 1000 / viewer.request.fps || !this.sink.isReady(playerId)) continue;
+      // A frame only changes when the DM canvas rendered something new or the player's camera moved
+      const sceneChanged = renderedFrames === undefined || renderedFrames !== viewer.lastRenderedFrames;
+      if (!viewer.isStale && !sceneChanged) continue;
+      const isDmCamera = this.isFollowingDm || !viewer.camera;
+      const camera = isDmCamera ? source.getCamera() : viewer.camera;
+      if (!camera) continue;
+      viewer.isStale = false;
+      viewer.lastRenderedFrames = renderedFrames;
+      viewer.lastSentAt = now;
+      this.render(playerId, viewer, source, camera, isDmCamera);
     }
-    if (frame) this.encode(frame, FRAME_QUALITIES[request.quality]);
   };
 
-  private encode({ canvas, view }: PlayerFrame, quality: number): void {
-    this.isEncoding = true;
-    canvas.toBlob((blob) => {
+  private render(playerId: string, viewer: Viewer, source: OnlineFrameSource, camera: PlayerCameraState, isDmCamera: boolean): void {
+    let frame: PlayerFrame | null = null;
+    try {
+      frame = viewer.renderer.render(source.renderer, this.settingsService.getLocalPlayerViewSettings(), camera, viewer.request.screen);
+    } catch (error) {
+      console.error('[OnlineFrameStream] Could not render a player frame:', error);
+    }
+    if (!frame) return;
+    const { view } = frame;
+    viewer.isEncoding = true;
+    frame.canvas.toBlob((blob) => {
       if (!blob) {
-        this.isEncoding = false;
+        viewer.isEncoding = false;
         return;
       }
       blob.arrayBuffer()
-        .then((buffer) => this.publish(new Uint8Array(buffer), view))
-        .catch((error: unknown) => console.error('[OnlineFrameStream] Could not encode the player frame:', error))
-        .finally(() => { this.isEncoding = false; });
-    }, 'image/jpeg', quality);
+        .then((buffer) => this.sink.send(playerId, new Uint8Array(buffer), view, isDmCamera))
+        .catch((error: unknown) => console.error('[OnlineFrameStream] Could not encode a player frame:', error))
+        .finally(() => { viewer.isEncoding = false; });
+    }, 'image/jpeg', FRAME_QUALITIES[viewer.request.quality]);
   }
 }

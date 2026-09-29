@@ -80,18 +80,28 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
   La page joueur est du HTML/JS vanilla servi par ce serveur (`playerPage.ts`).
 - Chaque requête doit porter la clé du lien (`?k=`), sinon 403.
 - Le navigateur du joueur ouvre un flux Server-Sent Events (`/events`) en indiquant la taille de
-  sa fenêtre, son framerate et sa qualité (`playerStreamRequest.ts`). Un seul rendu sert tous les
-  joueurs : le plus grand écran, le framerate et la qualité les plus élevés. Chaque joueur reçoit
-  ensuite les images à son propre rythme, et jamais plus vite que sa connexion ne les absorbe
-  (le serveur attend le `drain` du socket).
-- `OnlineFrameStream` rend la frame "sûre pour les joueurs" (mêmes couches cachées que la vue
-  joueur locale : tokens cachés, pins MJ, brouillard) uniquement quand le canvas MJ a changé,
-  l'encode en JPEG et la pousse en base64 dans le flux SSE.
-- `PlayerFrameRenderer` rend la scène dans une `RenderTexture` à la taille exacte de l'écran du
-  joueur (plein écran et net), avec le centre et le zoom de la caméra du MJ, puis rend à nouveau
-  le canvas MJ dans la même tâche (le MJ ne voit jamais la frame joueur).
-- Chaque image arrive avec la caméra qui l'a rendue (`FrameView`) : la page joueur convertit
-  elle-même ses clics en coordonnées de la carte, sans aller-retour.
+  sa fenêtre, son framerate et sa qualité (`playerStreamRequest.ts`). Le serveur lui donne un id
+  (`hello`) ; ce flux lui apporte ses propres images et ce que tous partagent (`state`, `mode`).
+  Aucune image n'est envoyée tant que le socket précédent n'est pas vidé (`drain`).
+- **Caméra libre** : chaque joueur a sa caméra (glisser dans le vide pour se déplacer, molette
+  pour zoomer, bouton ⌖ pour revenir au cadrage du MJ). La page place tout de suite la dernière
+  image sous sa caméra, puis envoie la caméra (`POST /camera`, toutes les 50 ms au plus) ; les
+  images suivantes sont rendues à travers elle. Sans caméra propre, un joueur voit le cadrage du
+  MJ. Présenter une autre scène recentre tout le monde.
+- **Suivre le MJ** : commande "Players Follow My Camera" (palette Atlas) ou "Toggle online players
+  following your camera" (palette Obsidian). Tant qu'elle est active, tous les joueurs voient à
+  travers la caméra du MJ et ne peuvent plus bouger la leur (ils peuvent toujours déplacer leur
+  token) ; à la désactivation ils repartent de là où le MJ les a laissés.
+- `OnlineFrameStream` garde un "spectateur" par joueur (écran, caméra, framerate, qualité) et ne
+  rend la frame "sûre pour les joueurs" (mêmes couches cachées que la vue joueur locale : tokens
+  cachés, pins MJ, brouillard) d'un joueur que si le canvas MJ a changé ou si sa caméra a bougé,
+  puis l'encode en JPEG et la pousse en base64. Chaque image dit si elle vient de la caméra du MJ
+  (`isDmCamera`) : un joueur qui se recentre n'adopte que celles-là.
+- `PlayerFrameRenderer` (un par joueur) rend la scène dans une `RenderTexture` à la taille exacte
+  de l'écran du joueur, puis rend à nouveau le canvas MJ dans la même tâche (le MJ ne voit jamais
+  la frame joueur).
+- Chaque image arrive avec sa vue (`FrameView`, en pixels CSS) : la page la place sous sa caméra
+  et convertit elle-même ses clics en coordonnées de la carte, sans aller-retour.
 - `PlayerControls` publie dans le flux SSE (`state`) les tokens que les joueurs contrôlent
   (`playerTokens.ts` : personnages `playerLinked`, non cachés) et applique leurs commandes
   (`POST /command`, `playerCommands.ts` : `move` snappé avec `snapToCellCenter`, `resource`
@@ -107,11 +117,13 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 - `src/app/online/OnlineSessionServer.ts` : serveur HTTP, clé, flux SSE par joueur.
 - `src/app/online/OnlineFrameStream.ts` : quand rendre et encoder une frame.
 - `src/app/online/PlayerFrameRenderer.ts` : rendu à la taille de l'écran joueur.
-- `src/app/online/playerStreamRequest.ts` : ce que demande chaque joueur, et leur combinaison.
+- `src/app/online/playerStreamRequest.ts` : ce que demande chaque joueur (écran, framerate,
+  qualité, caméra).
 - `src/app/online/PlayerControls.ts` : état des tokens joueurs et commandes, seulement en direct.
 - `src/app/online/playerTokens.ts` : quels tokens les joueurs contrôlent, et ce qu'ils en voient.
 - `src/app/online/playerCommands.ts` : validation et application des commandes joueur.
-- `src/app/online/playerPage.ts` : la page joueur (image, drag, panneau PV, réglages).
+- `src/app/online/playerPage.ts` : la page joueur (structure), avec `playerPageStyles.ts`,
+  `playerPageScript.ts` (caméra, images, drag, connexion) et `playerPartyScript.ts` (panneau PV).
 - `src/app/online/onlineSessionSettingsSection.ts` : la section de réglages.
 - `tests/unit/onlineSessionServer.test.ts`, `tests/unit/playerStreamRequest.test.ts`,
   `tests/unit/playerCommands.test.ts`.
@@ -121,13 +133,15 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 Garder ces modifications aussi petites que possible : ce sont les seuls endroits où un merge du
 dev d'origine peut entrer en conflit.
 
-- `main.ts` : crée `OnlineSession`, ajoute les deux commandes et la section de réglages, arrête la
-  session dans `onunload`.
+- `main.ts` : crée `OnlineSession`, ajoute les trois commandes (démarrer, arrêter, suivre la
+  caméra du MJ) et la section de réglages, arrête la session dans `onunload`.
 - `src/app/services/SettingsService.ts` : réglage `onlineSession` (`port`, `publicHost`, `secret`)
   avec `getOnlineSessionSettings` / `setOnlineSessionSettings`.
 - `src/app/services/PlayerWindowPresenter.ts` : `presentTabInPlayerWindow` envoie la scène à
   `OnlineSession` et n'ouvre la popout que si aucune session en ligne ne tourne.
 - `src/app/dashboard-view.tsx` : tuile "Online Session".
+- `src/app/react/components/CommandPalette.tsx` : entrée "Players Follow My Camera" (bascule,
+  section mode, à côté de "Freeze Player Camera").
 - `src/app/PixiRendererOrchestrator.ts` : la liste des couches de la vue joueur est sortie de
   `withPlayerSafeFrame` dans la méthode publique `getPlayerViewLayers` (même comportement).
 - `src/app/pixi/token-renderer/EditTokenModal.tsx` : interrupteur "Controlled by Players"
@@ -137,13 +151,14 @@ dev d'origine peut entrer en conflit.
 ### Suite prévue
 
 1. ~~Les joueurs déplacent leur token et modifient leurs PV.~~ Fait.
-2. Gel de la caméra joueur valable aussi pour les joueurs en ligne (aujourd'hui ils suivent la
-   caméra du MJ).
+2. ~~Caméra libre pour les joueurs, et le MJ peut les forcer à suivre la sienne.~~ Fait.
 3. Plus tard : initiative, widgets, dés, conditions côté joueur.
 
 ### Limites connues
 
-- Les joueurs voient avec la caméra du MJ (centre et zoom) ; ils ne peuvent pas se déplacer seuls.
+- Un rendu par joueur : chaque image rend aussi à nouveau le canvas du MJ. Aucun souci à 1-2
+  joueurs ; à 4 joueurs à 60 i/s, baisser leur framerate si Obsidian rame.
+- Pas de pinch-zoom tactile sur la page joueur (molette uniquement).
 - `playerLinked` sert aussi ailleurs dans Atlas : un token contrôlé par les joueurs compte comme
   PJ (et non PNJ) dans l'initiative.
 - Tout joueur qui a le lien peut déplacer tous les tokens "Controlled by Players" (un seul lien

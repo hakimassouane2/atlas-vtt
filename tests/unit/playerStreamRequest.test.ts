@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { combineStreamRequests, parseStreamRequest } from '../../src/app/online/playerStreamRequest';
+import { parseCameraRequest, parseStreamRequest } from '../../src/app/online/playerStreamRequest';
 
 describe('parseStreamRequest', () => {
   test('reads the screen, frame rate and quality', () => {
@@ -20,14 +20,19 @@ describe('parseStreamRequest', () => {
   });
 });
 
-describe('combineStreamRequests', () => {
-  test('serves the largest screen, the highest frame rate and quality', () => {
-    const small = parseStreamRequest(new URLSearchParams('w=800&h=600&fps=60&q=low'));
-    const large = parseStreamRequest(new URLSearchParams('w=1920&h=1080&fps=10&q=medium'));
-    expect(combineStreamRequests([small, large])).toEqual({ screen: large.screen, fps: 60, quality: 'medium' });
+describe('parseCameraRequest', () => {
+  test('reads a camera and keeps its zoom within limits', () => {
+    expect(parseCameraRequest({ centerX: 10, centerY: 20, scale: 1.5 })).toEqual({ centerX: 10, centerY: 20, scale: 1.5 });
+    expect(parseCameraRequest({ centerX: 0, centerY: 0, scale: 1000 })).toEqual({ centerX: 0, centerY: 0, scale: 20 });
   });
 
-  test('is null when nobody is connected', () => {
-    expect(combineStreamRequests([])).toBeNull();
+  test('reads a request to go back to the DM framing', () => {
+    expect(parseCameraRequest({ recenter: true })).toBe('recenter');
+  });
+
+  test('rejects anything else', () => {
+    expect(parseCameraRequest(null)).toBeNull();
+    expect(parseCameraRequest({ centerX: 0, centerY: 0, scale: 0 })).toBeNull();
+    expect(parseCameraRequest({ centerX: 'left', centerY: 0, scale: 1 })).toBeNull();
   });
 });

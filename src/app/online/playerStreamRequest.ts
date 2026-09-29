@@ -1,3 +1,4 @@
+import type { PlayerCameraState } from '../local-player-view';
 import type { PlayerScreen } from './PlayerFrameRenderer';
 
 /** Frames larger than this are scaled down: encoding cost grows with the pixel count. */
@@ -6,11 +7,14 @@ const MAX_FRAME_HEIGHT = 1600;
 const MIN_FPS = 1;
 const MAX_FPS = 60;
 const DEFAULT_FPS = 30;
+/** Zoom limits, in CSS pixels per world pixel. */
+const MIN_ZOOM = 0.02;
+const MAX_ZOOM = 20;
 
 export const FRAME_QUALITIES = { low: 0.6, medium: 0.8, high: 0.92 } as const;
 export type FrameQuality = keyof typeof FRAME_QUALITIES;
 
-/** What one player's browser asks for, from the query of its event stream. */
+/** What a player's browser asks for, from the query of its event stream. */
 export interface PlayerStreamRequest {
   screen: PlayerScreen;
   fps: number;
@@ -31,21 +35,21 @@ export function parseStreamRequest(params: URLSearchParams): PlayerStreamRequest
   };
 }
 
-/**
- * One stream serves every player: the largest screen, the highest frame rate and
- * quality asked for. Each player then receives frames at its own rate.
- */
-export function combineStreamRequests(requests: readonly PlayerStreamRequest[]): PlayerStreamRequest | null {
-  if (requests.length === 0) return null;
-  const largest = requests.reduce((best, request) =>
-    request.screen.width * request.screen.height > best.screen.width * best.screen.height ? request : best);
-  const best = requests.reduce((top, request) =>
-    FRAME_QUALITIES[request.quality] > FRAME_QUALITIES[top] ? request.quality : top, requests[0]!.quality);
-  return {
-    screen: largest.screen,
-    fps: Math.max(...requests.map((request) => request.fps)),
-    quality: best,
-  };
+/** A camera a player moved to, or `recenter` to go back to the DM's framing. */
+export type CameraRequest = PlayerCameraState | 'recenter';
+
+/** Reads `{ centerX, centerY, scale }` or `{ recenter: true }` from a player's camera request. */
+export function parseCameraRequest(value: unknown): CameraRequest | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const body = value as Record<string, unknown>;
+  if (body.recenter === true) return 'recenter';
+  const { centerX, centerY, scale } = body;
+  if (!isFiniteNumber(centerX) || !isFiniteNumber(centerY) || !isFiniteNumber(scale) || scale <= 0) return null;
+  return { centerX, centerY, scale: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale)) };
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 
 function positiveInteger(value: string | null, fallback: number): number {
