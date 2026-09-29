@@ -1,5 +1,4 @@
 import type { App } from 'obsidian';
-import type { TokenEntity } from '../types';
 import type { TokenImage } from './OnlineSessionServer';
 
 const IMAGE_TYPES: Record<string, string> = {
@@ -13,12 +12,10 @@ const IMAGE_TYPES: Record<string, string> = {
 };
 
 /**
- * The artwork of `token` for players' pages, only when players may see the token:
- * a web image by its URL, a vault image by its bytes. Never any other vault file.
+ * The image at `path` for players' pages: a web image by its URL, a vault image by its
+ * bytes. The caller decides which paths players may load; only image files are read.
  */
-export async function tokenImage(app: App, token: TokenEntity | undefined): Promise<TokenImage | null> {
-  if (!token || token.isHidden || !token.imagePath) return null;
-  const path = token.imagePath;
+export async function tokenImage(app: App, path: string): Promise<TokenImage | null> {
   if (/^https?:/i.test(path)) return { url: path };
   const contentType = IMAGE_TYPES[path.split('.').pop()?.toLowerCase() ?? ''];
   if (!contentType || !(await app.vault.adapter.exists(path))) return null;

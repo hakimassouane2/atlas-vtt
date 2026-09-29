@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http';
 import type { FrameView } from './PlayerFrameRenderer';
-import { PLAYER_PAGE_HTML } from './playerPage';
+import { playerPageHtml } from './playerPage';
 import { parseStreamRequest, type PlayerStreamRequest } from './playerStreamRequest';
 
 /** Keeps idle connections open through routers and proxies that drop silent sockets. */
@@ -16,8 +16,21 @@ export interface OnlineSessionHandlers {
   onCamera(playerId: string, body: unknown): void;
   /** Applies a player's command (the parsed JSON body); returns whether it was accepted. */
   onCommand(body: unknown): boolean;
-  /** The portrait of a token players may see: its bytes, a URL to fetch it from, or null. */
-  onImage(tokenId: string): Promise<TokenImage | null>;
+  /** An image file players may see (token artwork): its bytes, a URL to fetch it from, or null. */
+  onImage(path: string): Promise<TokenImage | null>;
+  /** The DM's stylesheets and theme classes, so the page looks like Atlas does for the DM. */
+  pageTheme(): PageTheme;
+}
+
+export interface PageTheme {
+  css: string;
+  bodyClass: string;
+}
+
+/** The player page's script and own stylesheet (`src/app/online/client/`), built with the plugin. */
+export interface PlayerClient {
+  script: string;
+  styles: string;
 }
 
 export type TokenImage = { data: Uint8Array; contentType: string } | { url: string };
@@ -45,6 +58,7 @@ export class OnlineSessionServer {
   constructor(
     private readonly secret: string,
     private readonly handlers: OnlineSessionHandlers,
+    private readonly client: PlayerClient,
   ) {}
 
   get playerCount(): number {
@@ -115,7 +129,15 @@ export class OnlineSessionServer {
     }
     switch (url.pathname) {
       case '/':
-        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }).end(PLAYER_PAGE_HTML);
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' })
+          .end(playerPageHtml(this.secret, this.handlers.pageTheme().bodyClass));
+        return;
+      case '/client.js':
+        response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' }).end(this.client.script);
+        return;
+      case '/styles.css':
+        response.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'no-store' })
+          .end(`${this.handlers.pageTheme().css}\n${this.client.styles}`);
         return;
       case '/events':
         this.connect(request, response, parseStreamRequest(url.searchParams));
@@ -133,7 +155,7 @@ export class OnlineSessionServer {
         this.receive(request, response, (body) => this.handlers.onCommand(body));
         return;
       case '/image':
-        this.sendImage(response, url.searchParams.get('token') ?? '');
+        this.sendImage(response, url.searchParams.get('path') ?? '');
         return;
       default:
         response.writeHead(404).end();
@@ -155,8 +177,8 @@ export class OnlineSessionServer {
     request.on('close', () => this.disconnect(playerId));
   }
 
-  private sendImage(response: ServerResponse, tokenId: string): void {
-    this.handlers.onImage(tokenId).then((image) => {
+  private sendImage(response: ServerResponse, path: string): void {
+    this.handlers.onImage(path).then((image) => {
       if (!image) {
         response.writeHead(404).end();
       } else if ('url' in image) {

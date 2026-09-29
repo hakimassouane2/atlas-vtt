@@ -1,4 +1,5 @@
-import { Notice } from 'obsidian';
+import { Notice, type App } from 'obsidian';
+import playerClient from 'virtual:atlas-player-client';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AtlasView } from '../atlas-view';
 import type { PlayerFrameSource } from '../services/PlayerWindowService';
@@ -9,6 +10,8 @@ import { PlayerControls } from './PlayerControls';
 import { PlayerDiceFeed } from './PlayerDiceFeed';
 import { parseCameraRequest } from './playerStreamRequest';
 import { tokenImage } from './tokenImage';
+import { pageTheme } from './pageTheme';
+import { sceneImagePaths } from './playerScene';
 import { AssetService } from '../services/AssetService';
 import { mapConditions } from '../services/mapConditions';
 import type { Character } from '../types';
@@ -42,26 +45,35 @@ export class OnlineSession {
   private readonly diceFeed: PlayerDiceFeed;
   /** The view whose scene players see; its dice engine rolls for them. */
   private presentedView: AtlasView | null = null;
+  /** Image files players may load: the artwork they see in the scene and in dice rolls. */
+  private readonly visibleImages = new Set<string>();
   private stopWatchingTab: (() => void) | null = null;
   /** The presented scene tab; presenting another one recenters every player. */
   private presentedTabId: string | null = null;
   /** Views that already release the stream when they close. */
   private readonly viewsReleasingOnClose = new WeakSet<AtlasView>();
 
-  constructor(private readonly settingsService: SettingsService) {
+  constructor(private readonly app: App, private readonly settingsService: SettingsService) {
     this.stream = new OnlineFrameStream(settingsService, {
       isReady: (playerId) => this.server?.isReady(playerId) ?? false,
       send: (playerId, image, view, isDmCamera) => this.server?.sendFrame(playerId, image, view, isDmCamera),
     });
     this.controls = new PlayerControls(
       settingsService,
-      (state) => this.server?.share('state', state),
+      (state) => {
+        this.visibleImages.clear();
+        sceneImagePaths(state.scene).forEach((path) => this.visibleImages.add(path));
+        this.server?.share('state', state);
+      },
       (formula, token) => this.rollForPlayer(formula, token),
     );
     this.diceFeed = new PlayerDiceFeed(
       settingsService,
       () => this.presentedView?.atlasStore.getState().objects.tokens,
-      (roll) => this.server?.broadcast('roll', roll),
+      (roll) => {
+        if (roll.source?.tokenImagePath) this.visibleImages.add(roll.source.tokenImagePath);
+        this.server?.broadcast('roll', roll);
+      },
     );
     OnlineSession.instance = this;
   }
@@ -196,11 +208,9 @@ export class OnlineSession {
         if (camera) this.stream.setViewerCamera(playerId, camera === 'recenter' ? null : camera);
       },
       onCommand: (body) => this.controls.apply(body),
-      onImage: (tokenId) => {
-        const view = this.presentedView;
-        return view ? tokenImage(view.app, view.atlasStore.getState().objects.tokens[tokenId]) : Promise.resolve(null);
-      },
-    });
+      onImage: (path) => (this.visibleImages.has(path) ? tokenImage(this.app, path) : Promise.resolve(null)),
+      pageTheme: () => pageTheme(document),
+    }, playerClient);
     server.share('mode', { isFollowingDm: onlineSessionStore.getState().isFollowingDm });
     try {
       await server.listen(settings.port);

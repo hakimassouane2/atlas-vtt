@@ -15,6 +15,7 @@ export default defineConfig({
       '@': '/src',
       src: '/src',
       obsidian: '/tests/mocks/obsidian.ts',
+      'virtual:atlas-player-client': '/tests/mocks/playerClient.ts',
     },
   },
 }); 

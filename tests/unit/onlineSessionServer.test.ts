@@ -49,10 +49,12 @@ describe('OnlineSessionServer', () => {
       onLeave: vi.fn(),
       onCamera: vi.fn(),
       onCommand: vi.fn((body: unknown) => (body as { ok?: boolean }).ok === true),
+      onImage: vi.fn((path: string) => Promise.resolve(path === 'hero.png' ? { data: new Uint8Array([7]), contentType: 'image/png' } : null)),
+      pageTheme: vi.fn(() => ({ css: 'body { color: red; }', bodyClass: 'theme-dark atlas-player-window' })),
     };
     port++;
     base = `http://127.0.0.1:${port}`;
-    server = new OnlineSessionServer('secret', handlers as unknown as OnlineSessionHandlers);
+    server = new OnlineSessionServer('secret', handlers as unknown as OnlineSessionHandlers, { script: 'start();', styles: '#party {}' });
     await server.listen(port);
   });
 
@@ -66,10 +68,19 @@ describe('OnlineSessionServer', () => {
     expect((await fetch(`${base}/events?k=wrong`)).status).toBe(403);
   });
 
-  test('serves the player page with the key', async () => {
-    const response = await fetch(`${base}/?k=secret`);
-    expect(response.status).toBe(200);
-    expect(await response.text()).toContain('EventSource');
+  test('serves the player page, its script and the DM theme with the key', async () => {
+    const page = await (await fetch(`${base}/?k=secret`)).text();
+    expect(page).toContain('<body class="theme-dark atlas-player-window">');
+    expect(page).toContain('/client.js?k=secret');
+    expect(await (await fetch(`${base}/client.js?k=secret`)).text()).toBe('start();');
+    expect(await (await fetch(`${base}/styles.css?k=secret`)).text()).toBe('body { color: red; }\n#party {}');
+  });
+
+  test('serves only the images the session allows', async () => {
+    const image = await fetch(`${base}/image?k=secret&path=hero.png`);
+    expect(image.headers.get('content-type')).toBe('image/png');
+    expect([...new Uint8Array(await image.arrayBuffer())]).toEqual([7]);
+    expect((await fetch(`${base}/image?k=secret&path=secret-notes.md`)).status).toBe(404);
   });
 
   test('greets a player with their id and reports what they ask for', async () => {

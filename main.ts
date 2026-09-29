@@ -88,7 +88,7 @@ export default class AtlasVTTPlugin extends Plugin {
 
     this.globalAssetManager = new GlobalAssetManagerService(this.app);
     this.imageDisplayService = new ImageDisplayService(this.app);
-    const onlineSession = new OnlineSession(this.settingsService);
+    const onlineSession = new OnlineSession(this.app, this.settingsService);
     this.addCommand({ id: 'online-session-start', name: 'Start online session and copy the player link', callback: () => void onlineSession.startAndCopyLink() });
     this.addCommand({ id: 'online-session-stop', name: 'Stop online session', callback: () => onlineSession.stop() });
     this.addCommand({ id: 'online-session-follow', name: 'Toggle online players following your camera', callback: () => onlineSession.toggleFollowingDm() });
