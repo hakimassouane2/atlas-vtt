@@ -70,8 +70,8 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
    déplacer, changer ses PV (et sa ressource secondaire, "Stress") et ses conditions.
 5. Le joueur colle le lien dans son navigateur :
    - clic gauche sur son token et glisser pour le déplacer (anneau bleu à l'arrivée, snap à la
-     grille comme un drag du MJ) ; clic gauche dans le vide et glisser pour déplacer la carte,
-     molette pour zoomer, ⌖ pour revenir au cadrage du MJ ;
+     grille comme un drag du MJ) ; clic droit et glisser pour déplacer la carte, molette pour
+     zoomer, ⌖ pour revenir au cadrage du MJ ;
    - panneau en bas à gauche : PV, ressource secondaire et conditions de ses personnages ;
    - en bas à droite, les dés : d4 à d100 et formule libre ("Lancer pour" choisit le personnage) ;
    - ⚙ en haut à gauche : images par seconde et qualité (retenues dans son navigateur).

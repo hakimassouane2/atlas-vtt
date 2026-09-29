@@ -83,14 +83,17 @@ export function settleLandings(): void {
   }
 }
 
+const LEFT_BUTTON = 0;
+const RIGHT_BUTTON = 2;
+
 function pointerDown(event: PointerEvent): void {
   const camera = playerCamera.current;
-  if (!camera || event.button !== 0) return;
-  const token = tokenAt(event.clientX, event.clientY, camera);
+  if (!camera) return;
+  const token = event.button === LEFT_BUTTON ? tokenAt(event.clientX, event.clientY, camera) : undefined;
   if (token) {
     const point = playerCamera.toWorld(event.clientX, event.clientY, camera);
     drag = { id: token.id, offset: { x: token.x - point.x, y: token.y - point.y }, to: { x: token.x, y: token.y } };
-  } else if (!playerCamera.isFollowingDm) {
+  } else if (event.button === RIGHT_BUTTON && !playerCamera.isFollowingDm) {
     pan = { from: { x: event.clientX, y: event.clientY }, camera: { ...camera } };
     overlay().classList.add('is-panning');
   } else {
@@ -151,10 +154,10 @@ function wheel(event: WheelEvent): void {
   });
 }
 
-/** The left button drags the player's tokens and pans the map; the wheel zooms. */
+/** The left button drags the player's tokens, the right button pans the map, the wheel zooms. */
 export function installMapInput(): void {
   const canvas = overlay();
-  // The map is a picture: no browser "save image" menu on it
+  // The right button pans: no browser "save image" menu on the map
   canvas.addEventListener('contextmenu', (event) => event.preventDefault());
   canvas.addEventListener('pointerdown', pointerDown);
   canvas.addEventListener('pointermove', pointerMove);
