@@ -45,10 +45,12 @@ ce sont les seuls fichiers d'origine qu'on a modifiés, donc les seuls où un co
 
 ## Installer le build dans le vault
 
-Le vault de jeu est `C:\Users\PC\Documents\obsidian-jdr`.
+Le vault de jeu est `C:\Users\PC\Documents\obsidian-jdr` sur le PC,
+`/Users/hakim/Documents/obsidian-jdr` sur le Mac.
 
 ```
-ATLAS_DEV_VAULTS="C:\Users\PC\Documents\obsidian-jdr" npm run build
+ATLAS_DEV_VAULTS="C:\Users\PC\Documents\obsidian-jdr" npm run build      # PC
+ATLAS_DEV_VAULTS="/Users/hakim/Documents/obsidian-jdr" npm run build     # Mac
 ```
 
 Puis désactiver et réactiver Atlas dans Obsidian (ou redémarrer Obsidian).
