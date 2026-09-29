@@ -76,7 +76,8 @@ export class DiceTool {
     
     // Parse dice formula (e.g., "2d6+3", "1d20-2", "3d8")
     const diceRegex = /(\d+)?d(\d+)/gi;
-    const modifierRegex = /([+-]\s*\d+)/g;
+    // A number followed by `d` is a dice count (the 1 of +1d8), not a modifier
+    const modifierRegex = /([+-]\s*\d+)(?![\dd])/gi;
     
     // Extract and roll dice
     let match;
