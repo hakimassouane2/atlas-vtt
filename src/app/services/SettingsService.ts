@@ -49,6 +49,17 @@ export interface AtlasSettings {
     showDiceRolls: boolean;
     showCommandPalette: boolean;
   };
+  /** Players joining over the network (`src/app/online/`). */
+  onlineSession: OnlineSessionSettings;
+}
+
+export interface OnlineSessionSettings {
+  /** TCP port the player server listens on; forward it on the router. */
+  port: number;
+  /** Address players use to reach this computer (public IP or domain); empty uses localhost. */
+  publicHost: string;
+  /** Key in the player link; generated on the first start. */
+  secret: string;
 }
 
 const DEFAULT_SETTINGS: AtlasSettings = {
@@ -75,6 +86,7 @@ const DEFAULT_SETTINGS: AtlasSettings = {
     showDiceRolls: false,
     showCommandPalette: false // Hide command palette
   },
+  onlineSession: { port: 30002, publicHost: '', secret: '' },
 };
 
 type SettingsListener = (settings: AtlasSettings) => void;
@@ -308,6 +320,15 @@ export class SettingsService {
 
   setLocalPlayerViewSettings(settings: Partial<AtlasSettings['localPlayerView']>): void {
     this.settings.localPlayerView = { ...this.settings.localPlayerView, ...settings };
+    this.commit();
+  }
+
+  getOnlineSessionSettings(): OnlineSessionSettings {
+    return { ...this.settings.onlineSession };
+  }
+
+  setOnlineSessionSettings(settings: Partial<OnlineSessionSettings>): void {
+    this.settings.onlineSession = { ...this.settings.onlineSession, ...settings };
     this.commit();
   }
 

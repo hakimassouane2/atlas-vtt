@@ -36,6 +36,8 @@ import { ChangelogService } from './src/app/changelog/ChangelogService';
 import { AtlasErrorLog } from './src/app/support/errorLog';
 import { IssueReporter } from './src/app/support/IssueReporter';
 import { runInBackground } from './src/app/utils/backgroundTask';
+import { OnlineSession } from './src/app/online/OnlineSession';
+import { onlineSessionSettingsSection } from './src/app/online/onlineSessionSettingsSection';
 
 declare const __ATLAS_RELEASE_BUILD__: boolean;
 
@@ -86,9 +88,13 @@ export default class AtlasVTTPlugin extends Plugin {
 
     this.globalAssetManager = new GlobalAssetManagerService(this.app);
     this.imageDisplayService = new ImageDisplayService(this.app);
+    const onlineSession = new OnlineSession(this.settingsService);
+    this.addCommand({ id: 'online-session-start', name: 'Start online session and copy the player link', callback: () => void onlineSession.startAndCopyLink() });
+    this.addCommand({ id: 'online-session-stop', name: 'Stop online session', callback: () => onlineSession.stop() });
 
     this.addSettingTab(new AtlasSettingTab(this.app, this, () => [
       navigationSettingsSection(this.settingsService),
+      onlineSessionSettingsSection(this.settingsService),
       hotkeySettingsSection(this.settingsService),
       onboardingSettingsSection(this.settingsService),
       changelogSettingsSection(this.settingsService, changelogService, this.manifest.version),
@@ -122,6 +128,7 @@ export default class AtlasVTTPlugin extends Plugin {
     PlayerLootDisplay.get().dispose();
     LootHistoryStore.flush(this.app);
     PlayerWindowService.getInstance()?.destroy(false);
+    OnlineSession.getInstance()?.stop();
     this.globalAssetManager?.close();
     CreatureIndex.release(this.app);
   }

@@ -7,6 +7,7 @@ import { playerWindowStore } from '../stores/playerWindowStore';
 import type { SceneTab } from '../types/sceneTabTypes';
 import { PlayerWindowService, type PlayerFrameSource } from './PlayerWindowService';
 import { getRenderedFrames } from '../pixi/RenderScheduler';
+import { OnlineSession } from '../online/OnlineSession';
 
 /** Unsubscribes the tab watcher of the view whose tab is currently presented. */
 let stopWatchingPresentedTab: (() => void) | null = null;
@@ -40,6 +41,16 @@ export async function presentTabInPlayerWindow(app: App, view: AtlasView, tabId:
   if (!source) {
     new Notice('No map canvas found. Please ensure a map is loaded.');
     return;
+  }
+
+  // Online players follow the presented scene; the local window is then optional.
+  const onlineSession = OnlineSession.getInstance();
+  if (onlineSession?.isRunning()) {
+    onlineSession.present(view, tabId, source, () => waitForRenderedFrameSource(view));
+    if (!PlayerWindowService.getInstance()?.isWindowOpen()) {
+      new Notice(`Online players see ${tab.displayName}`);
+      return;
+    }
   }
 
   const service =

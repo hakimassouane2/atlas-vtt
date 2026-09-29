@@ -753,6 +753,14 @@ export class PixiRendererOrchestrator { // Renamed class
   public withPlayerSafeFrame(capture: () => void, settings: AtlasSettings['localPlayerView'], camera?: PlayerCameraState): void {
     const app = this.pixiAppManager.getApp();
     if (!app?.renderer) return;
+    const layers = this.getPlayerViewLayers(settings);
+    const viewport = this.pixiAppManager.getViewport();
+    const playerCamera = camera && viewport ? { target: viewport, camera } : undefined;
+    captureWithLayerVisibility(layers, () => app.renderer.render(app.stage), capture, playerCamera);
+  }
+
+  /** How every layer must look in a frame shown to players. */
+  public getPlayerViewLayers(settings: AtlasSettings['localPlayerView']): LayerVisibility[] {
     const layers: LayerVisibility[] = [];
     if (this.pinRenderer) layers.push({ layer: this.pinRenderer.getPinContainer(), visible: false });
     if (this.hexLinkRenderer) layers.push({ layer: this.hexLinkRenderer.container, visible: false });
@@ -762,9 +770,7 @@ export class PixiRendererOrchestrator { // Renamed class
     layers.push(...(this.fogRenderer?.getPlayerViewLayers() ?? []));
     layers.push(...(this.selectionManager?.getPlayerViewLayers() ?? []));
     for (const overlay of this.dmScreenOverlays) layers.push({ layer: overlay, visible: false });
-    const viewport = this.pixiAppManager.getViewport();
-    const playerCamera = camera && viewport ? { target: viewport, camera } : undefined;
-    captureWithLayerVisibility(layers, () => app.renderer.render(app.stage), capture, playerCamera);
+    return layers;
   }
 
   getViewportInstance(): Viewport | null { return this.pixiAppManager.getViewport(); }

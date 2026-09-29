@@ -14,8 +14,11 @@ import {
   FileText,
   Play,
   Sparkles,
+  Globe,
 } from 'lucide-react';
+import { useStore } from 'zustand';
 import { runInBackground } from './utils/backgroundTask';
+import { OnlineSession, onlineSessionStore } from './online/OnlineSession';
 
 export const DASHBOARD_VIEW_TYPE = "atlas-vtt-dashboard";
 
@@ -123,11 +126,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const heroScene = recentScenes[0] ?? null;
+  const online = useStore(onlineSessionStore);
+  const onlineDesc = online.isRunning
+    ? `${online.playerCount} player${online.playerCount === 1 ? '' : 's'} connected · copy link`
+    : 'Start & copy the player link';
 
   const actionTiles = [
     { key: 'create', icon: Plus, title: 'Create Scene', desc: 'Browse maps & build a scene', onClick: onCreateMap },
     { key: 'assets', icon: FolderOpen, title: 'Asset Manager', desc: 'Your scenes & assets', onClick: onOpenAssetManager },
-  ] as const;
+    { key: 'online', icon: Globe, title: 'Online Session', desc: onlineDesc, onClick: () => void OnlineSession.getInstance()?.startAndCopyLink() },
+  ];
 
   return (
     <div className="atlas-dashboard">
