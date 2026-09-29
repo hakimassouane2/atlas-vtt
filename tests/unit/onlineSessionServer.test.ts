@@ -26,13 +26,15 @@ function readEvents(query: string, until: string): Promise<string> {
 describe('OnlineSessionServer', () => {
   let server: OnlineSessionServer;
   const onRequestChange = vi.fn();
+  const onCommand = vi.fn((command: unknown) => (command as { ok?: boolean }).ok === true);
 
   beforeEach(async () => {
     vi.stubGlobal('window', globalThis);
     onRequestChange.mockClear();
+    onCommand.mockClear();
     port++;
     base = `http://127.0.0.1:${port}`;
-    server = new OnlineSessionServer('secret', onRequestChange);
+    server = new OnlineSessionServer('secret', onRequestChange, onCommand);
     await server.listen(port);
   });
 
@@ -52,14 +54,29 @@ describe('OnlineSessionServer', () => {
     expect(await response.text()).toContain('EventSource');
   });
 
-  test('sends the latest frame to a player as soon as it connects', async () => {
-    server.publishFrame(new Uint8Array([1, 2, 3]));
+  test('sends the latest frame and its view to a player as soon as it connects', async () => {
+    const view = { centerX: 1, centerY: 2, scale: 3, width: 800, height: 600 };
+    server.publishFrame(new Uint8Array([1, 2, 3]), view);
     const body = await readEvents('w=800&h=600', 'data: AQID');
-    expect(body).toContain('event: frame');
+    expect(body).toContain(`event: frame\ndata: ${JSON.stringify(view)}\ndata: AQID`);
+  });
+
+  test('sends the latest state to a player as soon as it connects', async () => {
+    server.publishState({ tokens: [] });
+    expect(await readEvents('', 'event: state')).toContain('data: {"tokens":[]}');
+  });
+
+  test('passes player commands on and reports whether they were applied', async () => {
+    const accepted = await fetch(`${base}/command?k=secret`, { method: 'POST', body: '{"ok":true}' });
+    expect(accepted.status).toBe(204);
+    expect(onCommand).toHaveBeenCalledWith({ ok: true });
+    expect((await fetch(`${base}/command?k=secret`, { method: 'POST', body: '{}' })).status).toBe(409);
+    expect((await fetch(`${base}/command?k=secret`, { method: 'POST', body: 'not json' })).status).toBe(409);
+    expect((await fetch(`${base}/command?k=wrong`, { method: 'POST', body: '{"ok":true}' })).status).toBe(403);
   });
 
   test('reports what connected players ask for', async () => {
-    server.publishFrame(new Uint8Array([1]));
+    server.publishFrame(new Uint8Array([1]), { centerX: 0, centerY: 0, scale: 1, width: 800, height: 600 });
     await readEvents('w=800&h=600&cw=400&fps=10&q=low', 'event: frame');
     expect(onRequestChange).toHaveBeenCalledWith(
       { screen: { width: 800, height: 600, cssWidth: 400 }, fps: 10, quality: 'low' }, 1,

@@ -12,6 +12,23 @@ export interface PlayerScreen {
 }
 
 /**
+ * Where a frame looks: the world point at its centre, device pixels per world
+ * pixel, and its size. Players' pages turn pointer positions into world positions with it.
+ */
+export interface FrameView {
+  centerX: number;
+  centerY: number;
+  scale: number;
+  width: number;
+  height: number;
+}
+
+export interface PlayerFrame {
+  canvas: HTMLCanvasElement;
+  view: FrameView;
+}
+
+/**
  * Renders the presented scene for players at the size of their screen, so the map
  * fills their browser at full sharpness whatever the size of the DM's view.
  * The DM canvas is rendered again right after, before the browser composites.
@@ -24,7 +41,7 @@ export class PlayerFrameRenderer {
     settings: AtlasSettings['localPlayerView'],
     camera: PlayerCameraState,
     screen: PlayerScreen,
-  ): HTMLCanvasElement | null {
+  ): PlayerFrame | null {
     const app = renderer.getAppInstance();
     const viewport = renderer.getViewportInstance();
     if (!app?.renderer || !viewport) return null;
@@ -34,7 +51,7 @@ export class PlayerFrameRenderer {
     const target = { screenWidth: screen.width, screenHeight: screen.height, position: viewport.position, scale: viewport.scale };
     const frameCamera = { ...camera, scale: camera.scale * (screen.width / screen.cssWidth) };
     let renderTarget: RenderTexture | null = texture;
-    let frame: HTMLCanvasElement | null = null;
+    let canvas: HTMLCanvasElement | null = null;
     captureWithLayerVisibility(
       renderer.getPlayerViewLayers(settings),
       () => {
@@ -46,12 +63,13 @@ export class PlayerFrameRenderer {
         }
       },
       () => {
-        frame = app.renderer.extract.canvas(texture) as HTMLCanvasElement;
+        canvas = app.renderer.extract.canvas(texture) as HTMLCanvasElement;
         renderTarget = null;
       },
       { target, camera: frameCamera },
     );
-    return frame;
+    if (!canvas) return null;
+    return { canvas, view: { ...frameCamera, width: screen.width, height: screen.height } };
   }
 
   destroy(): void {

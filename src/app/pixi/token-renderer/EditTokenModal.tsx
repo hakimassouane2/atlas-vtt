@@ -20,11 +20,14 @@ interface EditTokenValues {
   maxStress: number | undefined;
   visionInnerRadius: number | undefined;
   visionOuterRadius: number | undefined;
+  /** Players in an online session may move the token and change its resources. */
+  playerLinked: boolean;
 }
 
 interface EditTokenModalProps {
   initial: EditTokenValues;
-  playerLinked: boolean;
+  /** Only characters can belong to a player. */
+  isCharacter: boolean;
   resourceDefaults: ResourceDefaults;
   unitLabel: string;
   onSave: (values: EditTokenValues) => void;
@@ -36,9 +39,25 @@ const numberInput = (value: number | undefined): string => (value === undefined 
 const defaultPlaceholder = (value: number | undefined): string =>
   value === undefined ? 'None' : `Statblock default: ${value}`;
 
-function EditTokenModalInner({ initial, playerLinked, resourceDefaults, unitLabel, onSave, onClose }: EditTokenModalProps): React.ReactElement {
+function ToggleField({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }): React.ReactElement {
+  return (
+    <div className="atlas-edit-token__field atlas-edit-token__field--row">
+      <label className="atlas-edit-token__label">{label}</label>
+      <div className="atlas-toggle" onClick={() => onChange(!value)}>
+        <div className={`atlas-toggle__switch atlas-toggle__switch--${value ? 'on' : 'off'}`}>
+          <div className={`atlas-toggle__thumb atlas-toggle__thumb--${value ? 'on' : 'off'}`}>
+            {value ? <Check className="atlas-toggle__icon" /> : <X className="atlas-toggle__icon" />}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditTokenModalInner({ initial, isCharacter, resourceDefaults, unitLabel, onSave, onClose }: EditTokenModalProps): React.ReactElement {
   const [name, setName] = useState(initial.name);
   const [showNameplate, setShowNameplate] = useState(initial.showNameplate);
+  const [playerLinked, setPlayerLinked] = useState(initial.playerLinked);
   const [maxHpInput, setMaxHpInput] = useState(numberInput(initial.maxHp));
   const [maxStressInput, setMaxStressInput] = useState(numberInput(initial.maxStress));
   const [visionInnerInput, setVisionInnerInput] = useState(numberInput(initial.visionInnerRadius));
@@ -60,6 +79,7 @@ function EditTokenModalInner({ initial, playerLinked, resourceDefaults, unitLabe
       maxStress: parseNumberInput(maxStressInput),
       visionInnerRadius: parseNumberInput(visionInnerInput),
       visionOuterRadius: parseNumberInput(visionOuterInput),
+      playerLinked,
     });
   };
 
@@ -101,16 +121,8 @@ function EditTokenModalInner({ initial, playerLinked, resourceDefaults, unitLabe
             />
           </div>
 
-          <div className="atlas-edit-token__field atlas-edit-token__field--row">
-            <label className="atlas-edit-token__label">Show Nameplate</label>
-            <div className="atlas-toggle" onClick={() => setShowNameplate(!showNameplate)}>
-              <div className={`atlas-toggle__switch atlas-toggle__switch--${showNameplate ? 'on' : 'off'}`}>
-                <div className={`atlas-toggle__thumb atlas-toggle__thumb--${showNameplate ? 'on' : 'off'}`}>
-                  {showNameplate ? <Check className="atlas-toggle__icon" /> : <X className="atlas-toggle__icon" />}
-                </div>
-              </div>
-            </div>
-          </div>
+          <ToggleField label="Show Nameplate" value={showNameplate} onChange={setShowNameplate} />
+          {isCharacter && <ToggleField label="Controlled by Players" value={playerLinked} onChange={setPlayerLinked} />}
 
           <div className="atlas-edit-token__section-divider" />
           <div className="atlas-edit-token__section-label">Resources</div>
@@ -181,12 +193,13 @@ export function openEditTokenModal(token: TokenEntity, store: StoreApi<ViewAtlas
     container.remove();
   };
 
-  const handleSave = ({ name, showNameplate, maxHp, maxStress, visionInnerRadius, visionOuterRadius }: EditTokenValues): void => {
+  const handleSave = ({ name, showNameplate, maxHp, maxStress, visionInnerRadius, visionOuterRadius, playerLinked }: EditTokenValues): void => {
     store.getState().updateToken(token.id, {
       name,
       showNameplate,
       visionInnerRadius,
       visionOuterRadius,
+      ...(character && { playerLinked }),
       ...buildResourceUpdates(character ?? {}, { maxHp, maxStress }, resourceDefaults),
     });
     cleanup();
@@ -203,8 +216,9 @@ export function openEditTokenModal(token: TokenEntity, store: StoreApi<ViewAtlas
         maxStress: typeof character?.stress === 'object' ? character.stress.max : character?.maxStress,
         visionInnerRadius: token.visionInnerRadius,
         visionOuterRadius: token.visionOuterRadius,
+        playerLinked: character?.playerLinked ?? false,
       }}
-      playerLinked={character?.playerLinked ?? false}
+      isCharacter={character !== undefined}
       resourceDefaults={resourceDefaults}
       unitLabel={unitLabel}
       onSave={handleSave}

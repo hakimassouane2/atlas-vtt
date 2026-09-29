@@ -66,9 +66,13 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
    Commandes équivalentes : "Start online session and copy the player link", "Stop online session".
 3. Dans la scène : **Présenter** ("Send to player view"). Les joueurs en ligne voient la scène ;
    la popout locale n'est plus nécessaire.
-4. Le joueur colle le lien dans son navigateur. La roue en haut à droite règle ses images par
-   seconde et la qualité (retenues dans son navigateur).
-5. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
+4. Edit Token d'un personnage : activer **Controlled by Players** pour que les joueurs puissent le
+   déplacer et changer ses PV (et sa ressource secondaire, "Stress").
+5. Le joueur colle le lien dans son navigateur. Il fait glisser son token (un anneau bleu montre
+   où il va atterrir, snap à la grille comme un drag du MJ) et change ses PV dans le panneau en bas
+   à gauche. La roue en haut à droite règle ses images par seconde et la qualité (retenues dans son
+   navigateur).
+6. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
 
 ### Fonctionnement
 
@@ -86,8 +90,16 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 - `PlayerFrameRenderer` rend la scène dans une `RenderTexture` à la taille exacte de l'écran du
   joueur (plein écran et net), avec le centre et le zoom de la caméra du MJ, puis rend à nouveau
   le canvas MJ dans la même tâche (le MJ ne voit jamais la frame joueur).
-- Quand le MJ passe sur un autre onglet de scène, les joueurs gardent la dernière image ;
-  quand il revient, le direct reprend. Sans joueur connecté, rien n'est rendu.
+- Chaque image arrive avec la caméra qui l'a rendue (`FrameView`) : la page joueur convertit
+  elle-même ses clics en coordonnées de la carte, sans aller-retour.
+- `PlayerControls` publie dans le flux SSE (`state`) les tokens que les joueurs contrôlent
+  (`playerTokens.ts` : personnages `playerLinked`, non cachés) et applique leurs commandes
+  (`POST /command`, `playerCommands.ts` : `move` snappé avec `snapToCellCenter`, `resource`
+  borné entre 0 et le max via `resourceUpdates`). Les commandes passent par les actions normales
+  du store : sauvegarde automatique, et le MJ peut annuler un déplacement de joueur avec Ctrl+Z.
+- Quand le MJ passe sur un autre onglet de scène, les joueurs gardent la dernière image et leurs
+  commandes sont refusées (le store de la vue contient alors l'autre scène) ; quand il revient,
+  le direct reprend. Sans joueur connecté, rien n'est rendu.
 
 ### Fichiers ajoutés
 
@@ -96,9 +108,13 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 - `src/app/online/OnlineFrameStream.ts` : quand rendre et encoder une frame.
 - `src/app/online/PlayerFrameRenderer.ts` : rendu à la taille de l'écran joueur.
 - `src/app/online/playerStreamRequest.ts` : ce que demande chaque joueur, et leur combinaison.
-- `src/app/online/playerPage.ts` : la page joueur.
+- `src/app/online/PlayerControls.ts` : état des tokens joueurs et commandes, seulement en direct.
+- `src/app/online/playerTokens.ts` : quels tokens les joueurs contrôlent, et ce qu'ils en voient.
+- `src/app/online/playerCommands.ts` : validation et application des commandes joueur.
+- `src/app/online/playerPage.ts` : la page joueur (image, drag, panneau PV, réglages).
 - `src/app/online/onlineSessionSettingsSection.ts` : la section de réglages.
-- `tests/unit/onlineSessionServer.test.ts`, `tests/unit/playerStreamRequest.test.ts`.
+- `tests/unit/onlineSessionServer.test.ts`, `tests/unit/playerStreamRequest.test.ts`,
+  `tests/unit/playerCommands.test.ts`.
 
 ### Points de contact dans le code d'origine
 
@@ -114,12 +130,13 @@ dev d'origine peut entrer en conflit.
 - `src/app/dashboard-view.tsx` : tuile "Online Session".
 - `src/app/PixiRendererOrchestrator.ts` : la liste des couches de la vue joueur est sortie de
   `withPlayerSafeFrame` dans la méthode publique `getPlayerViewLayers` (même comportement).
+- `src/app/pixi/token-renderer/EditTokenModal.tsx` : interrupteur "Controlled by Players"
+  (champ `playerLinked` existant, personnages seulement). L'interrupteur "Show Nameplate" et
+  celui-ci partagent un petit composant local `ToggleField`.
 
 ### Suite prévue
 
-1. Les joueurs déplacent leur token (clic sur le token puis sur la destination, snap à la grille)
-   et modifient leurs PV. Tokens contrôlables : personnages avec `playerLinked`, case à ajouter
-   dans Edit Token. Écritures en `runUntracked` pour ne pas remplir le Ctrl+Z du MJ.
+1. ~~Les joueurs déplacent leur token et modifient leurs PV.~~ Fait.
 2. Gel de la caméra joueur valable aussi pour les joueurs en ligne (aujourd'hui ils suivent la
    caméra du MJ).
 3. Plus tard : initiative, widgets, dés, conditions côté joueur.
@@ -127,6 +144,10 @@ dev d'origine peut entrer en conflit.
 ### Limites connues
 
 - Les joueurs voient avec la caméra du MJ (centre et zoom) ; ils ne peuvent pas se déplacer seuls.
+- `playerLinked` sert aussi ailleurs dans Atlas : un token contrôlé par les joueurs compte comme
+  PJ (et non PNJ) dans l'initiative.
+- Tout joueur qui a le lien peut déplacer tous les tokens "Controlled by Players" (un seul lien
+  pour la table, pas de lien par joueur).
 - Lien en `http` (pas de chiffrement) : suffisant entre amis, la clé du lien protège l'accès.
 - Les 3 tests en échec de la suite d'origine (`playerWindowPresenter`, `worktreeTargets`)
   échouent déjà sur l'original sous Windows.

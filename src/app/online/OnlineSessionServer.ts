@@ -1,9 +1,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http';
+import type { FrameView } from './PlayerFrameRenderer';
 import { PLAYER_PAGE_HTML } from './playerPage';
 import { combineStreamRequests, parseStreamRequest, type PlayerStreamRequest } from './playerStreamRequest';
 
 /** Keeps idle connections open through routers and proxies that drop silent sockets. */
 const HEARTBEAT_MS = 20_000;
+/** Commands are tiny JSON objects; anything larger is not from the player page. */
+const MAX_COMMAND_BYTES = 4096;
 
 interface PlayerClient {
   response: ServerResponse;
@@ -18,22 +21,27 @@ interface PlayerClient {
 }
 
 /**
- * HTTP server players reach with their link. It serves the player page and pushes
- * frames (JPEG, base64) over Server-Sent Events (`/events`), each player at its
- * own frame rate and never faster than its connection takes them. Every request
- * must carry the session key.
+ * HTTP server players reach with their link. It serves the player page, pushes
+ * frames over Server-Sent Events (`/events`), each player at its own frame rate and
+ * never faster than its connection takes them, along with the state of the tokens
+ * players control, and takes their commands (`POST /command`). Every request must
+ * carry the session key.
  */
 export class OnlineSessionServer {
   private server: Server | null = null;
   private readonly clients = new Set<PlayerClient>();
+  /** The latest frame event: its view as JSON, then the JPEG in base64. */
   private frame: string | null = null;
   private frameNumber = 0;
+  private state: string | null = null;
   private heartbeat: number | null = null;
 
   constructor(
     private readonly secret: string,
     /** Called with what connected players ask for, or null when nobody is connected. */
     private readonly onRequestChange: (request: PlayerStreamRequest | null, playerCount: number) => void,
+    /** Applies a player's command (the parsed JSON body); returns whether it was accepted. */
+    private readonly onCommand: (command: unknown) => boolean,
   ) {}
 
   /** Resolves once the port is open; rejects when it is taken or unavailable. */
@@ -59,13 +67,21 @@ export class OnlineSessionServer {
     this.server?.closeAllConnections();
     this.server = null;
     this.frame = null;
+    this.state = null;
   }
 
-  /** Makes `image` (JPEG) the frame players see and sends it to each player when due. */
-  publishFrame(image: Uint8Array): void {
-    this.frame = Buffer.from(image).toString('base64');
+  /** Makes `image` (JPEG), seen through `view`, the frame players see and sends it to each player when due. */
+  publishFrame(image: Uint8Array, view: FrameView): void {
+    this.frame = sseEvent('frame', `${JSON.stringify(view)}\ndata: ${Buffer.from(image).toString('base64')}`);
     this.frameNumber++;
     this.clients.forEach((client) => this.sendLatestFrame(client));
+  }
+
+  /** Sends `state` (the tokens players control) to every player, now and when they connect. */
+  publishState(state: unknown): void {
+    const message = sseEvent('state', JSON.stringify(state));
+    this.state = message;
+    this.clients.forEach((client) => client.response.write(message));
   }
 
   private sendLatestFrame(client: PlayerClient): void {
@@ -80,7 +96,7 @@ export class OnlineSessionServer {
     }
     client.sentFrame = this.frameNumber;
     client.lastSentAt = Date.now();
-    const flushed = client.response.write(`event: frame\ndata: ${this.frame}\n\n`);
+    const flushed = client.response.write(this.frame);
     if (!flushed) {
       client.isBlocked = true;
       client.response.once('drain', () => {
@@ -103,6 +119,9 @@ export class OnlineSessionServer {
       case '/events':
         this.connect(request, response, parseStreamRequest(url.searchParams));
         return;
+      case '/command':
+        this.receiveCommand(request, response);
+        return;
       default:
         response.writeHead(404).end();
     }
@@ -115,12 +134,35 @@ export class OnlineSessionServer {
       Connection: 'keep-alive',
     });
     response.write('retry: 2000\n\n');
+    if (this.state) response.write(this.state);
     const client: PlayerClient = { response, request: streamRequest, sentFrame: 0, lastSentAt: 0, isBlocked: false, timer: null };
     this.clients.add(client);
     this.notifyRequestChange();
     // Show the scene at once, even when the DM is elsewhere and no new frame comes
     this.sendLatestFrame(client);
     request.on('close', () => this.disconnect(client));
+  }
+
+  private receiveCommand(request: IncomingMessage, response: ServerResponse): void {
+    if (request.method !== 'POST') {
+      response.writeHead(405).end();
+      return;
+    }
+    let body = '';
+    request.setEncoding('utf8');
+    request.on('data', (chunk: string) => {
+      body += chunk;
+      if (body.length > MAX_COMMAND_BYTES) request.destroy();
+    });
+    request.on('end', () => {
+      let accepted = false;
+      try {
+        accepted = this.onCommand(JSON.parse(body));
+      } catch (error) {
+        console.error('[OnlineSessionServer] Could not apply a player command:', error);
+      }
+      response.writeHead(accepted ? 204 : 409).end();
+    });
   }
 
   private disconnect(client: PlayerClient): void {
@@ -134,4 +176,8 @@ export class OnlineSessionServer {
     const requests = [...this.clients].map((client) => client.request);
     this.onRequestChange(combineStreamRequests(requests), requests.length);
   }
+}
+
+function sseEvent(name: string, data: string): string {
+  return `event: ${name}\ndata: ${data}\n\n`;
 }

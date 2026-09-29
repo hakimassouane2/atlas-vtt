@@ -5,6 +5,7 @@ import type { PlayerFrameSource } from '../services/PlayerWindowService';
 import type { SettingsService } from '../services/SettingsService';
 import { OnlineFrameStream, type OnlineFrameSource } from './OnlineFrameStream';
 import { OnlineSessionServer } from './OnlineSessionServer';
+import { PlayerControls } from './PlayerControls';
 
 export interface OnlineSessionState {
   isRunning: boolean;
@@ -20,18 +21,21 @@ export const onlineSessionStore: StoreApi<OnlineSessionState> = createStore<Onli
 
 /**
  * Lets players join from a browser with a link. The server runs on this computer;
- * players see the scene the DM presents, exactly as the local player window shows it.
+ * players see the scene the DM presents, exactly as the local player window shows it,
+ * and move and heal the tokens the DM gave them.
  */
 export class OnlineSession {
   private static instance: OnlineSession | null = null;
   private server: OnlineSessionServer | null = null;
   private readonly stream: OnlineFrameStream;
+  private readonly controls: PlayerControls;
   private stopWatchingTab: (() => void) | null = null;
   /** Views that already release the stream when they close. */
   private readonly viewsReleasingOnClose = new WeakSet<AtlasView>();
 
   constructor(private readonly settingsService: SettingsService) {
-    this.stream = new OnlineFrameStream(settingsService, (image) => this.server?.publishFrame(image));
+    this.stream = new OnlineFrameStream(settingsService, (image, view) => this.server?.publishFrame(image, view));
+    this.controls = new PlayerControls((state) => this.server?.publishState(state));
     OnlineSession.instance = this;
   }
 
@@ -56,6 +60,7 @@ export class OnlineSession {
   stop(): void {
     this.stopWatchingTab?.();
     this.stream.stop();
+    this.controls.destroy();
     this.server?.close();
     this.server = null;
     onlineSessionStore.setState({ isRunning: false, playerCount: 0 });
@@ -71,7 +76,7 @@ export class OnlineSession {
     const stopWatching = view.tabMetaStore.subscribe((state, previous) => {
       if (state.activeTabId === previous.activeTabId) return;
       if (state.activeTabId !== tabId) {
-        this.stream.hold();
+        this.hold();
         return;
       }
       void resolveSource().then((resumed) => {
@@ -88,6 +93,7 @@ export class OnlineSession {
       view.register(() => {
         this.stopWatchingTab?.();
         this.stream.releaseSource(view.atlasStore);
+        this.controls.releaseSource(view.atlasStore);
       });
     }
   }
@@ -103,6 +109,13 @@ export class OnlineSession {
       getRenderedFrames: () => source.getRenderedFrames?.(),
     };
     this.stream.setSource(onlineSource);
+    this.controls.setSource(onlineSource);
+  }
+
+  /** Players keep the last frame and cannot act until the scene is live again. */
+  private hold(): void {
+    this.stream.hold();
+    this.controls.setSource(null);
   }
 
   private async start(): Promise<boolean> {
@@ -114,7 +127,7 @@ export class OnlineSession {
     const server = new OnlineSessionServer(settings.secret, (request, playerCount) => {
       onlineSessionStore.setState({ playerCount });
       this.stream.setRequest(request);
-    });
+    }, (command) => this.controls.apply(command));
     try {
       await server.listen(settings.port);
     } catch (error) {

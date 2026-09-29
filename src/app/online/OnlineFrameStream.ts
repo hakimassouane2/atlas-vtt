@@ -3,7 +3,7 @@ import type { PlayerCameraState } from '../local-player-view';
 import type { PixiRendererOrchestrator } from '../PixiRendererOrchestrator';
 import type { SettingsService } from '../services/SettingsService';
 import type { ViewAtlasState } from '../storeFactory';
-import { PlayerFrameRenderer } from './PlayerFrameRenderer';
+import { PlayerFrameRenderer, type FrameView, type PlayerFrame } from './PlayerFrameRenderer';
 import { FRAME_QUALITIES, type PlayerStreamRequest } from './playerStreamRequest';
 
 /** The presented scene: its renderer, and what tells when it changed. */
@@ -32,7 +32,7 @@ export class OnlineFrameStream {
 
   constructor(
     private readonly settingsService: SettingsService,
-    private readonly publish: (image: Uint8Array) => void,
+    private readonly publish: (image: Uint8Array, view: FrameView) => void,
   ) {}
 
   /** What connected players ask for; null pauses the stream, since nobody watches. */
@@ -92,7 +92,7 @@ export class OnlineFrameStream {
     this.lastRenderedFrames = renderedFrames;
     this.lastSentAt = now;
 
-    let frame: HTMLCanvasElement | null = null;
+    let frame: PlayerFrame | null = null;
     try {
       frame = this.frameRenderer.render(source.renderer, this.settingsService.getLocalPlayerViewSettings(), camera, request.screen);
     } catch (error) {
@@ -101,15 +101,15 @@ export class OnlineFrameStream {
     if (frame) this.encode(frame, FRAME_QUALITIES[request.quality]);
   };
 
-  private encode(frame: HTMLCanvasElement, quality: number): void {
+  private encode({ canvas, view }: PlayerFrame, quality: number): void {
     this.isEncoding = true;
-    frame.toBlob((blob) => {
+    canvas.toBlob((blob) => {
       if (!blob) {
         this.isEncoding = false;
         return;
       }
       blob.arrayBuffer()
-        .then((buffer) => this.publish(new Uint8Array(buffer)))
+        .then((buffer) => this.publish(new Uint8Array(buffer), view))
         .catch((error: unknown) => console.error('[OnlineFrameStream] Could not encode the player frame:', error))
         .finally(() => { this.isEncoding = false; });
     }, 'image/jpeg', quality);
