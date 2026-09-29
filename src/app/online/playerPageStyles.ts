@@ -6,7 +6,7 @@ export const PLAYER_PAGE_STYLES = `
   #overlay { position: fixed; inset: 0; width: 100vw; height: 100vh; touch-action: none; cursor: grab; }
   body.following #overlay { cursor: default; }
   #status { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; pointer-events: none; }
-  body.live #status { inset: auto 12px 12px auto; padding: 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.7); font-size: 13px; }
+  body.live #status { inset: auto auto 12px 50%; transform: translateX(-50%); padding: 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.7); font-size: 13px; }
   body.live #status:empty { display: none; }
   .badge { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 8px; border-radius: 8px;
     background: rgba(0, 0, 0, 0.7); font-size: 13px; display: none; pointer-events: none; }
@@ -30,4 +30,32 @@ export const PLAYER_PAGE_STYLES = `
   .resource button { width: 28px; height: 28px; border: 0; border-radius: 8px; background: #333; color: #ddd; font-size: 16px; cursor: pointer; }
   .resource button:hover { background: #444; }
   .resource input { width: 48px; text-align: center; }
+  button { font: inherit; }
+  .conditions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 280px; font-size: 13px; }
+  .condition { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 2px solid; border-radius: 999px; }
+  .condition button { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: #333; color: #ddd;
+    font-size: 12px; cursor: pointer; }
+  .condition button:hover { background: #444; }
+  #initiative { position: fixed; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .turn { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 12px; background: rgba(20, 20, 20, 0.92);
+    border: 1px solid #333; font-size: 13px; }
+  .turn-active { border-color: #7cc8ff; box-shadow: 0 0 0 1px #7cc8ff; }
+  .turn-portrait { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+  .turn-value { font-weight: 700; min-width: 20px; text-align: center; }
+  .turn progress { width: 60px; }
+  .turn-round { font-size: 12px; color: #aaa; padding: 0 8px; }
+  #table { position: fixed; right: 12px; bottom: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  #dice-form { position: static; display: flex; flex-direction: column; gap: 8px; }
+  .dice-row { display: flex; gap: 8px; }
+  .dice-row button { padding: 4px 8px; border: 0; border-radius: 8px; background: #333; color: #ddd; cursor: pointer; }
+  .dice-row button:hover { background: #444; }
+  #formula { width: 96px; }
+  #rolls { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  .roll { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 12px; background: rgba(20, 20, 20, 0.92);
+    border: 1px solid #333; }
+  .roll-player { border-color: #4a6b85; }
+  .roll-portrait { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+  .roll-title { font-size: 13px; }
+  .roll-detail { font-size: 12px; color: #aaa; }
+  .roll-total { font-size: 22px; font-weight: 700; min-width: 32px; text-align: center; }
 `;

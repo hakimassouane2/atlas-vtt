@@ -12,6 +12,7 @@ import type { TokenUpdates, ViewAtlasStore } from '../storeFactory';
 import { EventEmitter } from 'events';
 import { StatblockDialogService } from '../services/StatblockDialogService';
 import { AssetService } from '../services/AssetService';
+import { mapConditions } from '../services/mapConditions';
 import { AssetValidationService } from '../services/AssetValidationService';
 import { TokenStatblockLinkService, type LinkChangeEvent } from '../services/TokenStatblockLinkService';
 import { SpriteFactory } from './token-renderer/SpriteFactory';
@@ -192,13 +193,7 @@ export class TokenRenderer {
     });
     
     // Wire condition definitions provider (shared by InteractionController + UIManager/TokenUIRenderers)
-    const conditionDefsProvider = (): ConditionDefinition[] => {
-      const mapPath = this.store.getState().mapPath;
-      if (!mapPath) return [];
-      const collectionId = this.assetService.getCollectionForMap(mapPath);
-      if (!collectionId) return [];
-      return this.assetService.getCollectionSettings(collectionId).conditions;
-    };
+    const conditionDefsProvider = (): ConditionDefinition[] => mapConditions(this.assetService, this.store.getState().mapPath);
     this.interactionController.conditionDefsProvider = conditionDefsProvider;
     this.uiManager.conditionDefsProvider = conditionDefsProvider;
 

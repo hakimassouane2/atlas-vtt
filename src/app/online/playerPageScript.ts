@@ -95,6 +95,8 @@ export const PLAYER_PAGE_SCRIPT = `
 
   // ---- Tokens the player controls ----------------------------------------
   let tokens = [];
+  /** Conditions the scene's collection defines, which players may put on their tokens. */
+  let conditionDefinitions = [];
   let hovered = null;
   /** The token being dragged: where the pointer grabbed it and where it would land. */
   let drag = null;
@@ -229,7 +231,11 @@ export const PLAYER_PAGE_SCRIPT = `
       showLatest();
     });
     events.addEventListener('state', (event) => {
-      tokens = JSON.parse(event.data).tokens;
+      const state = JSON.parse(event.data);
+      tokens = state.tokens;
+      conditionDefinitions = state.conditions;
+      renderInitiative(state.initiative);
+      renderDiceTargets();
       for (const token of tokens) {
         const target = landing.get(token.id);
         if (target && Math.hypot(target.x - token.x, target.y - token.y) < token.radius) landing.delete(token.id);
@@ -245,6 +251,7 @@ export const PLAYER_PAGE_SCRIPT = `
       if (wasFollowing && !following && camera) cameraMoved();
     });
     events.addEventListener('recenter', () => { camera = null; });
+    events.addEventListener('roll', (event) => showRoll(JSON.parse(event.data)));
     events.onopen = () => {
       status.textContent = document.body.classList.contains('live') ? '' : 'En attente de la scène du MJ...';
     };

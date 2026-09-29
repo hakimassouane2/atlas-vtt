@@ -3,6 +3,7 @@ import type { PlayerCameraState } from '../local-player-view';
 import type { PixiRendererOrchestrator } from '../PixiRendererOrchestrator';
 import type { SettingsService } from '../services/SettingsService';
 import type { ViewAtlasState } from '../storeFactory';
+import type { ConditionDefinition } from '../types/collectionSettingsTypes';
 import { PlayerFrameRenderer, type FrameView, type PlayerFrame } from './PlayerFrameRenderer';
 import { FRAME_QUALITIES, type PlayerStreamRequest } from './playerStreamRequest';
 
@@ -12,6 +13,8 @@ export interface OnlineFrameSource {
   renderer: PixiRendererOrchestrator;
   getRenderedFrames(): number | undefined;
   getCamera(): PlayerCameraState | undefined;
+  /** The conditions the scene's collection defines. */
+  getConditions(): ConditionDefinition[];
 }
 
 /** Where frames go: `isReady` says whether a player's connection takes one now. */

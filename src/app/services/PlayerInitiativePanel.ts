@@ -5,6 +5,16 @@ import { PlayerSceneOverlay, type PlayerSettings } from './PlayerSceneOverlay';
 import type { SettingsService } from './SettingsService';
 import './player-initiative.scss';
 
+/** Initiative entries players may see (their token is on the map and not hidden), in turn order. */
+export function visibleInitiativeEntries(
+  initiative: ViewAtlasState['initiative'] | undefined,
+  tokens: ViewAtlasState['objects']['tokens'] | undefined,
+): InitiativeEntry[] {
+  return (initiative?.entries ?? [])
+    .filter((entry) => tokens?.[entry.tokenId] && !tokens[entry.tokenId]?.isHidden)
+    .sort((a, b) => a.order - b.order);
+}
+
 /** Separates token ids in `InitiativeScene.visibleTokenIds`. */
 const TOKEN_ID_SEPARATOR = '\n';
 
@@ -22,9 +32,7 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
   }
 
   protected select({ initiative, initiativeTrackerOpen, objects }: ViewAtlasState): InitiativeScene {
-    const tokens = objects?.tokens;
-    const visibleTokenIds = (initiative?.entries ?? [])
-      .filter((entry) => tokens?.[entry.tokenId] && !tokens[entry.tokenId]?.isHidden)
+    const visibleTokenIds = visibleInitiativeEntries(initiative, objects?.tokens)
       .map((entry) => entry.tokenId)
       .join(TOKEN_ID_SEPARATOR);
     return { initiative, initiativeTrackerOpen, visibleTokenIds };

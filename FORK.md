@@ -72,7 +72,15 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
    où il va atterrir, snap à la grille comme un drag du MJ) et change ses PV dans le panneau en bas
    à gauche. La roue en haut à droite règle ses images par seconde et la qualité (retenues dans son
    navigateur).
-6. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
+6. Dans ce même panneau, il ajoute ou retire les conditions de la collection sur ses tokens
+   (menu "+ Condition", ✕ pour retirer, − / + pour une condition à valeur).
+7. En haut à gauche, l'ordre d'initiative (dès que le tracker du MJ est ouvert, sans les tokens
+   cachés ; noms et PV selon les réglages de la vue joueur). En bas à droite, les dés : boutons
+   d4 à d100 et formule libre ("Lancer pour" choisit le personnage). Les jets sont tirés par le
+   moteur de dés du MJ (ils apparaissent dans sa notification et son journal de dés) et affichés à
+   tous les joueurs. Les jets du MJ ne vont aux joueurs que si "show dice rolls" est coché dans les
+   réglages de la vue joueur.
+8. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
 
 ### Fonctionnement
 
@@ -107,9 +115,19 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
   (`POST /command`, `playerCommands.ts` : `move` snappé avec `snapToCellCenter`, `resource`
   borné entre 0 et le max via `resourceUpdates`). Les commandes passent par les actions normales
   du store : sauvegarde automatique, et le MJ peut annuler un déplacement de joueur avec Ctrl+Z.
-- Quand le MJ passe sur un autre onglet de scène, les joueurs gardent la dernière image et leurs
-  commandes sont refusées (le store de la vue contient alors l'autre scène) ; quand il revient,
-  le direct reprend. Sans joueur connecté, rien n'est rendu.
+- `PlayerControls` publie aussi l'initiative (`playerInitiative.ts`, mêmes règles que la popout via
+  `visibleInitiativeEntries`) et les conditions de la collection (`mapConditions`), et applique
+  les commandes `condition` / `conditionValue` (seulement pour une condition que la collection
+  définit) et `roll` (formule validée par `isSafeDiceFormula` : dés et modificateurs, 100 dés
+  au plus).
+- `PlayerDiceFeed` écoute l'événement `atlas-dice-rolled` que tout moteur de dés émet : il envoie
+  aux joueurs chaque jet de joueur, et les jets du MJ si `showDiceRolls`, masqués pour un token
+  caché (`diceRollForPlayers`, partagé avec la popout).
+- `GET /image?token=` sert l'image d'un token visible de la scène présentée (`tokenImage.ts`),
+  pour les portraits de l'initiative et des jets ; jamais un autre fichier du vault.
+- Quand le MJ passe sur un autre onglet de scène, les joueurs gardent la dernière image, leur
+  panneau et l'initiative, et leurs commandes sont refusées (le store de la vue contient alors
+  l'autre scène) ; quand il revient, le direct reprend. Sans joueur connecté, rien n'est rendu.
 
 ### Fichiers ajoutés
 
@@ -122,11 +140,18 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 - `src/app/online/PlayerControls.ts` : état des tokens joueurs et commandes, seulement en direct.
 - `src/app/online/playerTokens.ts` : quels tokens les joueurs contrôlent, et ce qu'ils en voient.
 - `src/app/online/playerCommands.ts` : validation et application des commandes joueur.
+- `src/app/online/playerInitiative.ts` : l'initiative telle que les joueurs la voient.
+- `src/app/online/PlayerDiceFeed.ts` : jets de dés vers les joueurs, jets des joueurs.
+- `src/app/online/tokenImage.ts` : image d'un token visible pour la page joueur.
 - `src/app/online/playerPage.ts` : la page joueur (structure), avec `playerPageStyles.ts`,
-  `playerPageScript.ts` (caméra, images, drag, connexion) et `playerPartyScript.ts` (panneau PV).
+  `playerPageScript.ts` (caméra, images, drag, connexion), `playerPartyScript.ts` (panneau PV et
+  conditions) et `playerTableScript.ts` (initiative et dés).
+- `src/app/services/mapConditions.ts` : conditions de la collection d'une carte.
+- `src/app/tools/diceRollForPlayers.ts` : un jet tel que les joueurs le voient.
 - `src/app/online/onlineSessionSettingsSection.ts` : la section de réglages.
 - `tests/unit/onlineSessionServer.test.ts`, `tests/unit/playerStreamRequest.test.ts`,
-  `tests/unit/playerCommands.test.ts`.
+  `tests/unit/playerCommands.test.ts`, `tests/unit/playerInitiative.test.ts`,
+  `tests/unit/diceToolModifiers.test.ts`.
 
 ### Points de contact dans le code d'origine
 
@@ -147,12 +172,23 @@ dev d'origine peut entrer en conflit.
 - `src/app/pixi/token-renderer/EditTokenModal.tsx` : interrupteur "Controlled by Players"
   (champ `playerLinked` existant, personnages seulement). L'interrupteur "Show Nameplate" et
   celui-ci partagent un petit composant local `ToggleField`.
+- `src/app/services/PlayerInitiativePanel.ts` : le filtre "entrées visibles, dans l'ordre" est
+  sorti dans `visibleInitiativeEntries` (exporté, même comportement).
+- `src/app/react/components/dice/PlayerDiceToasts.tsx` : le masquage des jets pour un token caché
+  est sorti dans `tools/diceRollForPlayers.ts` (même comportement).
+- `src/app/pixi/TokenRenderer.ts` : la lecture des conditions de la collection passe par
+  `services/mapConditions.ts` (même comportement).
+- `src/app/tools/DiceTool.ts` : **correctif d'un bug d'origine**. Le nombre de dés d'un terme
+  après un `+` était lu comme un modificateur (`2d6+1d8` ajoutait +1, `2d6+12d4+3` ajoutait +15).
+  La regex des modificateurs ignore maintenant un nombre suivi de `d`. À proposer au dev d'origine.
 
 ### Suite prévue
 
 1. ~~Les joueurs déplacent leur token et modifient leurs PV.~~ Fait.
 2. ~~Caméra libre pour les joueurs, et le MJ peut les forcer à suivre la sienne.~~ Fait.
-3. Plus tard : initiative, widgets, dés, conditions côté joueur.
+3. ~~Initiative et dés côté joueur.~~ Fait.
+4. ~~Conditions que le joueur active sur son token.~~ Fait.
+5. Idées : widgets côté joueur, lien par joueur, pinch-zoom tactile.
 
 ### Limites connues
 

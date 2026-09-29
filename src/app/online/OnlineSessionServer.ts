@@ -16,7 +16,11 @@ export interface OnlineSessionHandlers {
   onCamera(playerId: string, body: unknown): void;
   /** Applies a player's command (the parsed JSON body); returns whether it was accepted. */
   onCommand(body: unknown): boolean;
+  /** The portrait of a token players may see: its bytes, a URL to fetch it from, or null. */
+  onImage(tokenId: string): Promise<TokenImage | null>;
 }
+
+export type TokenImage = { data: Uint8Array; contentType: string } | { url: string };
 
 interface PlayerConnection {
   response: ServerResponse;
@@ -128,6 +132,9 @@ export class OnlineSessionServer {
       case '/command':
         this.receive(request, response, (body) => this.handlers.onCommand(body));
         return;
+      case '/image':
+        this.sendImage(response, url.searchParams.get('token') ?? '');
+        return;
       default:
         response.writeHead(404).end();
     }
@@ -146,6 +153,21 @@ export class OnlineSessionServer {
     this.players.set(playerId, { response, isBlocked: false });
     this.handlers.onJoin(playerId, streamRequest);
     request.on('close', () => this.disconnect(playerId));
+  }
+
+  private sendImage(response: ServerResponse, tokenId: string): void {
+    this.handlers.onImage(tokenId).then((image) => {
+      if (!image) {
+        response.writeHead(404).end();
+      } else if ('url' in image) {
+        response.writeHead(302, { Location: image.url }).end();
+      } else {
+        response.writeHead(200, { 'Content-Type': image.contentType, 'Cache-Control': 'max-age=300' }).end(Buffer.from(image.data));
+      }
+    }).catch((error: unknown) => {
+      console.error('[OnlineSessionServer] Could not send a token image:', error);
+      response.writeHead(500).end();
+    });
   }
 
   /** Reads a small JSON body and answers 204 when `apply` accepts it, 409 otherwise. */

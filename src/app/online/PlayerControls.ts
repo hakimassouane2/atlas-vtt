@@ -1,37 +1,56 @@
+import type { SettingsService } from '../services/SettingsService';
+import type { Character } from '../types';
+import type { ConditionDefinition } from '../types/collectionSettingsTypes';
 import type { OnlineFrameSource } from './OnlineFrameStream';
 import { applyPlayerCommand, parsePlayerCommand } from './playerCommands';
-import { playerTokens, type PlayerToken } from './playerTokens';
+import { playerInitiative, type PlayerInitiative } from './playerInitiative';
+import { isPlayerControlled, playerTokens, type PlayerToken } from './playerTokens';
 
-/** What players' pages receive: the tokens they may move, or none while the scene is not live. */
+/** What players' pages receive about the scene. */
 export interface PlayerState {
   tokens: PlayerToken[];
+  initiative: PlayerInitiative | null;
+  /** Conditions players may put on their tokens: those of the scene's collection. */
+  conditions: Array<Pick<ConditionDefinition, 'id' | 'name' | 'color' | 'valued'>>;
 }
 
+/** Rolls `formula` with the DM's dice engine, for `token` when given; returns whether it rolled. */
+export type RollDice = (formula: string, token: Character | undefined) => boolean;
+
 /**
- * Lets players act on the presented scene: publishes the tokens they control and
- * applies their commands. Only while the scene is live: a held frame shows a scene
- * the view no longer holds (its store then shows the DM's other tab), so commands
- * are refused until the DM presents or returns to it.
+ * Lets players act on the presented scene: publishes the tokens they control and the
+ * initiative order, and applies their commands. Only while the scene is live: a held
+ * frame shows a scene the view no longer holds (its store then shows the DM's other
+ * tab), so commands are refused until the DM presents or returns to it.
  */
 export class PlayerControls {
   private source: OnlineFrameSource | null = null;
-  private unsubscribe: (() => void) | null = null;
+  private unsubscribers: Array<() => void> = [];
 
-  constructor(private readonly publishState: (state: PlayerState) => void) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly publishState: (state: PlayerState) => void,
+    private readonly rollDice: RollDice,
+  ) {}
 
-  /** The live scene, or null while it is held or gone. */
+  /** The live scene, or null while it is held or gone: players then keep what they saw last. */
   setSource(source: OnlineFrameSource | null): void {
-    this.unsubscribe?.();
-    this.unsubscribe = null;
+    this.unsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
     this.source = source;
     if (source) {
-      this.unsubscribe = source.store.subscribe((state, previous) => {
+      // Player view settings decide whether players see initiative, names and hit points
+      this.unsubscribers.push(this.settingsService.onChange(() => this.publish()));
+      this.unsubscribers.push(source.store.subscribe((state, previous) => {
         if (state.isMapLoading) return;
-        const changed = previous.isMapLoading || state.objects.tokens !== previous.objects.tokens || state.grid?.size !== previous.grid?.size;
+        const changed = previous.isMapLoading
+          || state.objects.tokens !== previous.objects.tokens
+          || state.grid?.size !== previous.grid?.size
+          || state.initiative !== previous.initiative
+          || state.initiativeTrackerOpen !== previous.initiativeTrackerOpen;
         if (changed) this.publish();
-      });
+      }));
+      this.publish();
     }
-    this.publish();
   }
 
   /** The map view owning `store` is closing. */
@@ -43,16 +62,21 @@ export class PlayerControls {
     const command = parsePlayerCommand(body);
     const source = this.source;
     if (!command || !source || source.store.getState().isMapLoading) return false;
-    return applyPlayerCommand(source.store, source.renderer.getGridSystem(), command);
-  }
-
-  destroy(): void {
-    this.setSource(null);
+    if (command.type === 'roll') {
+      const token = command.id ? source.store.getState().objects.tokens[command.id] : undefined;
+      return this.rollDice(command.formula, isPlayerControlled(token) ? token : undefined);
+    }
+    return applyPlayerCommand(source.store, source.renderer.getGridSystem(), command, source.getConditions());
   }
 
   private publish(): void {
-    const state = this.source?.store.getState();
-    const tokens = state && !state.isMapLoading ? playerTokens(state.objects.tokens, state.grid?.size ?? 70) : [];
-    this.publishState({ tokens });
+    const source = this.source;
+    const state = source?.store.getState();
+    if (!source || !state || state.isMapLoading) return;
+    this.publishState({
+      tokens: playerTokens(state.objects.tokens, state.grid?.size ?? 70),
+      initiative: playerInitiative(state, this.settingsService.getLocalPlayerViewSettings()),
+      conditions: source.getConditions().map(({ id, name, color, valued }) => ({ id, name, color, valued: valued === true })),
+    });
   }
 }

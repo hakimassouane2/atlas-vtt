@@ -6,7 +6,12 @@ import type { SettingsService } from '../services/SettingsService';
 import { OnlineFrameStream, type OnlineFrameSource } from './OnlineFrameStream';
 import { OnlineSessionServer } from './OnlineSessionServer';
 import { PlayerControls } from './PlayerControls';
+import { PlayerDiceFeed } from './PlayerDiceFeed';
 import { parseCameraRequest } from './playerStreamRequest';
+import { tokenImage } from './tokenImage';
+import { AssetService } from '../services/AssetService';
+import { mapConditions } from '../services/mapConditions';
+import type { Character } from '../types';
 
 export interface OnlineSessionState {
   isRunning: boolean;
@@ -26,14 +31,17 @@ export const onlineSessionStore: StoreApi<OnlineSessionState> = createStore<Onli
 /**
  * Lets players join from a browser with a link. The server runs on this computer;
  * players see the scene the DM presents, as the local player window shows it, through
- * their own camera unless the DM makes them follow theirs, and move and heal the tokens
- * the DM gave them.
+ * their own camera unless the DM makes them follow theirs, move and heal the tokens the
+ * DM gave them, follow the initiative order and roll dice.
  */
 export class OnlineSession {
   private static instance: OnlineSession | null = null;
   private server: OnlineSessionServer | null = null;
   private readonly stream: OnlineFrameStream;
   private readonly controls: PlayerControls;
+  private readonly diceFeed: PlayerDiceFeed;
+  /** The view whose scene players see; its dice engine rolls for them. */
+  private presentedView: AtlasView | null = null;
   private stopWatchingTab: (() => void) | null = null;
   /** The presented scene tab; presenting another one recenters every player. */
   private presentedTabId: string | null = null;
@@ -45,7 +53,16 @@ export class OnlineSession {
       isReady: (playerId) => this.server?.isReady(playerId) ?? false,
       send: (playerId, image, view, isDmCamera) => this.server?.sendFrame(playerId, image, view, isDmCamera),
     });
-    this.controls = new PlayerControls((state) => this.server?.share('state', state));
+    this.controls = new PlayerControls(
+      settingsService,
+      (state) => this.server?.share('state', state),
+      (formula, token) => this.rollForPlayer(formula, token),
+    );
+    this.diceFeed = new PlayerDiceFeed(
+      settingsService,
+      () => this.presentedView?.atlasStore.getState().objects.tokens,
+      (roll) => this.server?.broadcast('roll', roll),
+    );
     OnlineSession.instance = this;
   }
 
@@ -81,7 +98,9 @@ export class OnlineSession {
     this.presentedTabId = null;
     this.stream.setFollowingDm(false);
     this.stream.stop();
-    this.controls.destroy();
+    this.controls.setSource(null);
+    this.diceFeed.stop();
+    this.presentedView = null;
     this.server?.close();
     this.server = null;
     onlineSessionStore.setState({ isRunning: false, playerCount: 0, isFollowingDm: false });
@@ -95,6 +114,7 @@ export class OnlineSession {
     this.setSource(view, source);
     if (tabId !== this.presentedTabId) this.recenterAll();
     this.presentedTabId = tabId;
+    this.presentedView = view;
     this.stopWatchingTab?.();
     const stopWatching = view.tabMetaStore.subscribe((state, previous) => {
       if (state.activeTabId === previous.activeTabId) return;
@@ -117,6 +137,7 @@ export class OnlineSession {
         this.stopWatchingTab?.();
         this.stream.releaseSource(view.atlasStore);
         this.controls.releaseSource(view.atlasStore);
+        if (this.presentedView === view) this.presentedView = null;
       });
     }
   }
@@ -130,9 +151,17 @@ export class OnlineSession {
       renderer,
       getCamera: () => source.getCamera?.(),
       getRenderedFrames: () => source.getRenderedFrames?.(),
+      getConditions: () => mapConditions(AssetService.getInstance(view.app), source.store?.getState().mapPath),
     };
     this.stream.setSource(onlineSource);
     this.controls.setSource(onlineSource);
+  }
+
+  private rollForPlayer(formula: string, token: Character | undefined): boolean {
+    const diceTool = this.presentedView?.serviceManager.getToolController().getDiceTool();
+    if (!diceTool) return false;
+    this.diceFeed.rollForPlayer(diceTool, formula, token);
+    return true;
   }
 
   /** Players see the DM's framing again: their camera from another scene means nothing here. */
@@ -167,6 +196,10 @@ export class OnlineSession {
         if (camera) this.stream.setViewerCamera(playerId, camera === 'recenter' ? null : camera);
       },
       onCommand: (body) => this.controls.apply(body),
+      onImage: (tokenId) => {
+        const view = this.presentedView;
+        return view ? tokenImage(view.app, view.atlasStore.getState().objects.tokens[tokenId]) : Promise.resolve(null);
+      },
     });
     server.share('mode', { isFollowingDm: onlineSessionStore.getState().isFollowingDm });
     try {
@@ -178,6 +211,7 @@ export class OnlineSession {
       return false;
     }
     this.server = server;
+    this.diceFeed.start();
     onlineSessionStore.setState({ isRunning: true, playerCount: 0 });
     return true;
   }
