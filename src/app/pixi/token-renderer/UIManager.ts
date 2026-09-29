@@ -1,4 +1,5 @@
 import type { AtlasSettings } from '../../services/SettingsService';
+import { playerTokenUISettings } from './playerTokenUISettings';
 import type { LayerVisibility } from '../playerSafeFrame';
 /**
  * Token UI Manager
@@ -463,7 +464,7 @@ export class UIManager implements ITokenUIManager {
         this.playerUIContainer.addChild(ui.getContainer());
       }
       ui.conditionDefsProvider = this.conditionDefsProvider;
-      ui.update(token, sprite.tokenSize || 70, settings);
+      ui.update(token, sprite.tokenSize || 70, playerTokenUISettings(token, settings));
       ui.getContainer().position.copyFrom(sprite.position);
       ui.getContainer().renderable = sprite.visible && !token.isHidden;
     }

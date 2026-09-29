@@ -765,7 +765,8 @@ export class PixiRendererOrchestrator { // Renamed class
     if (this.pinRenderer) layers.push({ layer: this.pinRenderer.getPinContainer(), visible: false });
     if (this.hexLinkRenderer) layers.push({ layer: this.hexLinkRenderer.container, visible: false });
     const grid = this.gridSystem?.getGridSprite();
-    if (grid) layers.push({ layer: grid, visible: settings.showGrid });
+    // Players never see a grid the DM hid
+    if (grid) layers.push({ layer: grid, visible: settings.showGrid && grid.visible });
     layers.push(...(this.tokenRenderer?.getPlayerViewLayers(settings) ?? []));
     layers.push(...(this.fogRenderer?.getPlayerViewLayers() ?? []));
     layers.push(...(this.selectionManager?.getPlayerViewLayers() ?? []));

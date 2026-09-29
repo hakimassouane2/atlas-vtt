@@ -140,8 +140,10 @@ export const PLAYER_PAGE_SCRIPT = `
     context.stroke();
   }
 
+  // The map is a picture: no "save image" menu, the left button drags tokens and the map
+  overlay.addEventListener('contextmenu', (event) => event.preventDefault());
   overlay.addEventListener('pointerdown', (event) => {
-    if (!camera) return;
+    if (!camera || event.button !== 0) return;
     const token = tokenAt(event.clientX, event.clientY);
     if (token) {
       const point = toWorld(event.clientX, event.clientY);
