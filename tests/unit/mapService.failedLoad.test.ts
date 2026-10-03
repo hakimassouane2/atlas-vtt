@@ -1,6 +1,9 @@
 import { EventEmitter } from 'events';
 import { describe, expect, it, vi } from 'vitest';
+import { Notice } from 'obsidian';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
+
+vi.mock('obsidian', async (importOriginal) => ({ ...(await importOriginal<typeof import('obsidian')>()), Notice: vi.fn() }));
 
 vi.mock('../../src/app/MapController', () => ({
   MapController: { loadAndDisplay: vi.fn().mockRejectedValue(new Error('[MapLoader] Failed to parse map JSON')) },
@@ -34,7 +37,7 @@ function setup(renderer: object | null): {
 
 describe('MapService.loadMap failure', () => {
   it('never saves the emptied store over a map that failed to load', async () => {
-    const { service, store, files, rendererService } = setup({});
+    const { service, store, files, rendererService } = setup({ clearBackgroundSprite: vi.fn() });
 
     expect(await service.loadMap(rendererService, BROKEN_MAP)).toBeNull();
     expect(store.getState().mapPath).toBeNull();
@@ -46,9 +49,17 @@ describe('MapService.loadMap failure', () => {
 
   it('keeps the previous map bound when loading fails before the store was switched', async () => {
     const { service, store, rendererService } = setup(null);
-    store.getState().setMapPath('maps/previous.atlasmap');
+    store.setState({ mapPath: 'maps/previous.atlasmap', mapLoaded: true });
 
     expect(await service.loadMap(rendererService, BROKEN_MAP)).toBeNull();
     expect(store.getState().mapPath).toBe('maps/previous.atlasmap');
+  });
+
+  it('tells the user which scene failed and why, instead of leaving an empty canvas', async () => {
+    const { service, rendererService } = setup({ clearBackgroundSprite: vi.fn() });
+
+    await service.loadMap(rendererService, BROKEN_MAP);
+
+    expect(Notice).toHaveBeenCalledWith('Atlas VTT could not open the scene broken (Failed to parse map JSON).', 0);
   });
 });

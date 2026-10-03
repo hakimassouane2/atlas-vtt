@@ -3,18 +3,23 @@ import type { PlayerCameraState } from '../local-player-view';
 import type { PixiRendererOrchestrator } from '../PixiRendererOrchestrator';
 import type { SettingsService } from '../services/SettingsService';
 import type { ViewAtlasState } from '../storeFactory';
+import type { ResourceDefinition } from '../resources/resourceTypes';
 import type { ConditionDefinition } from '../types/collectionSettingsTypes';
+import type { InitiativeRules } from '../types/initiativeRulesTypes';
+import { CanvasRenders } from './CanvasRenders';
 import { PlayerFrameRenderer, type FrameView, type PlayerFrame } from './PlayerFrameRenderer';
 import { FRAME_QUALITIES, type PlayerStreamRequest } from './playerStreamRequest';
 
-/** The presented scene: its renderer, and what tells when it changed. */
+/** The presented scene and its renderer. */
 export interface OnlineFrameSource {
   store: StoreApi<ViewAtlasState>;
   renderer: PixiRendererOrchestrator;
-  getRenderedFrames(): number | undefined;
   getCamera(): PlayerCameraState | undefined;
   /** The conditions the scene's collection defines. */
   getConditions(): ConditionDefinition[];
+  /** The resources the scene's collection gives tokens. */
+  getResources(): ResourceDefinition[];
+  getInitiativeRules(): InitiativeRules;
 }
 
 /** Where frames go: `isReady` says whether a player's connection takes one now. */
@@ -31,7 +36,7 @@ interface Viewer {
   renderer: PlayerFrameRenderer;
   isStale: boolean;
   isEncoding: boolean;
-  lastRenderedFrames: number | undefined;
+  lastRenderedFrames: number;
   lastSentAt: number;
 }
 
@@ -43,6 +48,8 @@ interface Viewer {
  */
 export class OnlineFrameStream {
   private source: OnlineFrameSource | null = null;
+  /** Renders of the source's canvas: when their count changes, so did the scene. */
+  private renders: CanvasRenders | null = null;
   private readonly viewers = new Map<string, Viewer>();
   private isHeld = false;
   private isFollowingDm = false;
@@ -56,7 +63,7 @@ export class OnlineFrameStream {
   addViewer(playerId: string, request: PlayerStreamRequest): void {
     this.viewers.set(playerId, {
       request, camera: null, renderer: new PlayerFrameRenderer(),
-      isStale: true, isEncoding: false, lastRenderedFrames: undefined, lastSentAt: 0,
+      isStale: true, isEncoding: false, lastRenderedFrames: 0, lastSentAt: 0,
     });
     if (this.animationFrame === null) this.tick();
   }
@@ -91,6 +98,7 @@ export class OnlineFrameStream {
 
   stop(): void {
     this.pause();
+    this.setRenders(null);
     this.source = null;
     [...this.viewers.keys()].forEach((playerId) => this.removeViewer(playerId));
   }
@@ -98,6 +106,7 @@ export class OnlineFrameStream {
   /** Stream `source` live from now on. */
   setSource(source: OnlineFrameSource): void {
     this.source = source;
+    this.setRenders(new CanvasRenders(source.renderer.getAppInstance()));
     this.isHeld = false;
     this.viewers.forEach((viewer) => { viewer.isStale = true; });
   }
@@ -111,7 +120,13 @@ export class OnlineFrameStream {
   releaseSource(store: StoreApi<ViewAtlasState>): void {
     if (this.source?.store !== store) return;
     this.hold();
+    this.setRenders(null);
     this.source = null;
+  }
+
+  private setRenders(renders: CanvasRenders | null): void {
+    this.renders?.destroy();
+    this.renders = renders;
   }
 
   private pause(): void {
@@ -121,14 +136,14 @@ export class OnlineFrameStream {
 
   private readonly tick = (): void => {
     this.animationFrame = window.requestAnimationFrame(this.tick);
-    const source = this.source;
-    if (!source || this.isHeld) return;
-    const renderedFrames = source.getRenderedFrames();
+    const { source, renders } = this;
+    if (!source || !renders || this.isHeld) return;
+    const renderedFrames = renders.frames;
     const now = performance.now();
     for (const [playerId, viewer] of this.viewers) {
       if (viewer.isEncoding || now - viewer.lastSentAt < 1000 / viewer.request.fps || !this.sink.isReady(playerId)) continue;
       // A frame only changes when the DM canvas rendered something new or the player's camera moved
-      const sceneChanged = renderedFrames === undefined || renderedFrames !== viewer.lastRenderedFrames;
+      const sceneChanged = renderedFrames !== viewer.lastRenderedFrames;
       if (!viewer.isStale && !sceneChanged) continue;
       const isDmCamera = this.isFollowingDm || !viewer.camera;
       const camera = isDmCamera ? source.getCamera() : viewer.camera;
@@ -136,14 +151,15 @@ export class OnlineFrameStream {
       viewer.isStale = false;
       viewer.lastRenderedFrames = renderedFrames;
       viewer.lastSentAt = now;
-      this.render(playerId, viewer, source, camera, isDmCamera);
+      this.render(playerId, viewer, source, renders, camera, isDmCamera);
     }
   };
 
-  private render(playerId: string, viewer: Viewer, source: OnlineFrameSource, camera: PlayerCameraState, isDmCamera: boolean): void {
+  private render(playerId: string, viewer: Viewer, source: OnlineFrameSource, renders: CanvasRenders, camera: PlayerCameraState, isDmCamera: boolean): void {
     let frame: PlayerFrame | null = null;
     try {
-      frame = viewer.renderer.render(source.renderer, this.settingsService.getLocalPlayerViewSettings(), camera, viewer.request.screen);
+      const settings = this.settingsService.getLocalPlayerViewSettings();
+      frame = renders.ignoring(() => viewer.renderer.render(source.renderer, settings, camera, viewer.request.screen));
     } catch (error) {
       console.error('[OnlineFrameStream] Could not render a player frame:', error);
     }

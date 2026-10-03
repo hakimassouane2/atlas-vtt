@@ -6,9 +6,20 @@ import type {
   EncounterTokenRef,
   TokenAsset as ServiceTokenAsset,
 } from '../../../../services/AssetService';
+import type { ThumbnailAsset, ThumbnailState, ThumbnailUpdate } from '../../../../services/AssetThumbnailService';
+import { assetJsonPath, primaryPath } from '../../../../services/vault-sync/assetFiles';
+import { folderIdOf } from './assetFolders';
+import { ENCOUNTER_PREVIEW_COUNT } from './encounterPreviewLayout';
+import { mapThumbnailPath } from '../../../../utils/dataFileMigration';
 
 /** The stored asset types the asset manager shows, one per tab. */
 export type TabServiceAsset = AssetOfType<'token' | 'map' | 'scene' | 'encounter'>;
+
+const TAB_ASSET_TYPES: ReadonlySet<ServiceAsset['type']> = new Set<TabServiceAsset['type']>(['token', 'map', 'scene', 'encounter']);
+
+export function isTabAsset(asset: ServiceAsset): asset is TabServiceAsset {
+  return TAB_ASSET_TYPES.has(asset.type);
+}
 
 /** Stored assets grouped by the tab that shows them. */
 export interface AssetsByTab {
@@ -28,7 +39,6 @@ interface TokenPreviewSource {
 export type TokenPreviewSources = ReadonlyMap<string, TokenPreviewSource>;
 
 const NO_PREVIEW_SOURCES: TokenPreviewSources = new Map();
-const ENCOUNTER_PREVIEW_COUNT = 3;
 
 export function resourceUrl(app: ObsidianApp, path: string | undefined): string {
   const file = path ? app.vault.getAbstractFileByPath(path) : null;
@@ -37,7 +47,7 @@ export function resourceUrl(app: ObsidianApp, path: string | undefined): string 
 
 function sceneThumbnailUrl(app: ObsidianApp, mapPath: string | undefined): string {
   if (!mapPath) return '';
-  const thumbnailUrl = resourceUrl(app, mapPath.replace('.atlasmap', '.thumb.jpg'));
+  const thumbnailUrl = resourceUrl(app, mapThumbnailPath(mapPath));
   if (thumbnailUrl) return thumbnailUrl;
 
   const mapFile = app.vault.getAbstractFileByPath(mapPath);
@@ -46,13 +56,23 @@ function sceneThumbnailUrl(app: ObsidianApp, mapPath: string | undefined): strin
   return isImage ? app.vault.getResourcePath(mapFile) : '';
 }
 
-/** Derives the folder id from where the asset's file lives below the tab's base path. */
-function folderIdFor(assetPath: string | undefined, tabBasePath: string): string | null {
+/**
+ * The file whose folder places an asset in the asset manager: a map's record,
+ * since its image stays in the shared assets folder, otherwise the file the
+ * asset stands for (token art, scene file, encounter JSON).
+ */
+export function placingFilePath(asset: TabServiceAsset): string | null {
+  return asset.type === 'map' ? assetJsonPath(asset) : primaryPath(asset);
+}
+
+/** The folder below the tab's base path an asset is shown in, or null at the top level. */
+export function assetFolderId(asset: TabServiceAsset, tabBasePath: string): string | null {
+  const assetPath = placingFilePath(asset);
   if (assetPath && assetPath.startsWith(tabBasePath + '/')) {
     const relativePath = assetPath.substring(tabBasePath.length + 1);
     const lastSlash = relativePath.lastIndexOf('/');
     if (lastSlash > 0) {
-      return `folder-${tabBasePath}/${relativePath.substring(0, lastSlash)}`;
+      return folderIdOf(`${tabBasePath}/${relativePath.substring(0, lastSlash)}`);
     }
   }
   return null;
@@ -99,6 +119,46 @@ function encounterTokenPreview(
   };
 }
 
+/** The state of an asset's thumbnail, as `AssetThumbnailService.stateOf` reports it. */
+export type ThumbnailLookup = (asset: ThumbnailAsset) => ThumbnailState;
+
+/**
+ * What a token or map card shows: its thumbnail, a placeholder while one is
+ * being made (decoding a full map for a card costs hundreds of megabytes), and
+ * the image itself only when it has no thumbnail and none is on its way.
+ */
+function cardArt(
+  app: ObsidianApp,
+  asset: ThumbnailAsset,
+  imageUrl: string,
+  thumbnailOf: ThumbnailLookup | undefined,
+): Pick<Asset, 'thumbnailUrl' | 'thumbnailPending'> {
+  const state = thumbnailOf?.(asset) ?? { path: asset.thumbnailPath, pending: false };
+  const thumbnailUrl = resourceUrl(app, state.path);
+  if (thumbnailUrl) return { thumbnailUrl };
+  return state.pending ? { thumbnailUrl: '', thumbnailPending: true } : { thumbnailUrl: imageUrl };
+}
+
+/**
+ * `assets` with the thumbnails that were made since they were formatted. Only
+ * the assets named change, so every other card keeps its object and does not
+ * render again; `assets` itself when none of them is listed.
+ */
+export function withThumbnails(assets: AnyAsset[], updates: readonly ThumbnailUpdate[], app: ObsidianApp): AnyAsset[] {
+  const paths = new Map(updates.map((update) => [update.id, update.thumbnailPath]));
+  let changed = false;
+  const next = assets.map((asset) => {
+    if ((asset.type !== 'tokens' && asset.type !== 'maps') || !paths.has(asset.id)) return asset;
+    const thumbnailUrl = resourceUrl(app, paths.get(asset.id) ?? undefined) || asset.imageUrl;
+    if (thumbnailUrl === asset.thumbnailUrl && !asset.thumbnailPending) return asset;
+    changed = true;
+    const shown = { ...asset, thumbnailUrl };
+    delete shown.thumbnailPending;
+    return shown;
+  });
+  return changed ? next : assets;
+}
+
 /**
  * Converts a single AssetService record into the UI-layer AnyAsset shape,
  * resolving vault resource paths for thumbnails / images.
@@ -108,13 +168,13 @@ export function formatServiceAsset(
   tabBasePath: string,
   app: ObsidianApp,
   previewSources: TokenPreviewSources = NO_PREVIEW_SOURCES,
+  thumbnailOf?: ThumbnailLookup,
 ): AnyAsset {
-  const assetPath = asset.type === 'token' ? asset.imagePath : asset.filePath;
   const base: Omit<Asset, 'type' | 'thumbnailUrl'> = {
     id: asset.id,
     name: asset.name,
     tags: asset.tags,
-    folderId: folderIdFor(assetPath, tabBasePath),
+    folderId: assetFolderId(asset, tabBasePath),
     modifiedAt: asset.modifiedAt,
     ...(asset.filePath !== undefined && { filePath: asset.filePath }),
   };
@@ -125,7 +185,7 @@ export function formatServiceAsset(
       return {
         ...base,
         type: 'tokens',
-        thumbnailUrl: resourceUrl(app, asset.thumbnailPath) || imageUrl,
+        ...cardArt(app, asset, imageUrl, thumbnailOf),
         imageUrl,
         imagePath: asset.imagePath,
         ...(asset.showRing !== undefined && { showRing: asset.showRing }),
@@ -138,7 +198,7 @@ export function formatServiceAsset(
       return {
         ...base,
         type: 'maps',
-        thumbnailUrl: resourceUrl(app, asset.thumbnailPath) || imageUrl,
+        ...cardArt(app, asset, imageUrl, thumbnailOf),
         imageUrl,
         mapFilePath: asset.mapFilePath,
       };

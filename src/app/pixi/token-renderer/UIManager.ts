@@ -1,3 +1,4 @@
+import type { ResourceDefsProvider } from '../../resources/resourceTypes';
 import type { AtlasSettings } from '../../services/SettingsService';
 import { playerTokenUISettings } from './playerTokenUISettings';
 import type { LayerVisibility } from '../playerSafeFrame';
@@ -14,7 +15,7 @@ import type { ITokenUIManager, TokenGroupContainer } from './types';
 import type { TokenEntity } from '../../types';
 import type { ViewAtlasState, ViewAtlasStore } from '../../storeFactory';
 import { TokenUIRenderer } from '../TokenUIRenderer';
-import { TokenControlsUI } from '../TokenControlsUI';
+import { TOKEN_UI_Z_INDEX, TokenControlsUI } from '../TokenControlsUI';
 import { TokenRotationUI } from '../TokenRotationUI';
 import { TokenResizeUI } from '../TokenResizeUI';
 import type { ConditionDefinition } from '../../types/collectionSettingsTypes';
@@ -38,6 +39,8 @@ export class UIManager implements ITokenUIManager {
   
   // Condition definitions provider — forwarded to each TokenUIRenderer
   public conditionDefsProvider: (() => ConditionDefinition[]) | null = null;
+  /** The resources of the map's collection; read on every draw, so set it before tokens are created. */
+  public resourceDefsProvider: ResourceDefsProvider = () => [];
 
   // Hover handlers for UI elements
   private uiHoverHandlers: Record<string, { over: () => void; out: () => void }> = {};
@@ -66,7 +69,7 @@ export class UIManager implements ITokenUIManager {
     this.uiContainer.sortableChildren = true;
     this.uiContainer.eventMode = 'passive'; // UI should not block token interactions
     this.uiContainer.interactiveChildren = true;
-    this.uiContainer.zIndex = 100; // Higher z-index to ensure UI appears above tokens
+    this.uiContainer.zIndex = TOKEN_UI_Z_INDEX;
     this.viewport.addChild(this.uiContainer);
     
     // Force viewport to sort children to ensure proper z-ordering
@@ -75,6 +78,8 @@ export class UIManager implements ITokenUIManager {
     // Token controls are DM-only
     if (!this.isPlayerView) {
       this.tokenControlsUI = new TokenControlsUI(this.viewport, this.store);
+      this.tokenControlsUI.resourceDefsProvider = () => this.resourceDefsProvider();
+      this.tokenControlsUI.slotsProvider = (tokenId) => this.tokenUIs[tokenId]?.getResourceSlots() ?? [];
       this.tokenRotationUI = new TokenRotationUI(this.viewport, this.store);
       this.tokenResizeUI = new TokenResizeUI(this.viewport, this.store);
       
@@ -125,6 +130,7 @@ export class UIManager implements ITokenUIManager {
     
     const ui = new TokenUIRenderer(this.store, this.viewport.options?.ticker);
     ui.conditionDefsProvider = this.conditionDefsProvider;
+    ui.resourceDefsProvider = () => this.resourceDefsProvider();
     ui.zoomProvider = () => this.viewport.scale.x;
     ui.onScaleChange = (scale) => this.tokenControlsUI?.setScaleFor(tokenId, scale);
     this.tokenUIs[tokenId] = ui;
@@ -366,11 +372,9 @@ export class UIManager implements ITokenUIManager {
     this.tokenResizeUI?.updateHandlePositions();
   }
 
+  /** Shows or hides a token's UI with its token; while hidden, no later update of the token shows it again. */
   setTokenUIVisibility(tokenId: string, visible: boolean): void {
-    const ui = this.tokenUIs[tokenId];
-    if (ui) {
-      ui.getContainer().visible = visible;
-    }
+    this.tokenUIs[tokenId]?.setHiddenWithToken(!visible);
   }
 
   private setupUIHoverHandlers(tokenId: string, tokenGroup: Container): void {
@@ -420,6 +424,16 @@ export class UIManager implements ITokenUIManager {
     for (const ui of [...Object.values(this.tokenUIs), ...Object.values(this.playerTokenUIs)]) ui.refreshConditions();
   }
 
+  /** Redraws every token's resources, after the collection's resource definitions changed. */
+  public refreshResources(): void {
+    this.updateAllTokenSettings();
+  }
+
+  /** How far a selected token's resources reach beyond its bottom, right and top edges, in world units. */
+  public barsReach(tokenId: string): number {
+    return this.tokenUIs[tokenId]?.getBarsReach() ?? 0;
+  }
+
   private updateAllTokenSettings(): void {
     // Update all token UIs when settings change
     for (const tokenId in this.tokenUIs) {
@@ -429,6 +443,8 @@ export class UIManager implements ITokenUIManager {
         this.updateTokenUI(tokenId, token);
       }
     }
+    // The +/- controls sit on the resources just redrawn
+    this.updateSelectionUI(this.store.getState().selectedIds);
   }
 
   private getTokenSprite(tokenId: string): TokenGroupContainer | null {
@@ -443,8 +459,20 @@ export class UIManager implements ITokenUIManager {
     this.getTokenSprite = provider;
   }
 
+  /** The GM's token UI, shown for every token that has any (also those session view hides), and never the players' copy of it. */
+  getGmViewLayers(): LayerVisibility[] {
+    return [
+      { layer: this.uiContainer, visible: true },
+      ...(this.playerUIContainer ? [{ layer: this.playerUIContainer, visible: false }] : []),
+      ...Object.values(this.tokenUIs).map((ui) => ({ layer: ui.getContainer(), visible: ui.showsContent })),
+    ];
+  }
+
   /** Cached player overlays keep player preferences independent of the DM UI. */
-  getPlayerViewLayers(settings: Pick<AtlasSettings['localPlayerView'], 'showTokenHP' | 'showTokenStress' | 'showTokenNameplates'>): LayerVisibility[] {
+  getPlayerViewLayers(
+    settings: Pick<AtlasSettings['localPlayerView'], 'showTokenNameplates'>,
+    isSeen: (tokenId: string) => boolean = () => true,
+  ): LayerVisibility[] {
     if (!this.playerUIContainer) {
       this.playerUIContainer = new Container();
       this.playerUIContainer.zIndex = this.uiContainer.zIndex;
@@ -464,9 +492,10 @@ export class UIManager implements ITokenUIManager {
         this.playerUIContainer.addChild(ui.getContainer());
       }
       ui.conditionDefsProvider = this.conditionDefsProvider;
+      ui.resourceDefsProvider = () => this.resourceDefsProvider();
       ui.update(token, sprite.tokenSize || 70, playerTokenUISettings(token, settings));
       ui.getContainer().position.copyFrom(sprite.position);
-      ui.getContainer().renderable = sprite.visible && !token.isHidden;
+      ui.getContainer().renderable = sprite.visible && !token.isHidden && isSeen(tokenId);
     }
     const dmControls: Container[] = [
       ...(this.tokenControlsUI ? [this.tokenControlsUI.getContainer()] : []),

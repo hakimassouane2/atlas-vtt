@@ -8,6 +8,7 @@ import { LabelTooltip } from '../../primitives/tooltip';
 import { CollectionSelect } from './CollectionSelect';
 import { TagPicker } from './TagPicker';
 import { UploadDropzone } from './UploadDropzone';
+import { cropReset } from './cropMath';
 import { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './types';
 import type { CollectionMetadata } from '../../../../services/AssetService';
 import type { CreatorMode } from './types';
@@ -22,6 +23,8 @@ interface TokenCreatorRailProps {
   isDragging: boolean;
   previews: TokenPreviewsApi;
   onFiles: (files: File[]) => void;
+  /** The picker also offers Universal VTT map files. */
+  acceptsMapFiles: boolean;
   collection: string;
   collections: CollectionMetadata[];
   onCollectionChange: (collection: string) => void;
@@ -69,6 +72,7 @@ export function TokenCreatorRail(props: TokenCreatorRailProps): React.JSX.Elemen
           title={isEditing ? 'Choose a new image' : 'Drop images anywhere'}
           hint={isEditing ? 'The current image will be replaced' : `or click to browse for ${mode} images`}
           multiple={!isEditing}
+          acceptsMapFiles={props.acceptsMapFiles && !isEditing}
           isDragging={isDragging}
           onFiles={onFiles}
         />
@@ -137,7 +141,7 @@ export function TokenCreatorRail(props: TokenCreatorRailProps): React.JSX.Elemen
               </Button>
             </LabelTooltip>
           </div>
-          <Button variant="outline" size="sm" onClick={() => previews.updateSelected({ imageScale: 1, imagePosition: { x: 0, y: 0 } })}>
+          <Button variant="outline" size="sm" onClick={() => previews.previews.filter(p => p.isSelected).forEach(p => previews.update(p.id, cropReset(p)))}>
             <MoveHorizontal />
             <span>Reset crop</span>
           </Button>

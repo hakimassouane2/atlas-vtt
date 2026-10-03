@@ -1,8 +1,6 @@
 import { App, Plugin, TFile, WorkspaceLeaf } from 'obsidian';
 import { AtlasView, ATLAS_VIEW_TYPE } from '../atlas-view';
 
-export const EXTENSION_ATLASMAP = 'atlasmap';
-
 function getExistingAtlasLeaf(app: App): WorkspaceLeaf | null {
   return app.workspace.getLeavesOfType(ATLAS_VIEW_TYPE)[0] ?? null;
 }
@@ -11,6 +9,14 @@ function getExistingAtlasLeaf(app: App): WorkspaceLeaf | null {
 export function getLoadedAtlasView(app: App): AtlasView | null {
   const view = getExistingAtlasLeaf(app)?.view;
   return view instanceof AtlasView ? view : null;
+}
+
+/** The Atlas view, first loading its leaf if Obsidian deferred it (background tabs after a restart). */
+export async function loadAtlasView(app: App): Promise<AtlasView | null> {
+  const leaf = getExistingAtlasLeaf(app);
+  if (!leaf) return null;
+  await leaf.loadIfDeferred();
+  return leaf.view instanceof AtlasView ? leaf.view : null;
 }
 
 /**

@@ -3,6 +3,7 @@ import { getFantasyStatblocksApi, resolveCreatureFromFence, resolveLayout, type 
 import { resolveStatblockNote } from './statblockNoteSource';
 import type { TokenAsset } from './AssetService';
 import { tokenSizeFromCreatureSize } from '../pixi/token-renderer/tokenSizing';
+import { STATBLOCK_IMAGE_KEYS, type StatblockImageKey } from './statblockImageKeys';
 
 export type StatblockImportStatus = 'ready' | 'imported' | 'missing-image' | 'remote-image' | 'conflict';
 export interface StatblockImportCandidate {
@@ -35,6 +36,15 @@ export function imageReference(value: unknown): string | undefined {
   return reference ? decodeStatblockLink(reference) : undefined;
 }
 
+/** The first artwork field of a statblock that holds a reference, with that reference. */
+export function statblockImageField(fields: Record<string, unknown>): { key: StatblockImageKey; reference: string } | undefined {
+  for (const key of STATBLOCK_IMAGE_KEYS) {
+    const reference = imageReference(fields[key]);
+    if (reference) return { key, reference };
+  }
+  return undefined;
+}
+
 /** The vault image a frontmatter reference (wikilink or path) points at, resolved relative to `sourcePath`. */
 export function localImage(app: App, reference: string, sourcePath: string): TFile | null {
   const path = reference.replace(/^!?\[\[|\]\]$/g, '').split('|')[0]?.split('#')[0]?.trim();
@@ -50,12 +60,32 @@ export function requireResolvedBestiary(): FantasyStatblocksCreature[] {
   return api.getBestiaryCreatures();
 }
 
+/** Bestiary entries and the tokens linked to each note, by normalized note path. */
+export interface StatblockLookup {
+  creatures: ReadonlyMap<string, FantasyStatblocksCreature>;
+  tokens: ReadonlyMap<string, readonly TokenAsset[]>;
+}
+
+/** Built once per scan: looking notes up in the bestiary one by one grows with notes × creatures. */
+export function statblockLookup(assets: readonly TokenAsset[], bestiary: readonly FantasyStatblocksCreature[]): StatblockLookup {
+  const creatures = new Map<string, FantasyStatblocksCreature>();
+  for (const creature of bestiary) {
+    const path = creature.path && normalizePath(creature.path);
+    if (path && !creatures.has(path)) creatures.set(path, creature);
+  }
+  const tokens = new Map<string, TokenAsset[]>();
+  for (const asset of assets) {
+    if (!asset.statblockPath) continue;
+    const path = normalizePath(asset.statblockPath);
+    tokens.set(path, [...(tokens.get(path) ?? []), asset]);
+  }
+  return { creatures, tokens };
+}
+
 /** Identity is always the note path; a matching basename is not proof of a statblock. */
-export async function statblockImportCandidate(
-  app: App, file: TFile, assets: readonly TokenAsset[], bestiary: readonly FantasyStatblocksCreature[],
-): Promise<StatblockImportCandidate | null> {
+export async function statblockImportCandidate(app: App, file: TFile, lookup: StatblockLookup): Promise<StatblockImportCandidate | null> {
   const path = normalizePath(file.path);
-  const entry = bestiary.find(creature => creature.path && normalizePath(creature.path) === path);
+  const entry = lookup.creatures.get(path);
   const source = await resolveStatblockNote(app, file);
   if (!source && !entry) return null;
   const creature = source?.kind === 'codeblock'
@@ -67,12 +97,12 @@ export async function statblockImportCandidate(
   const layout = resolveLayout(app, requested);
   const layoutName = requested ? (layout?.id === requested || layout?.name === requested ? layout.name : requested) : layout?.name ?? 'Unspecified';
   const row = { path, name, layoutName };
-  const linked = assets.filter(asset => asset.statblockPath && normalizePath(asset.statblockPath) === path);
+  const linked = lookup.tokens.get(path) ?? [];
   if (linked.length > 1) return { ...row, status: 'conflict', detail: 'Multiple tokens already link to this note. Review their links first.' };
   const existing = linked[0];
   if (existing) return { ...row, status: 'imported', detail: 'An Atlas token already links to this note.', imagePath: existing.imagePath, showRing: existing.showRing !== false };
   if (!creature) return { ...row, status: 'conflict', detail: 'The statblock could not be resolved. Check its name or note reference.' };
-  const image = imageReference(creature.image) ?? imageReference(creature['token-image']);
+  const image = statblockImageField(creature)?.reference;
   if (!image) return { ...row, status: 'missing-image', detail: 'Add an image to this statblock to create a token.' };
   if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(image)) return { ...row, status: 'remote-image', detail: 'Save the image in your vault and link it from the statblock.' };
   const imageFile = localImage(app, image, path);

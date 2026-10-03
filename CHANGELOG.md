@@ -2,6 +2,79 @@
 
 <!-- Generated from changelog/*.md. Run npm run changelog:generate. -->
 
+## 0.5.0 — Dynamic lighting as an experimental feature, 3D dice, token resources and map imports
+
+2026-10-02
+
+### New
+
+- Dynamic lighting. It is off by default. Switch it on in the Atlas command palette under Experimental features
+- Experimental features page in the command palette
+- Import maps from Dungeondraft, DungeonFog and Dungeon Alchemist (.dd2vtt, .uvtt, .df2vtt)
+- 3D dice
+- Dice rules for each collection: default roll, critical rule, exploding dice
+- Token resources: up to six for each collection. New Resources tab in the collection settings
+- Cairn game system preset
+- Draw Steel game system preset. Contributed by jSQrD-dev
+- Initiative by sides
+- Initiative rules for each collection
+- Clear button in the initiative tracker
+
+### Improved
+
+- Initiative: you add the combatants yourself. Right-click a token and choose Add to Initiative
+- Players see every combatant whose token is not hidden
+- The GM dashboard is now the DM screen. Press Tab to open it
+- The token you drop last lies on top
+- Edit Token has two columns
+- Hold Ctrl/Cmd over a token in the asset manager to see its statblock
+- The asset manager shows placeholders while it loads, and scrolls smoothly
+- Large token imports are much faster. With a contribution by DeastinY
+- A collection export includes linked notes, images, PDFs and loot tables
+- New dice looks and a new dice tray
+- HP and secondary bars are now in the Resources tab
+- A map larger than 8192 pixels is scaled down. Its card shows the new size
+- SVG maps stay sharp
+- Cone measurements follow the game system. Contributed by ISorokaI
+- The player view button of a scene tab is now on the left. Contributed by ISorokaI
+- Map shortcuts work on every keyboard layout. Contributed by ISorokaI
+- Maps open with software rendering when WebGL does not start
+- A statblock with a `token` property is found when you create tokens
+- Fixed: scenes that became black or empty when you switched, renamed or opened them
+- Fixed: wrong dice totals and critical results
+- Fixed: right-click menus and right-drag pan over fog of war
+- Fixed: the DM screen shows its statblocks side by side again
+- Fixed: Edit Token did not open
+- Fixed: Spawn on Map did nothing in some asset managers
+- Fixed: a collection with missing files could not be deleted
+- Fixed: a moved text went back to its old position
+- Fixed: the player window stayed dark in a light theme
+- Fixed: many small layout problems
+
+## 0.4.2 — Faster imports with progress bars, a toolbar that fits small windows, and scene and map fixes
+
+2026-09-29
+
+### Improved
+
+- The map toolbar fits any window size. Tools that don't fit move into a "More tools" menu
+- Menus, the dice tray and the command palette stay inside small map views
+- Importing tokens and maps is now roughly 2.5x faster and images that are already small enough won't get re-compressed any longer
+- Importing tokens/maps now shows a progress bar
+- The Fantasy Statblocks import opens much faster in large vaults
+- Create token from statblock image now saves a small, optimized thumbnail instead of a full size copy
+
+### Fixed
+
+- Maps and scenes can be moved into folders in the asset manager again
+- Scenes keep their background when the map image is renamed or moved
+- Fixed bug where the dashboard would open map images as a black canvas. It now lists only scenes again
+- Scenes that can't be opened now show an error instead of a black canvas
+- Token images can be moved and zoomed again after turning on the ring. Edit token now saves the new framing
+- Maps now show up when Obsidian can't use the graphics card, for example on some Linux systems
+- The laser pointer works again after closing a map view
+- Fixed an issue where recently created scenes wouldn't show their thumbnail in the asset manager
+
 ## 0.4.1 — Fixes the asset manager's menus on older Obsidian installs and note pins linked to a heading
 
 2026-09-28

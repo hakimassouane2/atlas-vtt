@@ -2,7 +2,7 @@ import { Notice, type App } from 'obsidian';
 import playerClient from 'virtual:atlas-player-client';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AtlasView } from '../atlas-view';
-import type { PlayerFrameSource } from '../services/PlayerWindowService';
+import type { PlayerFrameSource } from '../services/PlayerFrameMirror';
 import type { SettingsService } from '../services/SettingsService';
 import { OnlineFrameStream, type OnlineFrameSource } from './OnlineFrameStream';
 import { OnlineSessionServer } from './OnlineSessionServer';
@@ -14,6 +14,8 @@ import { pageTheme } from './pageTheme';
 import { sceneImagePaths } from './playerScene';
 import { AssetService } from '../services/AssetService';
 import { mapConditions } from '../services/mapConditions';
+import { mapInitiativeRules } from '../services/mapInitiativeRules';
+import { mapResources } from '../resources/collectionResources';
 import type { Character } from '../types';
 
 export interface OnlineSessionState {
@@ -162,8 +164,9 @@ export class OnlineSession {
       store: source.store,
       renderer,
       getCamera: () => source.getCamera?.(),
-      getRenderedFrames: () => source.getRenderedFrames?.(),
       getConditions: () => mapConditions(AssetService.getInstance(view.app), source.store?.getState().mapPath),
+      getResources: () => mapResources(AssetService.getInstance(view.app), source.store?.getState().mapPath),
+      getInitiativeRules: () => mapInitiativeRules(view.app, source.store?.getState().mapPath),
     };
     this.stream.setSource(onlineSource);
     this.controls.setSource(onlineSource);

@@ -2,7 +2,9 @@ import type { StoreApi } from 'zustand';
 import type { GridSystem } from '../grid/GridSystem';
 import type { ViewAtlasState } from '../storeFactory';
 import type { ConditionDefinition } from '../types/collectionSettingsTypes';
-import { resourceUpdates, tokenHp, tokenStress, type ResourceKind } from '../pixi/token-renderer/tokenResources';
+import type { ResourceDefinition } from '../resources/resourceTypes';
+import { resourceUpdate, withCurrent } from '../resources/resourceValues';
+import { visibleResources } from '../resources/visibleResources';
 import { isPlayerControlled } from './playerTokens';
 
 /** Dice a player may roll at once, and the largest die: the dice engine rolls each die one by one. */
@@ -14,7 +16,8 @@ const DICE_FORMULA = /^\s*(\d*d\d+|\d+)(\s*[+-]\s*(\d*d\d+|\d+))*\s*$/i;
 /** What a player's page asks the DM's Atlas to do. Positions are world pixels. */
 export type PlayerCommand =
   | { type: 'move'; id: string; x: number; y: number }
-  | { type: 'resource'; id: string; kind: ResourceKind; current: number }
+  /** Sets the current value of the resource `key`, one the collection shows players. */
+  | { type: 'resource'; id: string; key: string; current: number }
   /** Rolled by the DM's dice engine, for the token `id` when given. */
   | { type: 'roll'; formula: string; id?: string }
   | { type: 'condition'; id: string; conditionId: string; active: boolean }
@@ -33,8 +36,8 @@ export function parsePlayerCommand(value: unknown): PlayerCommand | null {
   if (type === 'move' && isFiniteNumber(command.x) && isFiniteNumber(command.y)) {
     return { type, id, x: command.x, y: command.y };
   }
-  if (type === 'resource' && (command.kind === 'hp' || command.kind === 'stress') && isFiniteNumber(command.current)) {
-    return { type, id, kind: command.kind, current: Math.round(command.current) };
+  if (type === 'resource' && typeof command.key === 'string' && isFiniteNumber(command.current)) {
+    return { type, id, key: command.key, current: Math.round(command.current) };
   }
   const { conditionId } = command;
   if (type === 'condition' && typeof conditionId === 'string' && typeof command.active === 'boolean') {
@@ -54,16 +57,22 @@ export function isSafeDiceFormula(formula: string): boolean {
   return dice.length > 0 && count <= MAX_DICE && dice.every(([, , sides]) => Number(sides) >= 1 && Number(sides) <= MAX_SIDES);
 }
 
+/** What the scene's collection lets players change on their tokens. */
+export interface PlayerRules {
+  conditions: readonly ConditionDefinition[];
+  resources: readonly ResourceDefinition[];
+}
+
 /**
- * Applies `command` to the presented scene when the token is one players control and,
- * for conditions, the scene's collection defines the condition. Moves snap like a DM
- * drag does. Returns whether anything was applied.
+ * Applies `command` to the presented scene when the token is one players control and
+ * the scene's collection defines the condition, or shows the resource to players.
+ * Moves snap like a DM drag does. Returns whether anything was applied.
  */
 export function applyPlayerCommand(
   store: StoreApi<ViewAtlasState>,
   grid: GridSystem | null,
   command: Exclude<PlayerCommand, { type: 'roll' }>,
-  conditions: readonly ConditionDefinition[],
+  { conditions, resources }: PlayerRules,
 ): boolean {
   const state = store.getState();
   const token = state.objects.tokens[command.id];
@@ -88,10 +97,9 @@ export function applyPlayerCommand(
     return true;
   }
 
-  const shown = command.kind === 'hp' ? tokenHp(token) : tokenStress(token);
+  const shown = visibleResources(token, resources, 'player').find(({ definition }) => definition.key === command.key);
   if (!shown) return false;
-  const current = Math.min(shown.max, Math.max(0, command.current));
-  state.updateToken(token.id, resourceUpdates(token, command.kind, shown, { current, max: shown.max }));
+  state.updateToken(token.id, resourceUpdate(token, command.key, withCurrent(shown.value, command.current), false));
   return true;
 }
 

@@ -18,6 +18,8 @@ dev d'origine.
 - `main` : notre version stable.
 - `online` : développement du mode en ligne.
 
+Dernière synchro avec l'original : **0.5.0** (3 octobre 2026, merge de `upstream/main`).
+
 Sur un nouveau PC :
 
 ```
@@ -68,18 +70,23 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
    Commandes équivalentes : "Start online session and copy the player link", "Stop online session".
 3. Dans la scène : **Présenter** ("Send to player view"). Les joueurs en ligne voient la scène ;
    la popout locale n'est plus nécessaire.
-4. Edit Token d'un personnage : activer **Controlled by Players** pour que les joueurs puissent le
-   déplacer, changer ses PV (et sa ressource secondaire, "Stress") et ses conditions.
+4. Edit Token d'un personnage : activer **Controlled by players** pour que les joueurs puissent le
+   déplacer, changer ses ressources et ses conditions. Les ressources (PV, stress, mana…) sont
+   celles de la collection (onglet **Resources** de ses réglages) : les joueurs ne voient et ne
+   modifient que celles marquées **Players see it** (l'œil). Par défaut aucune ne l'est : cocher
+   au moins les PV.
 5. Le joueur colle le lien dans son navigateur :
    - clic gauche sur son token et glisser pour le déplacer (anneau bleu à l'arrivée, snap à la
      grille comme un drag du MJ) ; clic droit et glisser pour déplacer la carte, molette pour
      zoomer, ⌖ pour revenir au cadrage du MJ ;
-   - panneau en bas à gauche : PV, ressource secondaire et conditions de ses personnages ;
+   - panneau en bas à gauche : ressources visibles et conditions de ses personnages ;
    - en bas à droite, les dés : d4 à d100 et formule libre ("Lancer pour" choisit le personnage) ;
    - ⚙ en haut à gauche : images par seconde et qualité (retenues dans son navigateur).
 6. L'ordre d'initiative et les notifications de dés sont **ceux de la popout joueur d'Atlas**
    (mêmes composants, mêmes styles, ton thème Obsidian). L'initiative apparaît dès que ton
-   tracker est ouvert ; noms et PV suivent les réglages de la vue joueur.
+   tracker est ouvert, par camps si les règles de la collection le disent ; les noms suivent les
+   réglages de la vue joueur, les PV la visibilité de la ressource PV. Les jets s'affichent en
+   carte de résultat, jamais en dés 3D (ceux-ci restent chez toi).
 7. Les jets des joueurs sont tirés par ton moteur de dés (notification et journal de dés chez
    toi, avec le nom et le portrait du personnage) et affichés à tous. Tes jets ne vont aux joueurs
    que si "show dice rolls" est coché dans les réglages de la vue joueur.
@@ -87,8 +94,9 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
    (palette Obsidian) : tous les joueurs voient à travers ta caméra et ne peuvent plus bouger la
    leur ; à la désactivation ils repartent de là où tu les as laissés.
 9. Ce que les joueurs voient sur la carte suit tes réglages : grille cachée chez toi, cachée chez
-   eux ; les tokens des joueurs montrent toujours leurs barres ; un nom affiché chez toi
-   ("Show Nameplate") l'est chez eux ; les PV des monstres suivent les réglages de la vue joueur.
+   eux ; les barres de tous les tokens suivent la visibilité de chaque ressource ; un nom affiché
+   chez toi ("Show nameplate") l'est chez eux. Avec l'éclairage dynamique (expérimental), ils
+   voient la scène comme la popout.
 10. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
 
 ### Fonctionnement
@@ -101,9 +109,13 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
     `virtual:atlas-player-client`). Il monte les **overlays de la popout joueur d'Atlas**
     (`PlayerInitiativePanel`, `PlayerDiceRolls`) tels quels. Pour qu'ils tournent hors
     d'Obsidian, le build remplace `obsidian` (`client/obsidianStub.ts`), `events`
-    (`client/eventsStub.ts`) et le hook d'avatar lié au vault (`client/diceAvatar.ts`), et
+    (`client/eventsStub.ts`), le hook d'avatar lié au vault (`client/diceAvatar.ts`) et
+    `SettingsService` (`client/settingsStub.ts` : jets en carte de résultat, look par défaut), et
     `client/obsidianDom.ts` ajoute les helpers DOM d'Obsidian (`createEl`, `createDiv`, `empty`…).
-    Les imports SCSS sont ignorés : les styles viennent du fichier suivant.
+    Les imports SCSS et les sons de dés (`.mp3?inline`) sont ignorés : les styles viennent du
+    fichier suivant, les sons sont joués chez le MJ. L'initiative reçoit ce que la collection
+    décide (PV visibles, règles d'initiative) par l'état envoyé (`initiativeRules`). three.js est
+    embarqué sans servir (la page fait environ 1,3 Mo minifiée).
   - `/styles.css` : toutes les feuilles de style de la fenêtre du MJ (Obsidian, thème, Atlas),
     lues au chargement de la page (`pageTheme.ts`), plus celles de la page
     (`client/playerPage.css`). La page porte les classes de thème du MJ et celles de la popout
@@ -121,15 +133,18 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
   recentre tout le monde.
 - `OnlineFrameStream` garde un "spectateur" par joueur (écran, caméra, framerate, qualité) et ne
   rend sa frame "sûre pour les joueurs" (mêmes couches que la popout : tokens cachés, pins MJ,
-  brouillard, grille, barres) que si le canvas MJ a changé ou si sa caméra a bougé, puis l'encode
-  en JPEG. `PlayerFrameRenderer` (un par joueur) rend la scène dans une `RenderTexture` à la
+  brouillard, grille, barres, éclairage) que si le canvas MJ a changé ou si sa caméra a bougé,
+  puis l'encode en JPEG. Les changements du canvas sont comptés par `CanvasRenders` (le runner
+  `postrender` du renderer PIXI : rendus vers le canvas, hors ceux du flux lui-même). `PlayerFrameRenderer` (un par joueur) rend la scène dans une `RenderTexture` à la
   taille exacte de l'écran du joueur, puis rend à nouveau le canvas MJ dans la même tâche.
 - `PlayerControls` publie l'état (`protocol.ts`) : les tokens que les joueurs contrôlent
-  (`playerTokens.ts`), les conditions de la collection (`mapConditions`), la scène pour les
-  overlays (`playerScene.ts` : tokens visibles, initiative sans les tours cachés, noms et PV
-  retirés si les réglages les cachent) et les réglages de la vue joueur. Il applique les
-  commandes (`POST /command`, `playerCommands.ts`) : `move` (snappé avec `snapToCellCenter`),
-  `resource` (borné via `resourceUpdates`), `condition` / `conditionValue` (seulement une
+  (`playerTokens.ts`, avec leurs ressources visibles via `visibleResources`), les conditions et
+  ressources de la collection (`mapConditions`, `mapResources`), ses règles d'initiative, la scène
+  pour les overlays (`playerScene.ts` : tokens visibles avec leur camp, initiative sans les tours
+  cachés, noms retirés si les réglages les cachent, PV seulement si la collection les montre) et
+  les réglages de la vue joueur. Il applique les commandes (`POST /command`, `playerCommands.ts`) :
+  `move` (snappé avec `snapToCellCenter`), `resource` (par clé, seulement une ressource visible
+  des joueurs, bornée via `resourceUpdate` / `withCurrent`), `condition` / `conditionValue` (seulement une
   condition que la collection définit), `roll` (`isSafeDiceFormula` : dés et modificateurs, 100
   dés au plus). Tout passe par les actions normales du store : sauvegarde automatique, et Ctrl+Z
   du MJ annule une action de joueur.
@@ -148,7 +163,8 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 - `src/app/online/` (côté MJ) :
   - `OnlineSession.ts` : démarrage, arrêt, lien, scène présentée, images autorisées.
   - `OnlineSessionServer.ts` : serveur HTTP, clé, flux SSE par joueur, routes de la page.
-  - `OnlineFrameStream.ts` et `PlayerFrameRenderer.ts` : rendu et encodage des images par joueur.
+  - `OnlineFrameStream.ts`, `PlayerFrameRenderer.ts`, `CanvasRenders.ts` : rendu et encodage des
+    images par joueur, quand le canvas du MJ a changé.
   - `PlayerControls.ts`, `playerScene.ts`, `playerTokens.ts`, `playerCommands.ts` : état publié
     et commandes des joueurs.
   - `PlayerDiceFeed.ts` : jets de dés vers et depuis les joueurs.
@@ -160,12 +176,15 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
   `connection.ts` (flux), `session.ts` (clé, requêtes), `playerState.ts` (état reçu), `camera.ts`,
   `frames.ts`, `mapInput.ts` (carte, drag, pan, zoom), `partyPanel.ts`, `diceLauncher.ts`,
   `streamSettings.ts`, `atlasOverlays.ts` (overlays d'Atlas), `dom.ts`, `playerPage.css`, et les
-  remplaçants `obsidianStub.ts`, `eventsStub.ts`, `obsidianDom.ts`, `diceAvatar.ts`.
+  remplaçants `obsidianStub.ts`, `eventsStub.ts`, `obsidianDom.ts`, `diceAvatar.ts`,
+  `settingsStub.ts`.
 - `vite/player-client.mts` : compilation du client.
-- `src/app/services/mapConditions.ts`, `src/app/tools/diceRollForPlayers.ts`,
-  `src/app/pixi/token-renderer/playerTokenUISettings.ts` : règles partagées avec la popout.
+- `src/app/services/mapConditions.ts`, `src/app/services/mapInitiativeCollection.ts`,
+  `src/app/tools/diceRollForPlayers.ts`, `src/app/pixi/token-renderer/playerTokenUISettings.ts` :
+  règles partagées avec la popout.
 - Tests (`tests/unit/`) : `onlineSessionServer`, `playerStreamRequest`, `playerCommands`,
-  `playerScene`, `playerTokenUISettings`, `diceToolModifiers` ; `tests/mocks/playerClient.ts`
+  `playerScene`, `playerTokenUISettings`, `diceToolModifiers` (vérifie désormais le moteur de dés
+  de l'original) ; `tests/mocks/playerClient.ts`
   remplace le module virtuel dans les tests.
 
 ### Points de contact dans le code d'origine
@@ -184,27 +203,28 @@ dev d'origine peut entrer en conflit.
 - `src/app/dashboard-view.tsx` : tuile "Online Session".
 - `src/app/react/components/CommandPalette.tsx` : entrée "Players Follow My Camera" (bascule,
   section mode, à côté de "Freeze Player Camera").
+- `src/app/services/PlayerWindowService.ts` : passe `mapInitiativeCollection(app)` au panneau
+  d'initiative.
 - `src/app/PixiRendererOrchestrator.ts` : la liste des couches de la vue joueur est sortie de
   `withPlayerSafeFrame` dans la méthode publique `getPlayerViewLayers`, et la grille n'y est
   visible que si le MJ l'affiche (**change aussi la popout**).
-- `src/app/pixi/token-renderer/UIManager.ts` : barres et noms des tokens vus par les joueurs via
-  `playerTokenUISettings` : tokens des joueurs toujours avec leurs barres, "Show Nameplate" du
-  token respecté (**change aussi la popout**).
-- `src/app/pixi/token-renderer/EditTokenModal.tsx` : interrupteur "Controlled by Players"
-  (champ `playerLinked` existant, personnages seulement). L'interrupteur "Show Nameplate" et
-  celui-ci partagent un petit composant local `ToggleField`.
-- `src/app/services/PlayerInitiativePanel.ts` : le filtre "entrées visibles, dans l'ordre" est
-  sorti dans `visibleInitiativeEntries` (exporté, même comportement).
+- `src/app/pixi/token-renderer/UIManager.ts` : noms des tokens vus par les joueurs via
+  `playerTokenUISettings` : "Show nameplate" du token respecté (**change aussi la popout**).
+- `src/app/pixi/token-renderer/EditTokenModal.tsx` et `EditTokenSections.tsx` : interrupteur
+  "Controlled by players" (champ `playerLinked` existant, personnages seulement), passé en
+  option `playerLinked` à `TokenIdentitySection`.
+- `src/app/services/PlayerInitiativePanel.ts` : ce que le panneau demande à la collection
+  (PV visibles, règles d'initiative) arrive par le constructeur (`InitiativeCollection`) au lieu
+  d'être lu dans le vault, pour que la page joueur le fournisse sans `AssetService`.
 - `src/app/react/components/dice/PlayerDiceToasts.tsx` : le masquage des jets pour un token caché
   est sorti dans `tools/diceRollForPlayers.ts` (même comportement).
 - `src/app/pixi/TokenRenderer.ts` : la lecture des conditions de la collection passe par
   `services/mapConditions.ts` (même comportement).
-- `src/app/tools/DiceTool.ts` : **correctif d'un bug d'origine**. Le nombre de dés d'un terme
-  après un `+` était lu comme un modificateur (`2d6+1d8` ajoutait +1, `2d6+12d4+3` ajoutait +15).
-  La regex des modificateurs ignore maintenant un nombre suivi de `d`. À proposer au dev d'origine.
+- `src/app/tools/DiceTool.ts` : plus modifié. Notre correctif des modificateurs est remplacé par
+  le moteur de dés de la 0.5.0 (`rollFormula`), que `diceToolModifiers` vérifie.
 
 Si le dev d'origine modifie `PlayerInitiativePanel`, `PlayerDiceRolls`, `PlayerDiceToasts`,
-`DiceToast`, `useDiceAvatar` ou `TokenPortrait`, vérifier que le client joueur compile toujours
+`DiceRollDisplay`, `DiceToast`, `useDiceAvatar` ou `TokenPortrait`, vérifier que le client joueur compile toujours
 (`npm run build`) : il les utilise hors d'Obsidian. Une nouvelle dépendance à Obsidian dans ces
 fichiers demande un remplaçant de plus dans `vite/player-client.mts`.
 
@@ -229,5 +249,5 @@ fichiers demande un remplaçant de plus dans `vite/player-client.mts`.
 - Tout joueur qui a le lien peut déplacer tous les tokens "Controlled by Players" (un seul lien
   pour la table, pas de lien par joueur).
 - Lien en `http` (pas de chiffrement) : suffisant entre amis, la clé du lien protège l'accès.
-- Les 3 tests en échec de la suite d'origine (`playerWindowPresenter`, `worktreeTargets`)
+- Les 7 tests en échec de la suite (`playerWindowPresenter`, `worktreeTargets`, `lightPopover`)
   échouent déjà sur l'original sous Windows.

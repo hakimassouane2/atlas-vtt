@@ -5,12 +5,13 @@ import { normalizeImagePath } from '../utils/pathUtils';
 import { mapThumbnailPath } from '../utils/dataFileMigration';
 import { movedPathOf, rewriteMapReferences, type MovedPath, type PathMove } from './renamedPaths';
 import { SceneSnapshotService } from '../snapshots/SceneSnapshotService';
+import { STATBLOCK_IMAGE_KEYS } from './statblockImageKeys';
 
 /**
  * Propagates file path changes (renames/moves) across all storage layers:
  * - Asset metadata (assets-metadata.json), including scene records of a renamed map
  * - Map files (.atlasmap token instances and pin targets) and scene snapshots
- * - Statblock frontmatter (image and token-image fields)
+ * - Statblock frontmatter (the image fields)
  * - Collection loot bases
  * - The thumbnail of a renamed map
  *
@@ -122,8 +123,11 @@ export class FileReferenceService {
     if (!oldPath.endsWith('.atlasmap') || !newPath.endsWith('.atlasmap')) return;
     const thumbnail = this.app.vault.getAbstractFileByPath(mapThumbnailPath(oldPath));
     const target = mapThumbnailPath(newPath);
-    if (!(thumbnail instanceof TFile) || this.app.vault.getAbstractFileByPath(target)) return;
+    if (!(thumbnail instanceof TFile)) return;
     try {
+      // A thumbnail at the new path is a leftover of a deleted scene: no scene can be renamed onto a living one
+      const leftover = this.app.vault.getAbstractFileByPath(target);
+      if (leftover instanceof TFile) await this.app.fileManager.trashFile(leftover);
       await this.app.vault.rename(thumbnail, target);
     } catch (error) {
       console.error(`[FileReferenceService] Error renaming thumbnail ${thumbnail.path}:`, error);
@@ -184,7 +188,7 @@ export class FileReferenceService {
 
   /**
    * Statblock notes name their artwork by vault path in `image` (what Atlas
-   * writes when it links a token) or the older `token-image`. Obsidian keeps
+   * writes when it links a token), `token` or the older `token-image`. Obsidian keeps
    * wikilinks there up to date itself, but not plain paths.
    */
   private async updateStatblockFrontmatter(moved: MovedPath): Promise<void> {
@@ -211,7 +215,5 @@ export class FileReferenceService {
     }
   }
 }
-
-const STATBLOCK_IMAGE_KEYS = ['image', 'token-image'] as const;
 
 const basename = (path: string): string => path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');

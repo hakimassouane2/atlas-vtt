@@ -31,7 +31,7 @@ export class PlayerControls {
     this.unsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
     this.source = source;
     if (source) {
-      // Player view settings decide whether players see initiative, names and hit points
+      // Player view settings decide whether players see initiative and names
       this.unsubscribers.push(this.settingsService.onChange(() => this.publish()));
       this.unsubscribers.push(source.store.subscribe((state, previous) => {
         if (state.isMapLoading) return;
@@ -59,7 +59,10 @@ export class PlayerControls {
       const token = command.id ? source.store.getState().objects.tokens[command.id] : undefined;
       return this.rollDice(command.formula, isPlayerControlled(token) ? token : undefined);
     }
-    return applyPlayerCommand(source.store, source.renderer.getGridSystem(), command, source.getConditions());
+    return applyPlayerCommand(source.store, source.renderer.getGridSystem(), command, {
+      conditions: source.getConditions(),
+      resources: source.getResources(),
+    });
   }
 
   private publish(): void {
@@ -67,10 +70,12 @@ export class PlayerControls {
     const state = source?.store.getState();
     if (!source || !state || state.isMapLoading) return;
     const settings = this.settingsService.getLocalPlayerViewSettings();
+    const resources = source.getResources();
     this.publishState({
-      tokens: playerTokens(state.objects.tokens, state.grid?.size ?? 70),
+      tokens: playerTokens(state.objects.tokens, state.grid?.size ?? 70, resources),
       conditions: source.getConditions().map(({ id, name, color, valued }) => ({ id, name, color, valued: valued === true })),
-      scene: playerScene(state, settings),
+      scene: playerScene(state, settings, resources),
+      initiativeRules: source.getInitiativeRules(),
       settings,
     });
   }

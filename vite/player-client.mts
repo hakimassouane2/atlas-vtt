@@ -10,8 +10,9 @@ const CLIENT_DIR = 'src/app/online/client';
  * Builds the online player page (`src/app/online/client/main.ts`) for the browser
  * and exposes its script and stylesheet to the plugin as `virtual:atlas-player-client`,
  * which the player server sends. The page runs Atlas' own player overlays outside
- * Obsidian: `obsidian`, `events` and the vault-bound dice avatar hook resolve to
- * browser stand-ins, and styles come from the DM's window instead of SCSS imports.
+ * Obsidian: `obsidian`, `events`, the vault-bound dice avatar hook and Atlas' settings
+ * resolve to browser stand-ins, styles come from the DM's window instead of SCSS
+ * imports, and dice sounds are left out: the DM's window plays them.
  */
 export function playerClient(): Plugin {
   let root: string;
@@ -59,6 +60,7 @@ function browserStandIns(clientDir: string): EsbuildPlugin {
     [/^obsidian$/, 'obsidianStub.ts'],
     [/^events$/, 'eventsStub.ts'],
     [/\/useDiceAvatar$/, 'diceAvatar.ts'],
+    [/\/services\/SettingsService$/, 'settingsStub.ts'],
   ];
   return {
     name: 'atlas-player-client-stand-ins',
@@ -69,6 +71,8 @@ function browserStandIns(clientDir: string): EsbuildPlugin {
       // Component styles are already in the stylesheet copied from the DM's window
       pluginBuild.onResolve({ filter: /\.scss$/ }, (args) => ({ path: args.path, namespace: 'atlas-no-style' }));
       pluginBuild.onLoad({ filter: /.*/, namespace: 'atlas-no-style' }, () => ({ contents: '', loader: 'js' }));
+      pluginBuild.onResolve({ filter: /\.mp3\?inline$/ }, (args) => ({ path: args.path, namespace: 'atlas-no-sound' }));
+      pluginBuild.onLoad({ filter: /.*/, namespace: 'atlas-no-sound' }, () => ({ contents: "export default '';", loader: 'js' }));
     },
   };
 }

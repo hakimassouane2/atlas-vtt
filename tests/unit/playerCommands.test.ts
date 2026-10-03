@@ -5,11 +5,15 @@ import type { ViewAtlasState } from '../../src/app/storeFactory';
 import type { Character, TokenEntity } from '../../src/app/types';
 import { applyPlayerCommand, isSafeDiceFormula, parsePlayerCommand } from '../../src/app/online/playerCommands';
 import { playerTokens } from '../../src/app/online/playerTokens';
+import { HP_RESOURCE, STRESS_RESOURCE } from '../../src/app/resources/resourceDefinitions';
 
 const hero: Character = {
   id: 'hero', kind: 'character', name: 'Hero', x: 35, y: 35, imagePath: 'hero.png',
-  playerLinked: true, hp: { current: 10, max: 20 },
+  playerLinked: true, resources: { hp: { current: 10, max: 20 }, stress: { current: 1, max: 6 } },
 };
+
+/** HP is shown to players, stress is not. */
+const rules = { conditions: [], resources: [{ ...HP_RESOURCE, visibleToPlayers: true }, STRESS_RESOURCE] };
 
 function sceneStore(tokens: Record<string, TokenEntity>, snapToGrid = true): StoreApi<ViewAtlasState> {
   return createStore(() => ({
@@ -28,7 +32,7 @@ const grid = { snapToCellCenter: (x: number, y: number) => ({ x: Math.floor(x / 
 describe('parsePlayerCommand', () => {
   test('accepts moves and resource changes', () => {
     expect(parsePlayerCommand({ type: 'move', id: 'hero', x: 1, y: 2 })).toEqual({ type: 'move', id: 'hero', x: 1, y: 2 });
-    expect(parsePlayerCommand({ type: 'resource', id: 'hero', kind: 'hp', current: 4.6 })).toEqual({ type: 'resource', id: 'hero', kind: 'hp', current: 5 });
+    expect(parsePlayerCommand({ type: 'resource', id: 'hero', key: 'hp', current: 4.6 })).toEqual({ type: 'resource', id: 'hero', key: 'hp', current: 5 });
   });
 
   test('accepts dice rolls, for a token or not', () => {
@@ -40,7 +44,7 @@ describe('parsePlayerCommand', () => {
   test('rejects anything else', () => {
     expect(parsePlayerCommand(null)).toBeNull();
     expect(parsePlayerCommand({ type: 'move', id: 'hero', x: 'far', y: 2 })).toBeNull();
-    expect(parsePlayerCommand({ type: 'resource', id: 'hero', kind: 'gold', current: 3 })).toBeNull();
+    expect(parsePlayerCommand({ type: 'resource', id: 'hero', key: 7, current: 3 })).toBeNull();
     expect(parsePlayerCommand({ type: 'delete', id: 'hero' })).toBeNull();
   });
 });
@@ -58,13 +62,13 @@ describe('isSafeDiceFormula', () => {
 describe('applyPlayerCommand', () => {
   test('moves a player token to the centre of the cell it was dropped in', () => {
     const store = sceneStore({ hero });
-    expect(applyPlayerCommand(store, grid, { type: 'move', id: 'hero', x: 150, y: 80 }, [])).toBe(true);
+    expect(applyPlayerCommand(store, grid, { type: 'move', id: 'hero', x: 150, y: 80 }, rules)).toBe(true);
     expect(store.getState().moveToken).toHaveBeenCalledWith('hero', 175, 105);
   });
 
   test('keeps the exact drop point when the scene does not snap', () => {
     const store = sceneStore({ hero }, false);
-    applyPlayerCommand(store, grid, { type: 'move', id: 'hero', x: 150, y: 80 }, []);
+    applyPlayerCommand(store, grid, { type: 'move', id: 'hero', x: 150, y: 80 }, rules);
     expect(store.getState().moveToken).toHaveBeenCalledWith('hero', 150, 80);
   });
 
@@ -72,23 +76,25 @@ describe('applyPlayerCommand', () => {
     const goblin: Character = { ...hero, id: 'goblin', playerLinked: false };
     const hidden: Character = { ...hero, id: 'hidden', isHidden: true };
     const store = sceneStore({ goblin, hidden });
-    expect(applyPlayerCommand(store, grid, { type: 'move', id: 'goblin', x: 0, y: 0 }, [])).toBe(false);
-    expect(applyPlayerCommand(store, grid, { type: 'move', id: 'hidden', x: 0, y: 0 }, [])).toBe(false);
-    expect(applyPlayerCommand(store, grid, { type: 'move', id: 'missing', x: 0, y: 0 }, [])).toBe(false);
+    expect(applyPlayerCommand(store, grid, { type: 'move', id: 'goblin', x: 0, y: 0 }, rules)).toBe(false);
+    expect(applyPlayerCommand(store, grid, { type: 'move', id: 'hidden', x: 0, y: 0 }, rules)).toBe(false);
+    expect(applyPlayerCommand(store, grid, { type: 'move', id: 'missing', x: 0, y: 0 }, rules)).toBe(false);
     expect(store.getState().moveToken).not.toHaveBeenCalled();
   });
 
   test('sets hit points within zero and the maximum', () => {
     const store = sceneStore({ hero });
-    applyPlayerCommand(store, grid, { type: 'resource', id: 'hero', kind: 'hp', current: 99 }, []);
-    expect(store.getState().updateToken).toHaveBeenCalledWith('hero', { hp: { current: 20, max: 20 } });
-    applyPlayerCommand(store, grid, { type: 'resource', id: 'hero', kind: 'hp', current: -3 }, []);
-    expect(store.getState().updateToken).toHaveBeenLastCalledWith('hero', { hp: { current: 0, max: 20 } });
+    applyPlayerCommand(store, grid, { type: 'resource', id: 'hero', key: 'hp', current: 99 }, rules);
+    expect(store.getState().updateToken).toHaveBeenCalledWith('hero', { resources: { ...hero.resources, hp: { current: 20, max: 20 } } });
+    applyPlayerCommand(store, grid, { type: 'resource', id: 'hero', key: 'hp', current: -3 }, rules);
+    expect(store.getState().updateToken).toHaveBeenLastCalledWith('hero', { resources: { ...hero.resources, hp: { current: 0, max: 20 } } });
   });
 
-  test('refuses a resource the token does not have', () => {
+  test('refuses a resource the collection hides from players or the token does not have', () => {
     const store = sceneStore({ hero });
-    expect(applyPlayerCommand(store, grid, { type: 'resource', id: 'hero', kind: 'stress', current: 2 }, [])).toBe(false);
+    expect(applyPlayerCommand(store, grid, { type: 'resource', id: 'hero', key: 'stress', current: 2 }, rules)).toBe(false);
+    expect(applyPlayerCommand(store, grid, { type: 'resource', id: 'hero', key: 'mana', current: 2 }, rules)).toBe(false);
+    expect(store.getState().updateToken).not.toHaveBeenCalled();
   });
 });
 
@@ -98,16 +104,16 @@ describe('applyPlayerCommand with conditions', () => {
 
   test('puts on and takes off conditions the collection defines', () => {
     const store = sceneStore({ hero });
-    expect(applyPlayerCommand(store, grid, { type: 'condition', id: 'hero', conditionId: 'poisoned', active: true }, [poisoned])).toBe(true);
+    expect(applyPlayerCommand(store, grid, { type: 'condition', id: 'hero', conditionId: 'poisoned', active: true }, { ...rules, conditions: [poisoned] })).toBe(true);
     expect(store.getState().setTokensCondition).toHaveBeenCalledWith(['hero'], 'poisoned', true);
-    expect(applyPlayerCommand(store, grid, { type: 'condition', id: 'hero', conditionId: 'invented', active: true }, [poisoned])).toBe(false);
+    expect(applyPlayerCommand(store, grid, { type: 'condition', id: 'hero', conditionId: 'invented', active: true }, { ...rules, conditions: [poisoned] })).toBe(false);
   });
 
   test('steps the value of an active valued condition only', () => {
     const store = sceneStore({ hero: { ...hero, conditions: ['frightened', 'poisoned'] } });
-    expect(applyPlayerCommand(store, grid, { type: 'conditionValue', id: 'hero', conditionId: 'frightened', delta: 1 }, [frightened, poisoned])).toBe(true);
+    expect(applyPlayerCommand(store, grid, { type: 'conditionValue', id: 'hero', conditionId: 'frightened', delta: 1 }, { ...rules, conditions: [frightened, poisoned] })).toBe(true);
     expect(store.getState().changeTokensConditionValue).toHaveBeenCalledWith(['hero'], 'frightened', 1);
-    expect(applyPlayerCommand(store, grid, { type: 'conditionValue', id: 'hero', conditionId: 'poisoned', delta: 1 }, [frightened, poisoned])).toBe(false);
+    expect(applyPlayerCommand(store, grid, { type: 'conditionValue', id: 'hero', conditionId: 'poisoned', delta: 1 }, { ...rules, conditions: [frightened, poisoned] })).toBe(false);
   });
 
   test('parses condition commands', () => {
@@ -120,9 +126,12 @@ describe('applyPlayerCommand with conditions', () => {
 describe('playerTokens', () => {
   test('lists only the visible tokens players control, with their resources', () => {
     const goblin: Character = { ...hero, id: 'goblin', playerLinked: false };
-    const [token, ...others] = playerTokens({ hero, goblin }, 70);
+    const [token, ...others] = playerTokens({ hero, goblin }, 70, rules.resources);
     expect(others).toEqual([]);
-    expect(token).toMatchObject({ id: 'hero', name: 'Hero', x: 35, y: 35, hp: { current: 10, max: 20 }, stress: null, conditions: [] });
+    expect(token).toMatchObject({
+      id: 'hero', name: 'Hero', x: 35, y: 35, conditions: [],
+      resources: [{ key: 'hp', name: 'HP', value: { current: 10, max: 20 } }],
+    });
     expect(token?.radius).toBeGreaterThan(0);
   });
 });

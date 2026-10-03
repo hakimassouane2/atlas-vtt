@@ -1,8 +1,13 @@
-import { Application, Ticker } from "pixi.js";
+import { Application, Ticker, type ApplicationOptions } from "pixi.js";
 import { Viewport } from "pixi-viewport";
 import { SmoothDecelerate } from "./SmoothDecelerate";
 import { RenderScheduler } from "./RenderScheduler";
 import { destroyTree } from "./utils/destroyTree";
+import { usesCanvasRenderer } from "./utils/rendererType";
+import { webglAvailable } from "./utils/webglAvailable";
+import { showSoftwareRenderingNotice } from "./softwareRenderingNotice";
+
+type RendererPreference = 'webgl' | 'canvas';
 
 export class PixiAppManager {
   private _isDestroyed: boolean = false;
@@ -28,16 +33,8 @@ export class PixiAppManager {
       return;
     }
     try {
-      await this.app.init({
-        canvas: this.canvasEl,
-        width: this.width,
-        height: this.height,
-        backgroundColor: 0xf4e8d0, // Default parchment color
-        backgroundAlpha: 1,
-        antialias: true,
-        autoDensity: true,
-        resolution: window.devicePixelRatio || 1,
-      });
+      await this.initRenderer();
+      if (usesCanvasRenderer(this.app.renderer)) showSoftwareRenderingNotice();
 
       this.app.stage.eventMode = 'static'; // Or 'passive'. 'static' means it can be an event target.
       this.app.stage.interactiveChildren = true;
@@ -93,6 +90,45 @@ export class PixiAppManager {
       console.error("[PixiAppManager] Initialization error:", error);
       throw error;
     }
+  }
+
+  /**
+   * Atlas ships GLSL shaders only; without WebGL it draws with Canvas 2D instead of WebGPU.
+   * PIXI picks Canvas 2D by itself only when WebGL is missing at its first check, whose answer
+   * it keeps, so Atlas asks again before every start (`webglAvailable`) and goes straight to
+   * Canvas 2D when WebGL is gone: PIXI never builds a WebGL renderer that cannot start.
+   *
+   * Should WebGL fail to start all the same, Canvas 2D gets one try of its own, on a new
+   * canvas, since one that was asked for WebGL may never give a 2D context. PIXI keeps no
+   * reference to the renderer whose start threw, so that one cannot be destroyed: its
+   * scheduler stays on PIXI's system ticker, with nothing to do.
+   */
+  private async initRenderer(): Promise<void> {
+    if (!webglAvailable()) {
+      await this.app.init(this.rendererOptions(['canvas']));
+      return;
+    }
+    try {
+      await this.app.init(this.rendererOptions(['webgl', 'canvas']));
+    } catch (error) {
+      console.error('[PixiAppManager] WebGL could not start, drawing with Canvas 2D instead:', error);
+      this.canvasEl = createEl('canvas');
+      await this.app.init(this.rendererOptions(['canvas']));
+    }
+  }
+
+  private rendererOptions(preference: RendererPreference[]): Partial<ApplicationOptions> {
+    return {
+      preference,
+      canvas: this.canvasEl,
+      width: this.width,
+      height: this.height,
+      backgroundColor: 0xf4e8d0, // Default parchment color
+      backgroundAlpha: 1,
+      antialias: true,
+      autoDensity: true,
+      resolution: window.devicePixelRatio || 1,
+    };
   }
 
   public initViewport(): void {
@@ -210,9 +246,11 @@ export class PixiAppManager {
       } catch(e) { console.warn('[PixiAppManager] Error stopping ticker:', e); }
     }
 
-    if (this.app) {
+    // An app whose init failed has no renderer or resize plugin to tear down
+    if (this.app?.renderer) {
       try {
-        this.app.destroy(true, { children: true, texture: true }); 
+        // `true` would also release PIXI's shared pools, which other open map views still use
+        this.app.destroy({ removeView: true }, { children: true, texture: true });
       } catch (e) {
         console.warn('[PixiAppManager] Error destroying Pixi app:', e);
       }

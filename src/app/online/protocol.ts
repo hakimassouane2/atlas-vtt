@@ -1,6 +1,7 @@
 import type { AtlasSettings } from '../services/SettingsService';
 import type { ViewAtlasState } from '../storeFactory';
 import type { ConditionDefinition } from '../types/collectionSettingsTypes';
+import type { InitiativeRules } from '../types/initiativeRulesTypes';
 import type { TokenEntity } from '../types';
 import type { FrameView } from './PlayerFrameRenderer';
 import type { PlayerToken } from './playerTokens';
@@ -15,8 +16,11 @@ export interface FrameHeader extends FrameView {
   isDmCamera: boolean;
 }
 
-/** A token players can see, as much as Atlas' player overlays read of it. */
-export type SceneToken = Pick<TokenEntity, 'id' | 'kind' | 'imagePath' | 'showRing' | 'ringColor'>;
+/**
+ * A token players can see, as much as Atlas' player overlays read of it: its side in the
+ * initiative, and its HP only when the collection shows them to players.
+ */
+export type SceneToken = Pick<TokenEntity, 'id' | 'kind' | 'imagePath' | 'showRing' | 'ringColor' | 'side' | 'resources'>;
 
 /**
  * The presented scene as a player's page holds it: enough of a view store for the
@@ -36,6 +40,8 @@ export interface PlayerState {
   /** Conditions players may put on their tokens: those of the scene's collection. */
   conditions: Array<Pick<ConditionDefinition, 'id' | 'name' | 'color'> & { valued: boolean }>;
   scene: PlayerScene;
+  /** The initiative rules of the scene's collection: whether the order lists sides. */
+  initiativeRules: InitiativeRules;
   /** What the DM shows players (initiative, names, hit points), as for the local player window. */
   settings: AtlasSettings['localPlayerView'];
 }

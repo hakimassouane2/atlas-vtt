@@ -3,21 +3,22 @@ import { AssetService } from '../../../services/AssetService';
 import { StatblockImportContent } from './statblock-import/StatblockImportContent';
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ImageIcon, Loader2, Save, Upload } from 'lucide-react';
-import { Platform } from 'obsidian';
+import { ImageIcon, Upload } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import { useAtlasUI } from '../../../react/root/AtlasUIContext';
 import { isShortcutScopeActive } from '../../../utils/activeLeafGuard';
 import { CloseButton } from '../primitives/CloseButton';
-import { Button } from '../primitives/button';
 import { dialogOverlayMotion, useDialogWindowVariants } from '../primitives/dialogMotion';
+import { TokenCreatorFooter } from './token-creator/TokenCreatorFooter';
 import { TokenCreatorRail } from './token-creator/TokenCreatorRail';
-import { TokenPreviewCard } from './token-creator/TokenPreviewCard';
+import { PreviewGrid } from './token-creator/PreviewGrid';
 import { saveTokenPreviews } from './token-creator/saveTokenPreviews';
 import { useAssetCatalog } from './token-creator/useAssetCatalog';
 import { useAssetTags } from './token-creator/useAssetTags';
 import { useTokenPreviews } from './token-creator/useTokenPreviews';
+import { useFrameProgress } from '../primitives/useFrameProgress';
 import { modeNoun } from './token-creator/types';
+import { uvttFilesAmong, type ImportMaps } from './hooks/useUvttImport';
 import type { CreatorMode, EditTokenInput } from './token-creator/types';
 
 interface TokenCreatorProps {
@@ -27,13 +28,15 @@ interface TokenCreatorProps {
   selectedCollection?: string;
   editToken?: EditTokenInput | null;
   initialSource?: 'images' | 'statblocks';
+  /** Given to the map creator: takes the Universal VTT files among the added files, which become scenes at once. */
+  onImportMaps?: ImportMaps;
 }
 
 function hasFiles(e: React.DragEvent): boolean {
   return Array.from(e.dataTransfer.types).includes('Files');
 }
 
-export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollection = AssetService.defaultCollectionId(), editToken, initialSource = 'images' }: TokenCreatorProps): React.JSX.Element | null {
+export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollection = AssetService.defaultCollectionId(), editToken, initialSource = 'images', onImportMaps }: TokenCreatorProps): React.JSX.Element | null {
   const { app } = useAtlasUI();
   const { assetService, collections } = useAssetCatalog(app, isOpen);
   const previews = useTokenPreviews(mode);
@@ -51,11 +54,17 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
   const [saveError, setSaveError] = useState('');
   const [saveBlocked, setSaveBlocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Saving reports every preview; the footer shows it at most once a frame
+  const { progress: saveProgress, report: reportSaveProgress, clear: clearSaveProgress } = useFrameProgress();
   const [isDragging, setIsDragging] = useState(false);
+  const [previewPane, setPreviewPane] = useState<HTMLDivElement | null>(null);
   const dragDepthRef = useRef(0);
   const titleId = useId();
   const windowRef = useRef<HTMLDivElement>(null);
   const windowVariants = useDialogWindowVariants();
+
+  const previewCountRef = useRef(0);
+  previewCountRef.current = previews.previews.length;
 
   const { reset } = previews;
   const editTokenRef = useRef(editToken);
@@ -66,12 +75,13 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
     const token = editTokenRef.current;
     setCollection(selectedCollection);
     setIsSubmitting(false);
+    clearSaveProgress();
     setImportController(new AbortController());
     setSaveError('');
     setSaveBlocked(false);
     reset(token);
     windowRef.current?.focus();
-  }, [isOpen, editTokenId, selectedCollection, reset]);
+  }, [isOpen, editTokenId, selectedCollection, reset, clearSaveProgress]);
 
   useEffect(() => {
     const first = collections[0];
@@ -90,13 +100,18 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
       previews.addImages([{ file, tags, showRing, size }]);
       return;
     }
-    previews.addFiles(files);
-  }, [editToken, previews]);
+    const maps = onImportMaps ? uvttFilesAmong(files) : [];
+    const images = files.filter(file => !maps.includes(file));
+    // The imported scene opens and the creator closes, unless images wait here to be created by then
+    if (maps.length > 0) void onImportMaps?.(maps, collection, () => previewCountRef.current > 0);
+    if (images.length > 0) previews.addFiles(images);
+  }, [editToken, previews, onImportMaps, collection]);
 
   const canSubmit = previews.previews.length > 0 && !isSubmitting && !saveBlocked && !isCreatingTag && assetService !== null;
 
   const handleSubmit = useCallback(async (): Promise<void> => {
     if (usingStatblocks || !canSubmit || !assetService || !app) return;
+    const total = previews.previews.length;
     setIsSubmitting(true);
     setSaveError('');
     try {
@@ -107,22 +122,23 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
         previews: previews.previews,
         collection,
         tags: [],
-        onSaved: previews.remove,
+        onSaved: previews.removeMany,
         signal: importController.signal,
         editToken: editToken ?? null,
         waitForOptimized: previews.waitForOptimized,
+        onProgress: reportSaveProgress,
       });
-      if (saved > 0) {
-        app.workspace.trigger('atlas-vtt:refresh-assets');
-        if (saved === previews.previews.length) onClose();
-      }
+      if (saved > 0) app.workspace.trigger('atlas-vtt:refresh-assets');
+      if (saved === total) onClose();
+      else if (saved > 0) setSaveError(`Saved ${saved} of ${total}. The others stay here so you can try again.`);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not save previews.');
       if (error instanceof AssetRegistrationUncertainError) setSaveBlocked(true);
     } finally {
       setIsSubmitting(false);
+      clearSaveProgress();
     }
-  }, [usingStatblocks, app, assetService, canSubmit, collection, editToken, mode, onClose, previews, importController]);
+  }, [usingStatblocks, app, assetService, canSubmit, collection, editToken, mode, onClose, previews, importController, reportSaveProgress, clearSaveProgress]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -168,10 +184,7 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
   if (!isOpen) return null;
 
   const count = previews.previews.length;
-  const noun = modeNoun(mode, count);
   const title = editToken ? `Edit ${modeNoun(mode, 1)}` : `Create ${modeNoun(mode, 2)}`;
-  const isOptimizing = previews.previews.some((p) => p.isOptimizing);
-  const submitLabel = editToken ? 'Update' : 'Create';
 
   return (
     <motion.div {...dialogOverlayMotion} className="atlas-vtt-plugin atlas-vtt-root atlas-token-creator" data-token-creator="true" onClick={() => { if (!isSubmitting) onClose(); }}>
@@ -198,6 +211,7 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
           isDragging={isDragging}
           previews={previews}
           onFiles={handleFiles}
+          acceptsMapFiles={Boolean(onImportMaps)}
           collection={collection}
           collections={collections}
           onCollectionChange={setCollection}
@@ -211,14 +225,14 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
         <header className="atlas-token-creator__header">
           <h2>
             <span id={titleId}>{title}</span>
-            {!usingStatblocks && count > 0 && <span className="atlas-token-creator__subtitle">{count} {noun}</span>}
+            {!usingStatblocks && count > 0 && <span className="atlas-token-creator__subtitle">{count} {modeNoun(mode, count)}</span>}
           </h2>
           <CloseButton onClick={() => { if (!isSubmitting) onClose(); }} />
         </header>
 
         {usingStatblocks ? (
           <StatblockImportContent app={app} queuedPaths={queuedPaths} onAdd={images => { previews.addImages(images); setSource('images'); }} onClose={() => { importController.abort(); setImportController(new AbortController()); setSource('images'); }} controller={importController} onRunningChange={setImportRunning} />
-        ) : <div className={cn('atlas-token-creator__previews', count === 0 && 'atlas-empty')} inert={isSubmitting}>
+        ) : <div ref={setPreviewPane} className={cn('atlas-token-creator__previews', count === 0 && 'atlas-empty')} inert={isSubmitting}>
           {count === 0 ? (
             <div className="atlas-token-creator__empty">
               <div className="atlas-token-creator__empty-icon"><ImageIcon /></div>
@@ -226,36 +240,30 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
               <p>Drop images anywhere in this window. You can crop, zoom and name each one before creating.</p>
             </div>
           ) : (
-            <div className="atlas-token-creator__grid">
-              {previews.previews.map((preview, index) => (
-                <TokenPreviewCard
-                  key={preview.id}
-                  preview={preview}
-                  mode={mode}
-                  index={index}
-                  onChange={(patch) => previews.update(preview.id, patch)}
-                  onToggleSelected={() => previews.toggleSelected(preview.id)}
-                  onRemove={() => previews.remove(preview.id)}
-                />
-              ))}
-            </div>
+            <PreviewGrid
+              previews={previews.previews}
+              mode={mode}
+              scrollElement={previewPane}
+              onChange={previews.update}
+              onToggleSelected={previews.toggleSelected}
+              onRemove={previews.remove}
+            />
           )}
         </div>}
 
-        {!usingStatblocks && <footer className="atlas-token-creator__footer">
-          <span className="atlas-token-creator__status">
-            {isOptimizing && <Loader2 className="atlas-spin" />}
-            {saveError || (count === 0 ? `No ${modeNoun(mode, 2)} to create` : isOptimizing ? 'Optimizing images…' : `${count} ${noun} ready`)}
-          </span>
-          <div className="atlas-token-creator__actions">
-            <Button variant="outline" size="sm" onClick={() => { if (!isSubmitting) onClose(); }}>Cancel</Button>
-            <Button variant="default" size="sm" onClick={() => { void handleSubmit(); }} disabled={!canSubmit}>
-              {isSubmitting ? <Loader2 className="atlas-spin" /> : <Save />}
-              <span>{isSubmitting ? `${submitLabel.replace(/e$/, '')}ing…` : submitLabel}</span>
-              {!isSubmitting && <kbd className="atlas-token-creator__kbd">{Platform.isMacOS ? '⌘' : 'Ctrl'}↵</kbd>}
-            </Button>
-          </div>
-        </footer>}
+        {!usingStatblocks && (
+          <TokenCreatorFooter
+            mode={mode}
+            isEditing={Boolean(editToken)}
+            count={count}
+            saveError={saveError}
+            optimization={previews.optimization}
+            saving={isSubmitting ? saveProgress ?? { done: 0, total: previews.previews.length } : null}
+            canSubmit={canSubmit}
+            onCancel={onClose}
+            onSubmit={() => { void handleSubmit(); }}
+          />
+        )}
 
         {isDragging && (
           <div className="atlas-token-creator__drop-overlay">
