@@ -15,8 +15,8 @@ dev d'origine.
 | `origin`   | `hakimassouane2/atlas-vtt`   | notre fork, on y pousse                      |
 | `upstream` | `ByteMirror/atlas-vtt`       | le dev d'origine, lecture seule (push coupé) |
 
-- `main` : notre version stable.
-- `online` : développement du mode en ligne.
+- `main` : notre seule branche durable. Une grosse fonctionnalité se fait sur une branche
+  temporaire, supprimée une fois fusionnée dans `main`.
 
 Dernière synchro avec l'original : **0.5.0** (3 octobre 2026, merge de `upstream/main`).
 
