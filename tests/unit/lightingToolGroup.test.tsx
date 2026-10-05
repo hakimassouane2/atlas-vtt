@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '../../src/app/packages/components/primitives/tooltip';
 import type { Tool } from '../../src/app/packages/components/toolbar/toolFaces';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
 const bus = vi.hoisted(() => ({ current: null as EventEmitter | null }));

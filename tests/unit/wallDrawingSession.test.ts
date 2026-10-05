@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { getHistoryStore } from '../../src/app/stores/history';
 import { WallDrawingSession } from '../../src/app/pixi/lighting/WallDrawingSession';
 import { createInMemoryApp } from '../mocks/inMemoryVault';

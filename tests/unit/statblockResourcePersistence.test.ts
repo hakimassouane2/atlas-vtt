@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { resourceUpdate } from '../../src/app/resources/resourceValues';
 import { getDataFilePath } from '../../src/app/utils/dataFileMigration';
 

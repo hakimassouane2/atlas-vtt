@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { Character } from '../../src/app/types';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { HP, STR, STRESS } from '../mocks/resourceFixtures';

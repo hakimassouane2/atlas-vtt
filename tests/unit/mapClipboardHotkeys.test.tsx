@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { AtlasUIContext } from '../../src/app/react/root/AtlasUIContext';
 import { useMapHotkeys } from '../../src/app/keyboard/useMapHotkeys';
 import { useMapClipboardHotkeys } from '../../src/app/clipboard/useMapClipboardHotkeys';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
 afterEach(() => { cleanup(); document.getSelection()?.removeAllRanges(); document.body.innerHTML = ''; });

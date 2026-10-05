@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
-import { createViewAtlasStore, type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 
 function createStore(): { store: ViewAtlasStore; logged: ReturnType<typeof vi.spyOn> } {
   const logged = vi.spyOn(console, 'error').mockImplementation(() => {});

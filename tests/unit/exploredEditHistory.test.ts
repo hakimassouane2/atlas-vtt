@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AtlasView } from '../../src/app/atlas-view';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { forgetExploredEdits, withoutExploredEdits } from '../../src/app/stores/exploredEditHistory';
 import { getHistoryStore, runHistoryTransaction, type HistoryState } from '../../src/app/stores/history';
 import { createInMemoryApp } from '../mocks/inMemoryVault';

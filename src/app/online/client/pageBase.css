@@ -1,0 +1,23 @@
+/*
+ * What both player pages share: a window-filling page and the status line. Atlas' overlays
+ * bring their styles with the DM's stylesheet.
+ */
+html, body { height: 100%; }
+body { overflow: hidden; -webkit-app-region: no-drag; user-select: none; }
+
+.online-hud {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px;
+  border-radius: var(--radius-m, 8px);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-small);
+  pointer-events: none;
+  z-index: 10;
+}
+#status { bottom: 12px; }
+#status:empty { display: none; }
+body:not(.online-live) #status { bottom: 50%; font-size: var(--font-ui-medium); }

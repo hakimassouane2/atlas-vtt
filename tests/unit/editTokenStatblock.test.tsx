@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { CreatureIndex } from '../../src/app/creatures/CreatureIndex';
 import { GENERIC_SENSES } from '../../src/app/gameSystems/senses/generic';
 import { openEditTokenModal } from '../../src/app/pixi/token-renderer/EditTokenModal';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { TokenEntity } from '../../src/app/types';
 import type { TokenVision } from '../../src/app/types/lightingTypes';
 import { creatureVault, type CreatureVault } from '../mocks/creatureVault';

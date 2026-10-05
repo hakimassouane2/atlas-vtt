@@ -42,7 +42,7 @@ vi.mock('../../src/app/pixi/tokenFocus', () => ({ focusToken: vi.fn() }));
 
 import { UIRoot } from '../../src/app/react/UIRoot';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { AtlasView } from '../../src/app/atlas-view';
 
 afterEach(() => vi.restoreAllMocks());

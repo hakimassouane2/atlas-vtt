@@ -65,6 +65,7 @@ export function playerPageHtml(key: string, bodyClass: string): string {
 `;
 }
 
-function escapeAttribute(value: string): string {
+/** `value` safe inside a double-quoted HTML attribute. */
+export function escapeAttribute(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }

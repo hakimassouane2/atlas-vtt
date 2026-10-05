@@ -14,7 +14,8 @@ import { GridSystem } from '../../src/app/grid/GridSystem';
 import { BackgroundSprite } from '../../src/app/react/BackgroundSprite';
 import { AtlasUIContext } from '../../src/app/react/root/AtlasUIContext';
 import { ViewStoreProvider, useAtlasStore } from '../../src/app/react/ViewStoreContext';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { obsidianCanvasHost } from '../../src/app/services/canvasHost/obsidianCanvasHost';
 
 function mapTexture(): Texture {

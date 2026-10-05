@@ -9,7 +9,7 @@ import { LightPopoverHost } from '../../src/app/pixi/lighting/LightPopover';
 import { AtlasUIContext, type AtlasUIContextValue } from '../../src/app/react/root/AtlasUIContext';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
 import { AssetService } from '../../src/app/services/AssetService';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { CollectionSettings } from '../../src/app/types/collectionSettingsTypes';
 import type { LightEmission } from '../../src/app/types/lightingTypes';
 import { createInMemoryApp } from '../mocks/inMemoryVault';

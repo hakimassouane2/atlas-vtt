@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import { NotePinTool } from '../../src/app/tools/NotePinTool';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
 let cleanup: (() => void) | null = null;

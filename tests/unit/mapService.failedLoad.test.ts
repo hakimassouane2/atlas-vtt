@@ -9,7 +9,7 @@ vi.mock('../../src/app/MapController', () => ({
   MapController: { loadAndDisplay: vi.fn().mockRejectedValue(new Error('[MapLoader] Failed to parse map JSON')) },
 }));
 
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { MapService } from '../../src/app/services/MapService';
 import type { RendererService } from '../../src/app/services/RendererService';
 

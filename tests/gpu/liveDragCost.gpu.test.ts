@@ -7,7 +7,7 @@ import { holdTokens } from '../../src/app/lighting/sightOnDrop';
 import { LightingRenderer } from '../../src/app/pixi/lighting/LightingRenderer';
 import { createTestRenderer } from '../../src/app/pixi/lighting/engine/__tests__/gpuTestUtils';
 import { rng } from '../../src/app/pixi/lighting/engine/__tests__/fuzzRooms';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { TokenEntity } from '../../src/app/types';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 

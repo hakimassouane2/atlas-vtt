@@ -7,7 +7,8 @@ import { GENERIC_LIGHT_PRESETS } from '../../src/app/gameSystems/lightPresets/ge
 import { lightPresetsOnMap } from '../../src/app/lighting/lightPresetChoice';
 import { WallEditor } from '../../src/app/pixi/lighting/WallEditor';
 import type { LightPresetDefinition } from '../../src/app/types/lightPresetTypes';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { stubJsdomGraphics } from '../mocks/jsdomGraphics';
 

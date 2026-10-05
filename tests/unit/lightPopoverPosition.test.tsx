@@ -7,7 +7,8 @@ import { genericLight } from '../mocks/lights';
 import { LightPopoverHost } from '../../src/app/pixi/lighting/LightPopover';
 import { AtlasUIContext, type AtlasUIContextValue } from '../../src/app/react/root/AtlasUIContext';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
 // jsdom lays nothing out: the view is 1200 × 800, the popover 272 × 340, and the map fills the view.

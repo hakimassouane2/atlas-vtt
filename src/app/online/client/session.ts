@@ -20,6 +20,14 @@ export function imageUrl(path: string): string {
 }
 
 /**
+ * Where the canvas page loads an image file of the scene: the vault path is part of the URL's
+ * path, so it ends with the file's extension, by which PIXI picks its image loader.
+ */
+export function sceneImageUrl(path: string): string {
+  return sessionUrl(`/image/${path.split('/').map(encodeURIComponent).join('/')}`);
+}
+
+/**
  * Sends `body` to the DM's Atlas. A refused command usually means the DM is on
  * another scene tab, where players cannot act.
  */

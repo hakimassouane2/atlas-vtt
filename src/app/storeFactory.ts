@@ -6,7 +6,7 @@ import { subscribeWithSelector, persist } from "zustand/middleware";
 import type { StorageValue } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { temporal } from 'zundo';
-import type { App, Plugin } from 'obsidian';
+import type { Plugin } from 'obsidian';
 import type AtlasVTTPlugin from '../../main';
 import type { TokenEntity, Character, NotePin, TextElement, DrawingStroke } from './types';
 import type { FogOperation, FogOperationInput } from './types/fogTypes';
@@ -17,7 +17,8 @@ import type { AnyWidget, WidgetSettings } from './types/widgetTypes';
 import type { InitiativeState, InitiativeEntry, InitiativeConfig } from './types/initiativeTypes';
 import { createDefaultInitiativeState } from './types/initiativeTypes';
 import type { InitiativeRules } from './types/initiativeRulesTypes';
-import { CameraState, GridState, createAtlasStorage, ATLAS_SCHEMA, ATLAS_VERSION } from './services/MapPersistence';
+import type { CameraState, GridState } from './services/MapPersistence';
+import { ATLAS_SCHEMA, ATLAS_VERSION } from './services/sceneFileVersion';
 import type { AtlasPersistStorage } from './services/MapPersistence';
 import { normalizeImagePath } from './utils/pathUtils';
 import { createInitiativeActions } from './stores/initiativeSlice';
@@ -457,10 +458,21 @@ function applyTokenUpdates(token: TokenEntity | undefined, updates: TokenUpdates
   Object.assign(token, normalized);
 }
 
-/**
- * Creates an isolated Atlas store instance for a specific view
- */
-export function createViewAtlasStore(app: App, viewId: string, plugin?: AtlasVTTPlugin, isPlayerView: boolean = false): ViewAtlasStore {
+/** How a scene store is made. */
+export interface SceneStoreOptions {
+  /** The plugin, for the views in Obsidian. */
+  plugin?: AtlasVTTPlugin;
+  /** The store of a view that shows the scene to players. */
+  isPlayerView?: boolean;
+  /**
+   * Where the store reads and saves its scene, created once it is first needed. Without it the
+   * store reads nothing and saves nothing (a player's page, whose scene the GM's Atlas sends).
+   */
+  storage?: (store: Pick<StoreApi<ViewAtlasState>, 'getState'>) => AtlasPersistStorage<PersistedViewState>;
+}
+
+/** Creates an isolated Atlas store instance for a specific view. */
+export function createSceneStore(viewId: string, { plugin, isPlayerView = false, storage: createStorage }: SceneStoreOptions = {}): ViewAtlasStore {
   // Create a storage factory that will access the store once it's created
   let storeRef: Pick<StoreApi<ViewAtlasState>, 'getState'> | null = null;
 
@@ -475,7 +487,7 @@ export function createViewAtlasStore(app: App, viewId: string, plugin?: AtlasVTT
 
     const getOrCreateStorage = (): AtlasPersistStorage<PersistedViewState> | null => {
       if (!currentStorage && storeRef) {
-        currentStorage = createAtlasStorage<ViewAtlasState, PersistedViewState>(app, storeRef, plugin);
+        currentStorage = createStorage?.(storeRef) ?? null;
       }
       return currentStorage;
     };

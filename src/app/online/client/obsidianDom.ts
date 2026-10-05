@@ -27,8 +27,8 @@ function build(tag: string, info: ElementInfo | string | undefined): HTMLElement
 }
 
 /**
- * Adds the DOM helpers Obsidian provides (the global `createEl`, and `createDiv`,
- * `empty`… on every element) to the player page, so Atlas' player overlays and the
+ * Adds the DOM helpers Obsidian provides (the globals `createEl` and `activeWindow`, and
+ * `createDiv`, `empty`, `win`… on every element) to the player page, so Atlas' player overlays and the
  * page's own code run there as they do in Obsidian.
  */
 export function installObsidianDom(): void {
@@ -36,6 +36,11 @@ export function installObsidianDom(): void {
   globals.createEl = (tag: string, info?: ElementInfo | string): HTMLElement => build(tag, info);
   globals.createDiv = (info?: ElementInfo | string): HTMLElement => build('div', info);
   globals.createSpan = (info?: ElementInfo | string): HTMLElement => build('span', info);
+  // The page is one window: Obsidian's window of the focused leaf is always this one
+  globals.activeWindow = window;
+  globals.activeDocument = document;
+  Object.defineProperty(Node.prototype, 'win', { configurable: true, get: () => window });
+  Object.defineProperty(Node.prototype, 'doc', { configurable: true, get: () => document });
 
   const element = HTMLElement.prototype as unknown as Record<string, unknown>;
   const append = (parent: HTMLElement, tag: string, info?: ElementInfo | string): HTMLElement => parent.appendChild(build(tag, info));

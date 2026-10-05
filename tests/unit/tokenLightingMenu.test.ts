@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { getHistoryStore } from '../../src/app/stores/history';
 import { tokenLightingEntries } from '../../src/app/react/components/context-menu/tokenLightingMenu';
 import type { ContextMenuEntry } from '../../src/app/react/components/context-menu/AtlasContextMenu';

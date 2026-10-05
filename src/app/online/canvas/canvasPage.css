@@ -1,0 +1,3 @@
+/* The canvas page: Atlas' canvas fills the window under Atlas' overlays. */
+#content { position: absolute; inset: 0; }
+#content canvas { display: block; }

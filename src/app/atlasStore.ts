@@ -187,7 +187,7 @@ function createCustomStorage() {
 }
 
 // DEPRECATED: This global store should not be used
-// Use createViewAtlasStore from storeFactory.ts instead
+// Use createViewAtlasStore from viewStore.ts instead
 // This is kept temporarily for backward compatibility
 const _deprecatedAtlasStore = create<AtlasState>()(
   subscribeWithSelector(
@@ -512,7 +512,7 @@ const _deprecatedAtlasStore = create<AtlasState>()(
 
 // DEPRECATED: These exports should not be used
 // They are kept temporarily for backward compatibility
-// Use createViewAtlasStore from storeFactory.ts instead
+// Use createViewAtlasStore from viewStore.ts instead
 
 // Export for tests that might still reference this
 export const atlasStore = _deprecatedAtlasStore;

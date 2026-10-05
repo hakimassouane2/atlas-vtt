@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { AssetService } from '../../src/app/services/AssetService';
 import { WidgetSyncService } from '../../src/app/services/WidgetSyncService';
 import { dropWidgetsFromJson } from '../../src/app/services/sceneWidgetFiles';

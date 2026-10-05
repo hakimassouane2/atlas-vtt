@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { rollInitiativeDice } from '../../src/app/initiative/turns';
 import type { InitiativeRules } from '../../src/app/types/initiativeRulesTypes';
 import { createInMemoryApp } from '../mocks/inMemoryVault';

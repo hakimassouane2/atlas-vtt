@@ -5,7 +5,7 @@ import { createInMemoryApp } from '../mocks/inMemoryVault';
 const detectGridFromSprite = vi.fn();
 vi.mock('../../src/app/pixi/gridDetection/detectGrid', () => ({ detectGridFromSprite: (sprite: Sprite) => detectGridFromSprite(sprite) }));
 
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { autoDetectGridOnFirstLoad } from '../../src/app/services/gridAutoDetect';
 import type { GridState } from '../../src/app/services/MapPersistence';
 

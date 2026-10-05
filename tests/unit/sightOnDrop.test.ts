@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createViewAtlasStore, type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { InteractionController } from '../../src/app/pixi/token-renderer/InteractionController';
 import { tokenPerception } from '../../src/app/pixi/lighting/playerLightingLayers';
 import { SceneModelBuilder } from '../../src/app/pixi/lighting/sceneModel';

@@ -12,7 +12,8 @@ import { AtlasView } from '../../src/app/atlas-view';
 import { MapLoader, type LoadedMap } from '../../src/app/MapLoader';
 import { migrateMapFile, type PersistedMapEnvelope } from '../../src/app/services/MapPersistence';
 import { MapService } from '../../src/app/services/MapService';
-import { createViewAtlasStore, type ViewAtlasState } from '../../src/app/storeFactory';
+import { type ViewAtlasState } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { createTabMetaStore } from '../../src/app/stores/tabMetaStore';
 
 const TOWER = 'maps/tower.atlasmap';

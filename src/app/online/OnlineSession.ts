@@ -17,6 +17,7 @@ import { mapConditions } from '../services/mapConditions';
 import { mapInitiativeRules } from '../services/mapInitiativeRules';
 import { mapResources } from '../resources/collectionResources';
 import type { Character } from '../types';
+import { SceneReplicator, type ReplicatedSource } from './scene/SceneReplicator';
 
 export interface OnlineSessionState {
   isRunning: boolean;
@@ -45,6 +46,8 @@ export class OnlineSession {
   private readonly stream: OnlineFrameStream;
   private readonly controls: PlayerControls;
   private readonly diceFeed: PlayerDiceFeed;
+  /** Keeps the canvas pages' scenes in step with the presented one. */
+  private readonly replicator: SceneReplicator;
   /** The view whose scene players see; its dice engine rolls for them. */
   private presentedView: AtlasView | null = null;
   /** Image files players may load: the artwork they see in the scene and in dice rolls. */
@@ -77,6 +80,10 @@ export class OnlineSession {
         this.server?.broadcast('roll', roll);
       },
     );
+    this.replicator = new SceneReplicator(settingsService, {
+      toAll: (event, data) => this.server?.broadcast(event, data),
+      toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
+    });
     OnlineSession.instance = this;
   }
 
@@ -88,10 +95,13 @@ export class OnlineSession {
     return this.server !== null;
   }
 
-  /** Starts the server if needed and copies the player link. */
-  async startAndCopyLink(): Promise<void> {
+  /**
+   * Starts the server if needed and copies the player link: to the frame page, or with
+   * `page: 'canvas'` to the canvas page, where the player's browser draws the scene itself.
+   */
+  async startAndCopyLink(page: 'frames' | 'canvas' = 'frames'): Promise<void> {
     if (!this.isRunning() && !(await this.start())) return;
-    await navigator.clipboard.writeText(this.playerLink());
+    await navigator.clipboard.writeText(this.playerLink(page === 'canvas' ? '/play' : '/'));
     const { publicHost } = this.settingsService.getOnlineSessionSettings();
     new Notice(publicHost
       ? 'Player link copied'
@@ -113,6 +123,7 @@ export class OnlineSession {
     this.stream.setFollowingDm(false);
     this.stream.stop();
     this.controls.setSource(null);
+    this.replicator.stop();
     this.diceFeed.stop();
     this.presentedView = null;
     this.server?.close();
@@ -151,6 +162,7 @@ export class OnlineSession {
         this.stopWatchingTab?.();
         this.stream.releaseSource(view.atlasStore);
         this.controls.releaseSource(view.atlasStore);
+        this.replicator.releaseSource(view.atlasStore);
         if (this.presentedView === view) this.presentedView = null;
       });
     }
@@ -170,6 +182,25 @@ export class OnlineSession {
     };
     this.stream.setSource(onlineSource);
     this.controls.setSource(onlineSource);
+    this.replicator.setSource(this.replicatedSource(view, source.store));
+  }
+
+  /** The scene of `store` for the canvas pages, with the collection whose rules it follows. */
+  private replicatedSource(view: AtlasView, store: NonNullable<PlayerFrameSource['store']>): ReplicatedSource {
+    const assets = AssetService.getInstance(view.app);
+    return {
+      store,
+      collection: () => {
+        const mapPath = store.getState().mapPath;
+        const id = mapPath ? assets.getCollectionForMap(mapPath) : null;
+        return id ? { id, settings: assets.getCollectionSettings(id) } : null;
+      },
+      initiativeRules: () => mapInitiativeRules(view.app, store.getState().mapPath),
+      onCollectionChanged: (listener) => {
+        const ref = view.app.workspace.on('atlas-vtt:collection-settings-changed', listener);
+        return () => view.app.workspace.offref(ref);
+      },
+    };
   }
 
   private rollForPlayer(formula: string, token: Character | undefined): boolean {
@@ -189,6 +220,7 @@ export class OnlineSession {
   private hold(): void {
     this.stream.hold();
     this.controls.setSource(null);
+    this.replicator.setSource(null);
   }
 
   private async start(): Promise<boolean> {
@@ -202,6 +234,10 @@ export class OnlineSession {
         this.stream.addViewer(playerId, request);
         onlineSessionStore.setState({ playerCount: server.playerCount });
       },
+      onCanvasJoin: (playerId) => {
+        this.replicator.sendTo(playerId);
+        onlineSessionStore.setState({ playerCount: server.playerCount });
+      },
       onLeave: (playerId) => {
         this.stream.removeViewer(playerId);
         onlineSessionStore.setState({ playerCount: server.playerCount });
@@ -211,7 +247,7 @@ export class OnlineSession {
         if (camera) this.stream.setViewerCamera(playerId, camera === 'recenter' ? null : camera);
       },
       onCommand: (body) => this.controls.apply(body),
-      onImage: (path) => (this.visibleImages.has(path) ? tokenImage(this.app, path) : Promise.resolve(null)),
+      onImage: (path) => (this.mayLoadImage(path) ? tokenImage(this.app, path) : Promise.resolve(null)),
       pageTheme: () => pageTheme(document),
     }, playerClient);
     server.share('mode', { isFollowingDm: onlineSessionStore.getState().isFollowingDm });
@@ -229,8 +265,13 @@ export class OnlineSession {
     return true;
   }
 
-  private playerLink(): string {
+  /** Images players may load: those the frame page shows, and those of the scene the canvas pages draw. */
+  private mayLoadImage(path: string): boolean {
+    return this.visibleImages.has(path) || this.replicator.sentImages().has(path);
+  }
+
+  private playerLink(path: '/' | '/play'): string {
     const { port, publicHost, secret } = this.settingsService.getOnlineSessionSettings();
-    return `http://${publicHost.trim() || 'localhost'}:${port}/?k=${secret}`;
+    return `http://${publicHost.trim() || 'localhost'}:${port}${path}?k=${secret}`;
   }
 }

@@ -3,7 +3,7 @@ import { Texture, type Container, type EventSystem } from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
 import { EventEmitter } from 'events';
 import { PinRenderer } from '../../src/app/pixi/PinRenderer';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
 // jsdom has no 2D canvas, so pin glyphs cannot be rasterised here.

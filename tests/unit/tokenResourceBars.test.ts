@@ -6,7 +6,7 @@ import type { Viewport } from 'pixi-viewport';
 import { TokenUIRenderer } from '../../src/app/pixi/TokenUIRenderer';
 import { TokenControlsUI } from '../../src/app/pixi/TokenControlsUI';
 import { ResourceBarLabel, RESOURCE_NUMBER_GAP } from '../../src/app/pixi/ResourceBarLabel';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { Character } from '../../src/app/types';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { barDimensions } from '../../src/app/styles/designTokens';

@@ -5,7 +5,8 @@ import { GENERIC_LIGHT_PRESETS } from '../../src/app/gameSystems/lightPresets/ge
 import { GENERIC_SENSES } from '../../src/app/gameSystems/senses/generic';
 import { emissionOf, lightPresetsOnMap } from '../../src/app/lighting/lightPresetChoice';
 import { senseWithRole } from '../../src/app/gameSystems/senseRules';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../src/app/packages/components/primitives/tooltip';
 import { openEditTokenModal } from '../../src/app/pixi/token-renderer/EditTokenModal';
 import { AssetService } from '../../src/app/services/AssetService';

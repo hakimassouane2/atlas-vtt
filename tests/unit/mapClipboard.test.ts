@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { getHistoryStore } from '../../src/app/stores/history';
 import { getDataFilePath } from '../../src/app/utils/dataFileMigration';
 import { copySelection, cutSelection, duplicateSelection, pasteClipboard } from '../../src/app/clipboard/mapClipboardActions';

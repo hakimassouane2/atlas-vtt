@@ -12,7 +12,7 @@ import { sealWalls } from '../../src/app/lighting/sealWalls';
 import { AssetService, type Asset } from '../../src/app/services/AssetService';
 import { AssetThumbnailService } from '../../src/app/services/AssetThumbnailService';
 import { createAtlasStorage, migrateMapFile, parseSceneFile, type GridState } from '../../src/app/services/MapPersistence';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { CollectionGridDefaults } from '../../src/app/types/collectionSettingsTypes';
 import type { SceneLighting } from '../../src/app/types/lightingTypes';
 import type { WallSegment } from '../../src/app/types/wallTypes';

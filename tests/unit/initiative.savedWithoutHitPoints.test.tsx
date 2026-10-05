@@ -22,7 +22,8 @@ import { InitiativeTracker } from '../../src/app/react/components/InitiativeTrac
 import { initiativeEntryForToken } from '../../src/app/stores/initiativeEntries';
 import { AtlasUIContext } from '../../src/app/react/root/AtlasUIContext';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
-import { createViewAtlasStore, type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 
 const SCENE = "atlas-vtt/collections/Daggerheart/scenes/Hallow's Rest.atlasmap";
 const STATBLOCK = 'atlas-vtt/collections/Daggerheart/statblocks/Acid Burrower.md';

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Texture } from 'pixi.js';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { InteractionController } from '../../src/app/pixi/token-renderer/InteractionController';
 import { SpriteFactory } from '../../src/app/pixi/token-renderer/SpriteFactory';
 import { collectMapObjects } from '../../src/app/clipboard/mapObjectContent';

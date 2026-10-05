@@ -3,8 +3,6 @@
  * styles with the DM's stylesheet; these use the same Obsidian variables and Atlas'
  * surface treatment (atlas-elevated-surface: 1.5px border, radius-l, shadow-l) to match.
  */
-html, body { height: 100%; }
-body { overflow: hidden; -webkit-app-region: no-drag; user-select: none; }
 
 #scene { position: absolute; display: none; max-width: none; pointer-events: none; }
 body.online-live #scene { display: block; }
@@ -31,22 +29,6 @@ body.online-live #scene { display: block; }
 .online-button { cursor: pointer; }
 .online-surface input, .online-surface select { font: inherit; }
 
-.online-hud {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 8px;
-  border-radius: var(--radius-m, 8px);
-  background: var(--background-primary);
-  color: var(--text-normal);
-  font-family: var(--font-interface);
-  font-size: var(--font-ui-small);
-  pointer-events: none;
-  z-index: 10;
-}
-#status { bottom: 12px; }
-#status:empty { display: none; }
-body:not(.online-live) #status { bottom: 50%; font-size: var(--font-ui-medium); }
 #following { top: 12px; display: none; }
 body.online-following #following { display: block; }
 

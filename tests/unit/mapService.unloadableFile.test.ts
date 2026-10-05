@@ -10,7 +10,8 @@ vi.mock('../../src/app/lighting/exploredMaskCodec', async (importOriginal) => {
 });
 
 import { readExploredMask } from '../../src/app/lighting/exploredMaskCodec';
-import { createViewAtlasStore, type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { MapService } from '../../src/app/services/MapService';
 import type { RendererService } from '../../src/app/services/RendererService';
 

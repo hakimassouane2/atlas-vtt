@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_ZONE_CORNERS, lightZoneList, zoneHandlePoint } from '../../src/app/lighting/lightZones';
 import { migrateMapFile } from '../../src/app/services/MapPersistence';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { getHistoryStore } from '../../src/app/stores/history';
 import type { LightZone } from '../../src/app/types/lightingTypes';
 import { createInMemoryApp } from '../mocks/inMemoryVault';

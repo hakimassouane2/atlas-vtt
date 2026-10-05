@@ -8,6 +8,7 @@ import { drawOverlay, installMapInput, settleLandings } from './mapInput';
 import { installObsidianDom } from './obsidianDom';
 import { installPartyPanel } from './partyPanel';
 // Bundled into the page's stylesheet (`/styles.css`) by `vite/player-client.mts`
+import './pageBase.css';
 import './playerPage.css';
 import { playerStateStore } from './playerState';
 import { installStreamSettings } from './streamSettings';

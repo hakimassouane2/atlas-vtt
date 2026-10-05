@@ -6,7 +6,7 @@ import css from '../../styles/main.scss?inline';
 import { GENERIC_LIGHT_PRESETS } from '../../src/app/gameSystems/lightPresets/generic';
 import { emissionOf, lightPresetsOnMap } from '../../src/app/lighting/lightPresetChoice';
 import { openEditTokenModal } from '../../src/app/pixi/token-renderer/EditTokenModal';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { Character } from '../../src/app/types';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { HP, STR } from '../mocks/resourceFixtures';

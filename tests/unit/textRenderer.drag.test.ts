@@ -3,7 +3,7 @@ import type { EventSystem, FederatedPointerEvent } from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
 import { TextRenderer } from '../../src/app/pixi/TextRenderer';
 import type { GridSystem } from '../../src/app/grid/GridSystem';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { stubJsdomGraphics } from '../mocks/jsdomGraphics';
 

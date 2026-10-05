@@ -4,7 +4,8 @@ import { lightList, readLight, readWall } from '../../src/app/lighting/lightingO
 import { MAX_LIGHT_ZONES, MAX_ZONE_CORNERS, lightZoneList } from '../../src/app/lighting/lightZones';
 import { activeLights, engineLight } from '../../src/app/pixi/lighting/lightSources';
 import { migrateMapFile } from '../../src/app/services/MapPersistence';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { wallList } from '../../src/app/vision/wallList';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { NotePreviewUIManager } from '../../src/app/services/NotePreviewUIManager';
 import { runtimePlatform } from '../../src/app/keyboard/runtimePlatform';
 

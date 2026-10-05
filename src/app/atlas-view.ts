@@ -1,6 +1,7 @@
 import { FileView, WorkspaceLeaf, TFile, normalizePath, ViewStateResult, Notice } from "obsidian";
 import { ServiceManager } from './services/ServiceManager';
-import { createViewAtlasStore, ViewAtlasStore } from './storeFactory';
+import { ViewAtlasStore } from './storeFactory';
+import { createViewAtlasStore } from './viewStore';
 import { getHistoryStore, runUntracked, type HistoryState } from './stores/history';
 import { withoutExploredEdits } from './stores/exploredEditHistory';
 import { createTabMetaStore, type TabMetaStore } from './stores/tabMetaStore';

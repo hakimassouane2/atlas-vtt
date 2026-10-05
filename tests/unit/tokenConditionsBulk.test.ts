@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Text } from 'pixi.js';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { getHistoryStore } from '../../src/app/stores/history';
 import { conditionsSubmenu } from '../../src/app/react/components/context-menu/conditionsMenu';
 import type { ContextMenuEntry } from '../../src/app/react/components/context-menu/AtlasContextMenu';

@@ -54,9 +54,9 @@ import type { FogOperation } from '../types/fogTypes';
 export type FogPatch = FogOperation;
 export type Pin = NotePin;
 
-// Add constants for schema identification and versioning
-export const ATLAS_SCHEMA = 'atlas-vtt' as const;
-export const ATLAS_VERSION = 4;
+import { ATLAS_SCHEMA, ATLAS_VERSION } from './sceneFileVersion';
+
+export { ATLAS_SCHEMA, ATLAS_VERSION };
 
 /**
  * Defines the structure of the persisted .atlasmap file.

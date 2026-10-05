@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Graphics } from 'pixi.js';
 import type { Viewport } from 'pixi-viewport';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { CanvasLightingFallback } from '../../src/app/pixi/lighting/CanvasLightingFallback';
 import { playerTokenSight } from '../../src/app/pixi/lighting/playerLightingLayers';
 import { holdTokens } from '../../src/app/lighting/sightOnDrop';

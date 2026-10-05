@@ -14,7 +14,8 @@ vi.mock('obsidian', async (importOriginal) => ({
 
 import { MAP_UI_ROOT_OPTIONS, PanelBoundary } from '../../src/app/react/root/PanelBoundary';
 import { ViewStoreProvider, useAtlasStore } from '../../src/app/react/ViewStoreContext';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 
 /** A panel that cannot render what the Cave scene holds, as the initiative tracker could not. */
 const BrokenOnCave: React.FC = () => {

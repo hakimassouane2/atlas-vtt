@@ -8,7 +8,7 @@ import { hexLayoutOfGrid, hexLinkAt, linkedHexOf } from '../../src/app/grid/hexL
 import { HexLinkRenderer } from '../../src/app/pixi/hexLinks/HexLinkRenderer';
 import { PinRenderer } from '../../src/app/pixi/PinRenderer';
 import { NotePinTool } from '../../src/app/tools/NotePinTool';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { GridState } from '../../src/app/services/MapPersistence';
 import type { NotePin } from '../../src/app/types';
 import { createInMemoryApp } from '../mocks/inMemoryVault';

@@ -7,18 +7,23 @@ import { build, type Metafile } from 'esbuild';
  * everything it imports must work in both: it takes what Obsidian and the GM's UI provide
  * through its `CanvasHost`, never by importing them.
  */
-const CANVAS_ENTRY = 'src/app/PixiRendererOrchestrator.ts';
+const CANVAS_ENTRIES = ['src/app/PixiRendererOrchestrator.ts', 'src/app/storeFactory.ts'];
+/** The player's canvas page, which mounts Atlas' player overlays besides the canvas. */
+const PAGE_ENTRY = 'src/app/online/canvas/main.ts';
 
 /** What the canvas may not reach, by import path or source file. */
-const FORBIDDEN: ReadonlyArray<{ reason: string; matches: (path: string) => boolean }> = [
-  { reason: 'Obsidian exists only in the plugin', matches: (path) => path === 'obsidian' },
-  { reason: "the GM's React UI belongs to the plugin", matches: (path) => /^src\/app\/(react|packages)\//.test(path) || path.endsWith('.tsx') },
-  { reason: 'Node modules do not exist in a browser', matches: (path) => /^(node:|http$|https$|fs$|path$|crypto$|child_process$)/.test(path) },
-];
+interface Rule {
+  reason: string;
+  matches: (path: string) => boolean;
+}
 
-async function canvasImports(): Promise<Metafile['inputs']> {
+const NO_OBSIDIAN: Rule = { reason: 'Obsidian exists only in the plugin', matches: (path) => path === 'obsidian' };
+const NO_GM_UI: Rule = { reason: "the GM's React UI belongs to the plugin", matches: (path) => /^src\/app\/(react|packages)\//.test(path) || path.endsWith('.tsx') };
+const NO_NODE: Rule = { reason: 'Node modules do not exist in a browser', matches: (path) => /^(node:|http$|https$|fs$|path$|crypto$|child_process$)/.test(path) };
+
+async function canvasImports(entry: string): Promise<Metafile['inputs']> {
   const result = await build({
-    entryPoints: [CANVAS_ENTRY],
+    entryPoints: [entry],
     bundle: true,
     write: false,
     metafile: true,
@@ -41,16 +46,16 @@ async function canvasImports(): Promise<Metafile['inputs']> {
 }
 
 /** Each forbidden import with the chain of files that reaches it from the canvas. */
-function forbiddenChains(inputs: Metafile['inputs']): string[] {
-  const parent = new Map<string, string | null>([[CANVAS_ENTRY, null]]);
-  const queue = [CANVAS_ENTRY];
+function forbiddenChains(entry: string, inputs: Metafile['inputs'], rules: readonly Rule[]): string[] {
+  const parent = new Map<string, string | null>([[entry, null]]);
+  const queue = [entry];
   const found: string[] = [];
   while (queue.length > 0) {
     const file = queue.shift()!;
     for (const { path, external } of inputs[file]?.imports ?? []) {
       if (parent.has(path)) continue;
       parent.set(path, file);
-      const rule = FORBIDDEN.find((candidate) => candidate.matches(path));
+      const rule = rules.find((candidate) => candidate.matches(path));
       if (rule) {
         const chain: string[] = [];
         for (let node: string | null | undefined = path; node; node = parent.get(node)) chain.unshift(node);
@@ -64,7 +69,11 @@ function forbiddenChains(inputs: Metafile['inputs']): string[] {
 }
 
 describe('the canvas import graph', () => {
-  it('reaches neither Obsidian, nor the GM UI, nor Node', async () => {
-    expect(forbiddenChains(await canvasImports())).toEqual([]);
+  it.each(CANVAS_ENTRIES)('from %s reaches neither Obsidian, nor the GM UI, nor Node', async (entry) => {
+    expect(forbiddenChains(entry, await canvasImports(entry), [NO_OBSIDIAN, NO_GM_UI, NO_NODE])).toEqual([]);
+  }, 30_000);
+
+  it('from the player canvas page reaches neither Obsidian nor Node', async () => {
+    expect(forbiddenChains(PAGE_ENTRY, await canvasImports(PAGE_ENTRY), [NO_OBSIDIAN, NO_NODE])).toEqual([]);
   }, 30_000);
 });

@@ -4,7 +4,7 @@ import { AtlasView } from '../../src/app/atlas-view';
 import { createTabMetaStore } from '../../src/app/stores/tabMetaStore';
 
 vi.mock('../../src/app/services/ServiceManager', () => ({ ServiceManager: class {} }));
-vi.mock('../../src/app/storeFactory', () => ({ createViewAtlasStore: vi.fn() }));
+vi.mock('../../src/app/viewStore', () => ({ createViewAtlasStore: vi.fn() }));
 vi.mock('../../src/app/stores/history', () => ({ getHistoryStore: () => undefined }));
 
 const CAVE = new TFile('maps/cave.atlasmap');

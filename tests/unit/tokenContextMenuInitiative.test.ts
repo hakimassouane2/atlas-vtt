@@ -6,7 +6,7 @@ import type { App } from 'obsidian';
 import { InteractionController } from '../../src/app/pixi/token-renderer/InteractionController';
 import { gmTokenMenu } from '../../src/app/react/components/context-menu/gmTokenMenu';
 import type { GridSystem } from '../../src/app/grid/GridSystem';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { ContextMenuEntry } from '../../src/app/react/components/context-menu/AtlasContextMenu';
 import type { Token } from '../../src/app/types';
 import { createInMemoryApp } from '../mocks/inMemoryVault';

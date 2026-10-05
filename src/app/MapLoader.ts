@@ -5,6 +5,7 @@ import { migrateMapFile, parseSceneFile } from './services/MapPersistence';
 import { SceneFileError } from './services/sceneFileProblems';
 import { AssetValidationService, type MissingAsset } from './services/AssetValidationService';
 import { backgroundTextureCache } from './pixi/backgroundTextureCache';
+import { mapPlaceholderTexture } from './pixi/mapDisplay';
 
 export interface LoadedMap {
   mapData: MapFile;
@@ -54,7 +55,7 @@ export class MapLoader {
       if (!(imgFile instanceof TFile)) {
         console.error(`[MapLoader] Background image not found: ${mapData.background}`);
         const placeholder = assetValidationService.getMissingAssetPlaceholder();
-        texture = placeholder ? await Assets.load<Texture>(placeholder) : createPlaceholderTexture(mapData);
+        texture = placeholder ? await Assets.load<Texture>(placeholder) : mapPlaceholderTexture(mapData.grid?.size || 70);
         hasBackground = false;
       } else {
         const url = app.vault.adapter.getResourcePath(imgFile.path);
@@ -64,7 +65,7 @@ export class MapLoader {
       }
     } else {
       // Create a placeholder texture for maps without backgrounds
-      texture = createPlaceholderTexture(mapData);
+      texture = mapPlaceholderTexture(mapData.grid?.size || 70);
       hasBackground = false;
     }
 
@@ -76,24 +77,4 @@ export class MapLoader {
       missingAssets: validationResult.missingAssets
     };
   }
-}
-
-/**
- * Transparent placeholders by grid size, shared by every map without a background.
- * Nothing unloads a placeholder when the scene changes, so a new one per load leaked its canvas.
- */
-const placeholderTextures = new Map<number, Texture>();
-
-/** Transparent 20x20-cell texture for maps without a background image. */
-function createPlaceholderTexture(mapData: MapFile): Texture {
-  const gridSize = mapData.grid?.size || 70;
-  const cached = placeholderTextures.get(gridSize);
-  if (cached && !cached.destroyed) return cached;
-  const canvas = createEl('canvas');
-  canvas.width = gridSize * 20;
-  canvas.height = gridSize * 20;
-  if (!canvas.getContext('2d')) return Texture.EMPTY;
-  const texture = Texture.from(canvas);
-  placeholderTextures.set(gridSize, texture);
-  return texture;
 }

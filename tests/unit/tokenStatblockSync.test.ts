@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'events';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { AssetService } from '../../src/app/services/AssetService';
 import { TokenStatblockLinkService } from '../../src/app/services/TokenStatblockLinkService';
 import { TokenStatblockSync } from '../../src/app/services/TokenStatblockSync';

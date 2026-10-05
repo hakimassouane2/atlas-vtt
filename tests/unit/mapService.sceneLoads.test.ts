@@ -8,7 +8,8 @@ vi.mock('obsidian', async (importOriginal) => ({ ...(await importOriginal<typeof
 vi.mock('../../src/app/MapLoader', () => ({ MapLoader: { load: vi.fn() } }));
 
 import { MapLoader, type LoadedMap } from '../../src/app/MapLoader';
-import { createViewAtlasStore, type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { migrateMapFile, type PersistedMapEnvelope } from '../../src/app/services/MapPersistence';
 import { STALLED_SAVE_MS } from '../../src/app/services/sceneFileWriter';
 import { MapService, STALLED_LOAD_MS } from '../../src/app/services/MapService';

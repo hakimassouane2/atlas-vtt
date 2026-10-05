@@ -11,7 +11,8 @@ import { captureWithLayerVisibility } from '../../src/app/pixi/playerSafeFrame';
 import { SIZE } from '../../src/app/pixi/lighting/__tests__/rendererHarness';
 import { createTestRenderer, readRgba } from '../../src/app/pixi/lighting/engine/__tests__/gpuTestUtils';
 import { watchGl, type GlWatch } from '../../src/app/pixi/lighting/engine/__tests__/strictGl';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { getHistoryStore } from '../../src/app/stores/history';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 

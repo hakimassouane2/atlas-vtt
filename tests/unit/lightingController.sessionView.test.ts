@@ -10,7 +10,8 @@ import type { LightPointerHandlers } from '../../src/app/pixi/lighting/LightInte
 import type { SceneLightingDeps } from '../../src/app/pixi/lighting/createSceneLighting';
 import type { SceneLightingView } from '../../src/app/pixi/lighting/sceneLightingView';
 import type { DoorMenuHandlers, TokenRenderer } from '../../src/app/pixi/TokenRenderer';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { getHistoryStore } from '../../src/app/stores/history';
 import { SEES_ALL, computeSight, type Sight } from '../../src/app/vision/sight';
 import { AssetService } from '../../src/app/services/AssetService';

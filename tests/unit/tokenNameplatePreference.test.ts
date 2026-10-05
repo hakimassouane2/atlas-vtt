@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { Text } from 'pixi.js';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { getDataFilePath } from '../../src/app/utils/dataFileMigration';
 import { TokenUIRenderer } from '../../src/app/pixi/TokenUIRenderer';
 import { TokenStatblockLinkService } from '../../src/app/services/TokenStatblockLinkService';

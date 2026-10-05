@@ -1,7 +1,8 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
 import { SceneLightingPanelHost } from '../../src/app/pixi/lighting/SceneLightingPanel';
 import { createInMemoryApp } from '../mocks/inMemoryVault';

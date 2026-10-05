@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { parseUserPresets } from '../../src/app/gameSystems/presetValidation';
 import { pickLibraryWidgets, withCollectionWidgets } from '../../src/app/utils/collectionWidgets';
 import { clampCounterValue, stepCounter } from '../../src/app/utils/counterWidget';

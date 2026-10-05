@@ -6,7 +6,7 @@ import { GENERIC_SENSES } from '../../src/app/gameSystems/senses/generic';
 import { AssetService } from '../../src/app/services/AssetService';
 import { dropUnknownSenses, dropUnknownSensesFromJson, removeUndefinedSenses } from '../../src/app/services/collectionSenseCleanup';
 import { snapshotFolderFor } from '../../src/app/snapshots/snapshotPaths';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { getHistoryStore } from '../../src/app/stores/history';
 import type { TokenEntity } from '../../src/app/types';
 import type { CollectionSettings } from '../../src/app/types/collectionSettingsTypes';

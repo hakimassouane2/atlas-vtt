@@ -7,7 +7,7 @@ import type { AssetCardHandlers } from '../../src/app/packages/components/asset-
 import type { TokenAsset } from '../../src/app/packages/components/asset-manager/types';
 import { useSpawnCountTyping } from '../../src/app/packages/components/asset-manager/hooks/useSpawnCountTyping';
 import { MAX_SPAWN_COUNT, typeSpawnCountDigit } from '../../src/app/packages/components/asset-manager/utils/spawnCount';
-import { createViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../src/app/viewStore';
 import { beginHistoryTransaction, endHistoryTransaction, getHistoryStore } from '../../src/app/stores/history';
 import { copyDragSelection } from '../../src/app/pixi/token-renderer/dragCopy';
 import { createInMemoryApp } from '../mocks/inMemoryVault';

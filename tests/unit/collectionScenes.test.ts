@@ -3,7 +3,7 @@ import { TFile, type App } from 'obsidian';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
 vi.mock('../../src/app/services/ServiceManager', () => ({ ServiceManager: class {} }));
-vi.mock('../../src/app/storeFactory', () => ({ createViewAtlasStore: vi.fn() }));
+vi.mock('../../src/app/viewStore', () => ({ createViewAtlasStore: vi.fn() }));
 
 import { AtlasView } from '../../src/app/atlas-view';
 import { AssetService } from '../../src/app/services/AssetService';

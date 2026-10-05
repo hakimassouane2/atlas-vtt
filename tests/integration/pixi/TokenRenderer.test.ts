@@ -20,7 +20,7 @@ import { FogOfWarRenderer } from '../../../src/app/pixi/fog/FogOfWarRenderer';
 import { TextTool } from '../../../src/app/tools/TextTool';
 import { AssetService } from '../../../src/app/services/AssetService';
 import { obsidianCanvasHost } from '../../../src/app/services/canvasHost/obsidianCanvasHost';
-import { createViewAtlasStore } from '../../../src/app/storeFactory';
+import { createViewAtlasStore } from '../../../src/app/viewStore';
 import { computeTokenPixelSize } from '../../../src/app/pixi/token-renderer/tokenSizing';
 import { getHistoryStore } from '../../../src/app/stores/history';
 import type { GridSystem } from '../../../src/app/grid/GridSystem';
