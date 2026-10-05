@@ -10,6 +10,7 @@ import { PagePlayer, SentCollection, pageCanvasHost } from './pageCanvasHost';
 import { installPageMenus } from './pageMenus';
 import { installPageDice } from './pageDice';
 import { storedInputDevice } from './inputDevice';
+import { guardPageZoom } from './pageZoomGuard';
 import { PlayerHud } from './PlayerHud';
 // Bundled into the page's stylesheet (`/styles.css`) by `vite/player-client.mts`
 import './playerPage.css';
@@ -21,6 +22,7 @@ import './playerPage.css';
  */
 async function start(): Promise<void> {
   installObsidianDom();
+  guardPageZoom();
   installPageMenus();
   const content = byId('content');
   const collection = new SentCollection();

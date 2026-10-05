@@ -131,7 +131,7 @@ vocabulaire : `CONTEXT.md`.
   `main.ts`, `PlayerCanvas.ts`, `pageCanvasHost.ts`, `commandBridge.ts`, `sceneConnection.ts`,
   `PlayerHud.tsx`, `playerTokenMenu.ts`, `pageDice.tsx`,
   `pageMenus.tsx`, `pageIcons.ts`, `initiativeOverlay.ts`, `pageStandIns.ts`, `session.ts`,
-  `dom.ts`, `obsidianDom.ts`, `events.ts`, `playerPage.css`, `PlayerSettingsMenu.tsx`, `inputDevice.ts`.
+  `dom.ts`, `obsidianDom.ts`, `events.ts`, `playerPage.css`, `PlayerSettingsMenu.tsx`, `inputDevice.ts`, `pageZoomGuard.ts`.
 - Côté MJ, sorties du moteur : `services/canvasHost/`, `services/TokenStatblockSync.ts`,
   `services/obsidianDiceEnvironment.ts`, `react/components/context-menu/gmTokenMenu.ts`,
   `pixi/audio/AudioFeature.ts`, `pixi/mapDisplay.ts`, `viewStore.ts`, `services/sceneFileVersion.ts`,
