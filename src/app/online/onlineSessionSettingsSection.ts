@@ -10,7 +10,7 @@ export function onlineSessionSettingsSection(settingsService: SettingsService): 
     rows: [
       {
         name: 'Public address',
-        desc: 'Your public IP address or domain. Players open the link on this address.',
+        desc: "Your public IP address or domain, for players outside your home. Left empty, the link uses this computer's address on your local network.",
         aliases: ['online', 'ip', 'players', 'remote'],
         render: (setting) => {
           setting.addText((text) => {

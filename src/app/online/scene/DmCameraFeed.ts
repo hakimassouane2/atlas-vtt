@@ -1,12 +1,11 @@
 import type { PlayerCameraState } from '../../local-player-view';
 
-/** How often the DM's camera is looked at: often enough for players following it to move with it. */
-const CAMERA_INTERVAL_MS = 100;
+/** How often the DM's camera is looked at. */
+const CAMERA_INTERVAL_MS = 250;
 
 /**
  * Tells players' canvases where the DM looks (`camera`: the centre of the DM's view and its zoom),
- * whenever it moves. Canvases that follow the DM move with it; the others go there when the player
- * recenters.
+ * whenever it moves, so a player who recenters goes there.
  */
 export class DmCameraFeed {
   private getCamera: (() => PlayerCameraState | undefined) | null = null;

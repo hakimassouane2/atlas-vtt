@@ -12,8 +12,6 @@ export interface SceneListener {
   changes(changes: SceneChange[]): void;
   /** Where the DM looks. */
   camera(camera: PlayerCameraState): void;
-  /** Whether the DM makes players follow their camera. */
-  following(isFollowingDm: boolean): void;
   /** The DM presented another scene: players start from the DM's framing. */
   recenter(): void;
   /** A roll players may see. */
@@ -37,7 +35,6 @@ export function connectToScene(listener: SceneListener): EventSource {
   on<Extract<PlayerSceneMessage, { event: 'changes' }>>('changes', (data) => listener.changes(data));
   const json = <T>(message: Event): T => JSON.parse((message as MessageEvent<string>).data) as T;
   stream.addEventListener('camera', (message) => listener.camera(json<PlayerCameraState>(message)));
-  stream.addEventListener('mode', (message) => listener.following(json<{ isFollowingDm: boolean }>(message).isFollowingDm));
   stream.addEventListener('recenter', () => listener.recenter());
   stream.addEventListener('roll', (message) => listener.roll(json<DiceRollResult>(message)));
   stream.onopen = (): void => {

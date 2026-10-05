@@ -53,12 +53,9 @@ async function start(): Promise<void> {
       player.set(context.playerView);
       canvas.setPlayerView(context.playerView);
     },
-    scene: (scene) => void canvas.showScene(scene).then(() => {
-      if (camera.isFollowing()) camera.recenter();
-    }),
+    scene: (scene) => void canvas.showScene(scene),
     changes: (changes) => canvas.applyChanges(changes),
     camera: (dm) => camera.setDmCamera(dm),
-    following: (isFollowing) => camera.setFollowing(isFollowing),
     recenter: () => camera.recenter(),
     roll: showRoll,
   });

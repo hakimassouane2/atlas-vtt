@@ -70,7 +70,9 @@ vocabulaire : `CONTEXT.md`.
 ### Utilisation
 
 1. Réglages Atlas, section **Online session** : adresse publique (IP statique) et port
-   (30002 par défaut, à ouvrir en TCP sur la box, comme le 30001 de Foundry).
+   (30002 par défaut, à ouvrir en TCP sur la box, comme le 30001 de Foundry). Sans adresse
+   publique, le lien prend l'adresse de l'ordinateur sur le réseau local (`lanAddress.ts`) :
+   un téléphone ou une tablette sur le même Wi-Fi peut le suivre.
 2. Accueil Atlas : tuile **Online Session**. Elle démarre le serveur et copie le lien joueur.
    Commandes équivalentes : "Start online session and copy the player link", "Stop online session".
 3. Dans la scène : **Présenter** ("Send to player view"). Les joueurs en ligne voient la scène ;
@@ -84,11 +86,9 @@ vocabulaire : `CONTEXT.md`.
      clic droit glissé : déplacer la carte ; molette : zoomer (même caméra que le MJ) ;
    - barre en bas : recentrer sur la vue du MJ, panneau du groupe, plateau de dés ;
    - initiative à droite (avec les numéros d'instance, "Gobelin 2"), dés en 3D.
-6. **Players Follow My Camera** (palette Atlas) ou "Toggle online players following your camera" :
-   les joueurs suivent ta caméra et ne peuvent plus bouger la leur.
-7. Ce que les joueurs voient suit tes réglages de la vue joueur (grille, noms, jets du MJ) et la
+6. Ce que les joueurs voient suit tes réglages de la vue joueur (grille, noms, jets du MJ) et la
    visibilité de chaque ressource. Pas d'éclairage dynamique en ligne : le brouillard seul révèle.
-8. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
+7. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
 
 ### Fonctionnement
 

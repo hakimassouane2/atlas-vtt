@@ -42,15 +42,3 @@
   font-variant-numeric: tabular-nums;
 }
 
-.atlas-player-following {
-  @include atlas-elevated-surface;
-  position: fixed;
-  top: $spacing-l;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: $spacing-s;
-  border-radius: $radius-l;
-  font-size: var(--font-ui-small);
-  pointer-events: none;
-  z-index: $z-dropdown;
-}

@@ -23,7 +23,6 @@ import {
   Palette,
   UserCheck,
   History,
-  LocateFixed,
 } from 'lucide-react';
 import { CoinIcon } from './CoinIcon';
 import { Notice } from 'obsidian';
@@ -33,7 +32,6 @@ import { useAtlasUI } from '../root/AtlasUIContext';
 import { PlayerWindowService } from '../../services/PlayerWindowService';
 import { presentActiveTabInPlayerWindow } from '../../services/PlayerWindowPresenter';
 import { playerWindowStore } from '../../stores/playerWindowStore';
-import { OnlineSession, onlineSessionStore } from '../../online/OnlineSession';
 import { debounce } from '../../../utils/debounce';
 import { cn } from '../../../utils/cn';
 import { isShortcutScopeActive } from '../../utils/activeLeafGuard';
@@ -90,7 +88,6 @@ export function CommandPalette({ isOpen, onClose, toolbarRef }: CommandPalettePr
   const setActiveTool = useAtlasStore(state => state.setActiveTool);
   const { app, view } = useAtlasUI();
   const isPlayerWindowFrozen = useStore(playerWindowStore, (s) => s.isFrozen);
-  const isOnlineFollowingDm = useStore(onlineSessionStore, (s) => s.isFollowingDm);
   const isPlayerMode = view?.isInPlayerMode?.() ?? false;
   const setPlayerMode = (mode: boolean): void => view?.setPlayerMode?.(mode);
 
@@ -308,22 +305,6 @@ export function CommandPalette({ isOpen, onClose, toolbarRef }: CommandPalettePr
       },
       isToggle: true,
       isActive: isPlayerWindowFrozen,
-    },
-    {
-      id: "online-players-follow-camera",
-      icon: <LocateFixed />,
-      label: "Players Follow My Camera",
-      section: "mode",
-      action: () => {
-        const session = OnlineSession.getInstance();
-        if (session?.isRunning()) {
-          session.toggleFollowingDm();
-        } else {
-          new Notice("No online session is running");
-        }
-      },
-      isToggle: true,
-      isActive: isOnlineFollowingDm,
     },
     {
       id: "transfer-player-view",

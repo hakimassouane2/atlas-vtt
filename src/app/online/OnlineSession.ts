@@ -10,6 +10,7 @@ import { PlayerControls, type CommandSource } from './PlayerControls';
 import { PlayerDiceFeed } from './PlayerDiceFeed';
 import { tokenImage } from './tokenImage';
 import { pageTheme } from './pageTheme';
+import { lanAddress } from './lanAddress';
 import { AssetService } from '../services/AssetService';
 import { mapConditions } from '../services/mapConditions';
 import { mapInitiativeRules } from '../services/mapInitiativeRules';
@@ -22,22 +23,19 @@ export interface OnlineSessionState {
   isRunning: boolean;
   /** Browsers currently connected with the player link. */
   playerCount: number;
-  /** Players see through the DM's camera instead of their own. */
-  isFollowingDm: boolean;
 }
 
 /** Read by the dashboard; one session per plugin, like the player window. */
 export const onlineSessionStore: StoreApi<OnlineSessionState> = createStore<OnlineSessionState>(() => ({
   isRunning: false,
   playerCount: 0,
-  isFollowingDm: false,
 }));
 
 /**
  * Lets players join from a browser with a link. The server runs on this computer; the player's
- * browser runs Atlas' own canvas on the scene the DM presents (ADR 0001), through their own camera
- * unless the DM makes them follow theirs. Players move, turn and change the tokens the DM gave them,
- * follow the initiative order and roll dice.
+ * browser runs Atlas' own canvas on the scene the DM presents (ADR 0001), through their own camera,
+ * which recenters on the DM's. Players move, turn and change the tokens the DM gave them, follow
+ * the initiative order and roll dice.
  */
 export class OnlineSession {
   private static instance: OnlineSession | null = null;
@@ -46,7 +44,7 @@ export class OnlineSession {
   private readonly diceFeed: PlayerDiceFeed;
   /** Keeps the players' scenes in step with the presented one. */
   private readonly replicator: SceneReplicator;
-  /** Where the DM looks, for players who follow the DM's camera or recenter on it. */
+  /** Where the DM looks, for players who recenter on it. */
   private readonly cameraFeed: DmCameraFeed;
   /** The view whose scene players see; its dice engine rolls for them. */
   private presentedView: AtlasView | null = null;
@@ -91,15 +89,7 @@ export class OnlineSession {
     const { publicHost } = this.settingsService.getOnlineSessionSettings();
     new Notice(publicHost
       ? 'Player link copied'
-      : 'Player link copied. It only works on this computer until you set your public address in the Atlas settings.');
-  }
-
-  /** Makes every player see through the DM's camera, or lets them move their own again. */
-  toggleFollowingDm(): void {
-    const isFollowingDm = !onlineSessionStore.getState().isFollowingDm;
-    onlineSessionStore.setState({ isFollowingDm });
-    this.server?.share('mode', { isFollowingDm });
-    new Notice(isFollowingDm ? 'Online players follow your camera' : 'Online players move their own camera');
+      : 'Player link copied. It works on your local network (same Wi-Fi); set your public address in the Atlas settings for players elsewhere.');
   }
 
   stop(): void {
@@ -111,7 +101,7 @@ export class OnlineSession {
     this.server?.close();
     this.server = null;
     this.rollImages.clear();
-    onlineSessionStore.setState({ isRunning: false, playerCount: 0, isFollowingDm: false });
+    onlineSessionStore.setState({ isRunning: false, playerCount: 0 });
   }
 
   /**
@@ -224,7 +214,6 @@ export class OnlineSession {
       onImage: (path) => (this.mayLoadImage(path) ? tokenImage(this.app, path) : Promise.resolve(null)),
       pageTheme: () => pageTheme(document),
     }, playerClient);
-    server.share('mode', { isFollowingDm: onlineSessionStore.getState().isFollowingDm });
     try {
       await server.listen(settings.port);
     } catch (error) {
@@ -246,6 +235,7 @@ export class OnlineSession {
 
   private playerLink(): string {
     const { port, publicHost, secret } = this.settingsService.getOnlineSessionSettings();
-    return `http://${publicHost.trim() || 'localhost'}:${port}/?k=${secret}`;
+    // Without a public address, the link works on the local network, so a phone or tablet at the table can join
+    return `http://${publicHost.trim() || lanAddress() || 'localhost'}:${port}/?k=${secret}`;
   }
 }

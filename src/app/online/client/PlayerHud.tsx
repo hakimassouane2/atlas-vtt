@@ -1,4 +1,4 @@
-import React, { useRef, useState, useSyncExternalStore } from 'react';
+import React, { useRef, useState } from 'react';
 import { Crosshair, Dices, Users } from 'lucide-react';
 import type { ViewAtlasStore } from '../../storeFactory';
 import type { ResourceDefinition } from '../../resources/resourceTypes';
@@ -31,10 +31,6 @@ export function PlayerHud({ store, camera, controls, resources, roll, focus }: P
   const [partyOpen, setPartyOpen] = useState(true);
   const [diceOpen, setDiceOpen] = useState(false);
   const diceButtonRef = useRef<HTMLDivElement>(null);
-  const following = useSyncExternalStore(
-    (onChange) => camera.onFollowingChange(onChange),
-    () => camera.isFollowing(),
-  );
 
   /** A roll is the selected token's when the player selected one of theirs. */
   const rollerId = (): string | undefined => {
@@ -52,7 +48,7 @@ export function PlayerHud({ store, camera, controls, resources, roll, focus }: P
       id: 'recenter',
       priority: 90,
       pinned: false,
-      element: <ToolButton icon={Crosshair} label="Recenter on the GM's view" isActive={false} disabled={following} onClick={recenter} />,
+      element: <ToolButton icon={Crosshair} label="Recenter on the GM's view" isActive={false} onClick={recenter} />,
       menuEntry: { icon: Crosshair, label: "Recenter on the GM's view", isActive: false, onSelect: recenter },
     },
     {
@@ -79,7 +75,6 @@ export function PlayerHud({ store, camera, controls, resources, roll, focus }: P
 
   return (
     <TooltipProvider delayDuration={300}>
-      {following && <div className="atlas-player-following">The GM guides your camera</div>}
       {partyOpen && <PartyPanel store={store} controls={controls} resources={resources} focus={focus} />}
       <BottomToolbarRow>
         <ResponsiveToolbar items={items} />
