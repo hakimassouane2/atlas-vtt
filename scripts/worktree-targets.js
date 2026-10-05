@@ -70,6 +70,8 @@ function findNearestVaultRoot(projectRoot, exists = fs.existsSync) {
   }
 }
 
+const GAME_VAULTS = ['C:\\Users\\PC\\Documents\\obsidian-jdr', '/Users/hakim/Documents/obsidian-jdr'];
+
 function getPluginTargetDirs(
   projectRoot,
   exec = (command, options) => execSync(command, options),
@@ -94,6 +96,9 @@ function getPluginTargetDirs(
   }
 
   addTarget('test-vault', path.join(mainRoot, 'test-vault/.obsidian/plugins/atlas-vtt'));
+
+  // Our game vault, on the PC and on the Mac (fork): each machine keeps the one it has
+  GAME_VAULTS.forEach((vaultRoot) => addTarget('obsidian-jdr', path.join(vaultRoot, '.obsidian/plugins/atlas-vtt')));
 
   // Extra vaults to copy builds into, e.g. ATLAS_DEV_VAULTS="/path/to/VaultA:/path/to/VaultB"
   (process.env.ATLAS_DEV_VAULTS || '')

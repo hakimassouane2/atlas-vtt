@@ -48,12 +48,16 @@ ce sont les seuls fichiers d'origine qu'on a modifiés, donc les seuls où un co
 ## Installer le build dans le vault
 
 Le vault de jeu est `C:\Users\PC\Documents\obsidian-jdr` sur le PC,
-`/Users/hakim/Documents/obsidian-jdr` sur le Mac.
+`/Users/hakim/Documents/obsidian-jdr` sur le Mac. Les deux chemins sont inscrits dans
+`scripts/worktree-targets.js` (`GAME_VAULTS`) : le build copie dans celui qui existe sur la machine,
+sans variable à donner.
 
 ```
-ATLAS_DEV_VAULTS="C:\Users\PC\Documents\obsidian-jdr" npm run build      # PC
-ATLAS_DEV_VAULTS="/Users/hakim/Documents/obsidian-jdr" npm run build     # Mac
+npm run build
 ```
+
+Vérifier que le build finit par `✅ Copied plugin artifacts to obsidian-jdr` ; si le vault change
+de place, mettre à jour `GAME_VAULTS` (`ATLAS_DEV_VAULTS` reste possible pour un vault de plus).
 
 Puis désactiver et réactiver Atlas dans Obsidian (ou redémarrer Obsidian).
 Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
@@ -143,6 +147,7 @@ doit rester vert.
   `TokenUIRenderer`, `TextureCache` : `CanvasHost` à la place de l'`App` d'Obsidian ; menu du token,
   synchronisation des fiches et audio sortis ; joueur (`CanvasPlayer`) pour les droits.
 - `storeFactory.ts` : `createSceneStore` ; `createViewAtlasStore` est dans `viewStore.ts`.
+- `scripts/worktree-targets.js` : `GAME_VAULTS`, nos vaults de jeu où le build se copie.
 - `MapController`, `MapLoader` : affichage de la carte dans `pixi/mapDisplay.ts`.
 - `ContextMenuContext.tsx`, `AtlasContextMenu.tsx` : registre et icônes dans `ui/`.
 - `DiceRollDisplay`, `useDiceAvatar`, `useDiceDisplay`, `useDiceLook`, `DiceDropdownMenu` :
