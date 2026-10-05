@@ -11,7 +11,7 @@ import type { AtlasSettings } from '../../services/SettingsService';
 import type { CanvasHost, CanvasPlayer } from '../../canvas/canvasHost';
 import type { PlayerCommand } from '../playerCommands';
 import { sceneOf, withSceneChanges, type ReplicatedScene, type SceneChange } from '../scene/sceneReplica';
-import { sceneImageUrl } from '../client/session';
+import { sceneImageUrl } from './session';
 import { CommandBridge } from './commandBridge';
 // `vite/player-client.mts` makes this PIXI's emitter in the browser
 import { EventEmitter } from 'events';

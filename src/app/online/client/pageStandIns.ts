@@ -1,6 +1,6 @@
 import type { App } from 'obsidian';
 import type { AtlasSettings, SettingsService } from '../../services/SettingsService';
-import { imageUrl } from './session';
+import { sceneImageUrl } from './session';
 
 type PlayerSettings = AtlasSettings['localPlayerView'];
 
@@ -46,4 +46,4 @@ export class PageSettings {
 }
 
 /** The only part of Obsidian's `App` the overlays use: where the page loads token artwork. */
-export const pageApp = { vault: { adapter: { getResourcePath: imageUrl } } } as unknown as App;
+export const pageApp = { vault: { adapter: { getResourcePath: sceneImageUrl } } } as unknown as App;

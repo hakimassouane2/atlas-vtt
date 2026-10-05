@@ -4,20 +4,19 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AtlasView } from '../atlas-view';
 import type { PlayerFrameSource } from '../services/PlayerFrameMirror';
 import type { SettingsService } from '../services/SettingsService';
-import { OnlineFrameStream, type OnlineFrameSource } from './OnlineFrameStream';
+import type { ViewAtlasState } from '../storeFactory';
 import { OnlineSessionServer } from './OnlineSessionServer';
-import { PlayerControls } from './PlayerControls';
+import { PlayerControls, type CommandSource } from './PlayerControls';
 import { PlayerDiceFeed } from './PlayerDiceFeed';
-import { parseCameraRequest } from './playerStreamRequest';
 import { tokenImage } from './tokenImage';
 import { pageTheme } from './pageTheme';
-import { sceneImagePaths } from './playerScene';
 import { AssetService } from '../services/AssetService';
 import { mapConditions } from '../services/mapConditions';
 import { mapInitiativeRules } from '../services/mapInitiativeRules';
 import { mapResources } from '../resources/collectionResources';
 import type { Character } from '../types';
 import { SceneReplicator, type ReplicatedSource } from './scene/SceneReplicator';
+import { DmCameraFeed } from './scene/DmCameraFeed';
 
 export interface OnlineSessionState {
   isRunning: boolean;
@@ -35,48 +34,37 @@ export const onlineSessionStore: StoreApi<OnlineSessionState> = createStore<Onli
 }));
 
 /**
- * Lets players join from a browser with a link. The server runs on this computer;
- * players see the scene the DM presents, as the local player window shows it, through
- * their own camera unless the DM makes them follow theirs, move and heal the tokens the
- * DM gave them, follow the initiative order and roll dice.
+ * Lets players join from a browser with a link. The server runs on this computer; the player's
+ * browser runs Atlas' own canvas on the scene the DM presents (ADR 0001), through their own camera
+ * unless the DM makes them follow theirs. Players move, turn and change the tokens the DM gave them,
+ * follow the initiative order and roll dice.
  */
 export class OnlineSession {
   private static instance: OnlineSession | null = null;
   private server: OnlineSessionServer | null = null;
-  private readonly stream: OnlineFrameStream;
   private readonly controls: PlayerControls;
   private readonly diceFeed: PlayerDiceFeed;
-  /** Keeps the canvas pages' scenes in step with the presented one. */
+  /** Keeps the players' scenes in step with the presented one. */
   private readonly replicator: SceneReplicator;
+  /** Where the DM looks, for players who follow the DM's camera or recenter on it. */
+  private readonly cameraFeed: DmCameraFeed;
   /** The view whose scene players see; its dice engine rolls for them. */
   private presentedView: AtlasView | null = null;
-  /** Image files players may load: the artwork they see in the scene and in dice rolls. */
-  private readonly visibleImages = new Set<string>();
+  /** Artwork of the rolls players were sent, which their pages load. */
+  private readonly rollImages = new Set<string>();
   private stopWatchingTab: (() => void) | null = null;
   /** The presented scene tab; presenting another one recenters every player. */
   private presentedTabId: string | null = null;
-  /** Views that already release the stream when they close. */
+  /** Views that already release the session when they close. */
   private readonly viewsReleasingOnClose = new WeakSet<AtlasView>();
 
   constructor(private readonly app: App, private readonly settingsService: SettingsService) {
-    this.stream = new OnlineFrameStream(settingsService, {
-      isReady: (playerId) => this.server?.isReady(playerId) ?? false,
-      send: (playerId, image, view, isDmCamera) => this.server?.sendFrame(playerId, image, view, isDmCamera),
-    });
-    this.controls = new PlayerControls(
-      settingsService,
-      (state) => {
-        this.visibleImages.clear();
-        sceneImagePaths(state.scene).forEach((path) => this.visibleImages.add(path));
-        this.server?.share('state', state);
-      },
-      (formula, token) => this.rollForPlayer(formula, token),
-    );
+    this.controls = new PlayerControls((formula, token) => this.rollForPlayer(formula, token));
     this.diceFeed = new PlayerDiceFeed(
       settingsService,
       () => this.presentedView?.atlasStore.getState().objects.tokens,
       (roll) => {
-        if (roll.source?.tokenImagePath) this.visibleImages.add(roll.source.tokenImagePath);
+        if (roll.source?.tokenImagePath) this.rollImages.add(roll.source.tokenImagePath);
         this.server?.broadcast('roll', roll);
       },
     );
@@ -84,6 +72,7 @@ export class OnlineSession {
       toAll: (event, data) => this.server?.broadcast(event, data),
       toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
     });
+    this.cameraFeed = new DmCameraFeed((camera) => this.server?.broadcast('camera', camera));
     OnlineSession.instance = this;
   }
 
@@ -95,13 +84,10 @@ export class OnlineSession {
     return this.server !== null;
   }
 
-  /**
-   * Starts the server if needed and copies the player link: to the frame page, or with
-   * `page: 'canvas'` to the canvas page, where the player's browser draws the scene itself.
-   */
-  async startAndCopyLink(page: 'frames' | 'canvas' = 'frames'): Promise<void> {
+  /** Starts the server if needed and copies the player link. */
+  async startAndCopyLink(): Promise<void> {
     if (!this.isRunning() && !(await this.start())) return;
-    await navigator.clipboard.writeText(this.playerLink(page === 'canvas' ? '/play' : '/'));
+    await navigator.clipboard.writeText(this.playerLink());
     const { publicHost } = this.settingsService.getOnlineSessionSettings();
     new Notice(publicHost
       ? 'Player link copied'
@@ -112,7 +98,6 @@ export class OnlineSession {
   toggleFollowingDm(): void {
     const isFollowingDm = !onlineSessionStore.getState().isFollowingDm;
     onlineSessionStore.setState({ isFollowingDm });
-    this.stream.setFollowingDm(isFollowingDm);
     this.server?.share('mode', { isFollowingDm });
     new Notice(isFollowingDm ? 'Online players follow your camera' : 'Online players move their own camera');
   }
@@ -120,35 +105,33 @@ export class OnlineSession {
   stop(): void {
     this.stopWatchingTab?.();
     this.presentedTabId = null;
-    this.stream.setFollowingDm(false);
-    this.stream.stop();
-    this.controls.setSource(null);
-    this.replicator.stop();
+    this.setSource(null);
     this.diceFeed.stop();
     this.presentedView = null;
     this.server?.close();
     this.server = null;
+    this.rollImages.clear();
     onlineSessionStore.setState({ isRunning: false, playerCount: 0, isFollowingDm: false });
   }
 
   /**
-   * Shows the scene tab `tabId` of `view`, already rendered into `source`, to online
-   * players. They keep the last frame while the DM works on another tab.
+   * Shows the scene tab `tabId` of `view`, whose canvas `source` draws, to online players. They
+   * keep the scene they have while the DM works on another tab.
    */
   present(view: AtlasView, tabId: string, source: PlayerFrameSource, resolveSource: () => Promise<PlayerFrameSource | null>): void {
-    this.setSource(view, source);
-    if (tabId !== this.presentedTabId) this.recenterAll();
+    this.setSource({ view, source });
+    if (tabId !== this.presentedTabId) this.server?.broadcast('recenter', {});
     this.presentedTabId = tabId;
     this.presentedView = view;
     this.stopWatchingTab?.();
     const stopWatching = view.tabMetaStore.subscribe((state, previous) => {
       if (state.activeTabId === previous.activeTabId) return;
       if (state.activeTabId !== tabId) {
-        this.hold();
+        this.setSource(null);
         return;
       }
       void resolveSource().then((resumed) => {
-        if (resumed && view.tabMetaStore.getState().activeTabId === tabId) this.setSource(view, resumed);
+        if (resumed && view.tabMetaStore.getState().activeTabId === tabId) this.setSource({ view, source: resumed });
       });
     });
     this.stopWatchingTab = (): void => {
@@ -157,36 +140,46 @@ export class OnlineSession {
     };
     if (!this.viewsReleasingOnClose.has(view)) {
       this.viewsReleasingOnClose.add(view);
-      // Closing the presented map must not leave its renderer reachable from the stream
+      // Closing the presented map must not leave its store reachable from the session
       view.register(() => {
         this.stopWatchingTab?.();
-        this.stream.releaseSource(view.atlasStore);
         this.controls.releaseSource(view.atlasStore);
         this.replicator.releaseSource(view.atlasStore);
-        if (this.presentedView === view) this.presentedView = null;
+        if (this.presentedView === view) {
+          this.presentedView = null;
+          this.cameraFeed.setSource(null);
+        }
       });
     }
   }
 
-  /** Streams the scene `source` shows, rendered by the map renderer of `view`. */
-  private setSource(view: AtlasView, source: PlayerFrameSource): void {
-    const renderer = view.serviceManager.getRendererService().getRenderer();
-    if (!renderer || !source.store) return;
-    const onlineSource: OnlineFrameSource = {
-      store: source.store,
-      renderer,
-      getCamera: () => source.getCamera?.(),
-      getConditions: () => mapConditions(AssetService.getInstance(view.app), source.store?.getState().mapPath),
-      getResources: () => mapResources(AssetService.getInstance(view.app), source.store?.getState().mapPath),
-      getInitiativeRules: () => mapInitiativeRules(view.app, source.store?.getState().mapPath),
-    };
-    this.stream.setSource(onlineSource);
-    this.controls.setSource(onlineSource);
-    this.replicator.setSource(this.replicatedSource(view, source.store));
+  /** Players act on and see the scene of `presented`; none while the DM works on another tab. */
+  private setSource(presented: { view: AtlasView; source: PlayerFrameSource } | null): void {
+    const store = presented?.source.store;
+    if (!presented || !store) {
+      this.controls.setSource(null);
+      this.replicator.setSource(null);
+      this.cameraFeed.setSource(null);
+      return;
+    }
+    const { view, source } = presented;
+    this.controls.setSource(this.commandSource(view, store));
+    this.replicator.setSource(this.replicatedSource(view, store));
+    this.cameraFeed.setSource(() => source.getCamera?.());
   }
 
-  /** The scene of `store` for the canvas pages, with the collection whose rules it follows. */
-  private replicatedSource(view: AtlasView, store: NonNullable<PlayerFrameSource['store']>): ReplicatedSource {
+  private commandSource(view: AtlasView, store: StoreApi<ViewAtlasState>): CommandSource {
+    const assets = AssetService.getInstance(view.app);
+    return {
+      store,
+      grid: () => view.serviceManager.getRendererService().getRenderer()?.getGridSystem() ?? null,
+      conditions: () => mapConditions(assets, store.getState().mapPath),
+      resources: () => mapResources(assets, store.getState().mapPath),
+    };
+  }
+
+  /** The scene of `store` for players' pages, with the collection whose rules it follows. */
+  private replicatedSource(view: AtlasView, store: StoreApi<ViewAtlasState>): ReplicatedSource {
     const assets = AssetService.getInstance(view.app);
     return {
       store,
@@ -210,19 +203,6 @@ export class OnlineSession {
     return true;
   }
 
-  /** Players see the DM's framing again: their camera from another scene means nothing here. */
-  private recenterAll(): void {
-    this.stream.recenterAll();
-    this.server?.broadcast('recenter', {});
-  }
-
-  /** Players keep the last frame and cannot act until the scene is live again. */
-  private hold(): void {
-    this.stream.hold();
-    this.controls.setSource(null);
-    this.replicator.setSource(null);
-  }
-
   private async start(): Promise<boolean> {
     let settings = this.settingsService.getOnlineSessionSettings();
     if (!settings.secret) {
@@ -230,22 +210,15 @@ export class OnlineSession {
       settings = this.settingsService.getOnlineSessionSettings();
     }
     const server = new OnlineSessionServer(settings.secret, {
-      onJoin: (playerId, request) => {
-        this.stream.addViewer(playerId, request);
-        onlineSessionStore.setState({ playerCount: server.playerCount });
-      },
-      onCanvasJoin: (playerId) => {
+      onJoin: (playerId) => {
         this.replicator.sendTo(playerId);
+        const camera = this.cameraFeed.current();
+        if (camera) server.sendTo(playerId, 'camera', camera);
         onlineSessionStore.setState({ playerCount: server.playerCount });
       },
       onLeave: (playerId) => {
         this.controls.playerLeft(playerId);
-        this.stream.removeViewer(playerId);
         onlineSessionStore.setState({ playerCount: server.playerCount });
-      },
-      onCamera: (playerId, body) => {
-        const camera = parseCameraRequest(body);
-        if (camera) this.stream.setViewerCamera(playerId, camera === 'recenter' ? null : camera);
       },
       onCommand: (body, playerId) => this.controls.apply(body, playerId),
       onImage: (path) => (this.mayLoadImage(path) ? tokenImage(this.app, path) : Promise.resolve(null)),
@@ -266,13 +239,13 @@ export class OnlineSession {
     return true;
   }
 
-  /** Images players may load: those the frame page shows, and those of the scene the canvas pages draw. */
+  /** Images players may load: those of the scene they were sent, and of the rolls they saw. */
   private mayLoadImage(path: string): boolean {
-    return this.visibleImages.has(path) || this.replicator.sentImages().has(path);
+    return this.rollImages.has(path) || this.replicator.sentImages().has(path);
   }
 
-  private playerLink(path: '/' | '/play'): string {
+  private playerLink(): string {
     const { port, publicHost, secret } = this.settingsService.getOnlineSessionSettings();
-    return `http://${publicHost.trim() || 'localhost'}:${port}${path}?k=${secret}`;
+    return `http://${publicHost.trim() || 'localhost'}:${port}/?k=${secret}`;
   }
 }

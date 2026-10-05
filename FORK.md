@@ -62,6 +62,11 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 
 ## Mode en ligne
 
+Le navigateur du joueur fait tourner **le moteur d'Atlas lui-même** (canvas PIXI, store, interactions)
+sur une copie de la scène présentée, affichée en vue joueur : mêmes tokens, barres, noms, sélection,
+contrôles, dés que chez le MJ. Décision et dette de sécurité : `docs/adr/0001-player-client-runs-the-canvas.md` ;
+vocabulaire : `CONTEXT.md`.
+
 ### Utilisation
 
 1. Réglages Atlas, section **Online session** : adresse publique (IP statique) et port
@@ -70,184 +75,91 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
    Commandes équivalentes : "Start online session and copy the player link", "Stop online session".
 3. Dans la scène : **Présenter** ("Send to player view"). Les joueurs en ligne voient la scène ;
    la popout locale n'est plus nécessaire.
-4. Edit Token d'un personnage : activer **Controlled by players** pour que les joueurs puissent le
-   déplacer, changer ses ressources et ses conditions. Les ressources (PV, stress, mana…) sont
-   celles de la collection (onglet **Resources** de ses réglages) : les joueurs ne voient et ne
-   modifient que celles marquées **Players see it** (l'œil). Par défaut aucune ne l'est : cocher
-   au moins les PV.
-5. Le joueur colle le lien dans son navigateur :
-   - clic gauche sur son token et glisser pour le déplacer (anneau bleu à l'arrivée, snap à la
-     grille comme un drag du MJ) ; clic droit et glisser pour déplacer la carte, molette pour
-     zoomer, ⌖ pour revenir au cadrage du MJ ;
-   - panneau en bas à gauche : ressources visibles et conditions de ses personnages ;
-   - en bas à droite, les dés : d4 à d100 et formule libre ("Lancer pour" choisit le personnage) ;
-   - ⚙ en haut à gauche : images par seconde et qualité (retenues dans son navigateur).
-6. L'ordre d'initiative et les notifications de dés sont **ceux de la popout joueur d'Atlas**
-   (mêmes composants, mêmes styles, ton thème Obsidian). L'initiative apparaît dès que ton
-   tracker est ouvert, par camps si les règles de la collection le disent ; les noms suivent les
-   réglages de la vue joueur, les PV la visibilité de la ressource PV. Les jets s'affichent en
-   carte de résultat, jamais en dés 3D (ceux-ci restent chez toi).
-7. Les jets des joueurs sont tirés par ton moteur de dés (notification et journal de dés chez
-   toi, avec le nom et le portrait du personnage) et affichés à tous. Tes jets ne vont aux joueurs
-   que si "show dice rolls" est coché dans les réglages de la vue joueur.
-8. **Players Follow My Camera** (palette Atlas) ou "Toggle online players following your camera"
-   (palette Obsidian) : tous les joueurs voient à travers ta caméra et ne peuvent plus bouger la
-   leur ; à la désactivation ils repartent de là où tu les as laissés.
-9. Ce que les joueurs voient sur la carte suit tes réglages : grille cachée chez toi, cachée chez
-   eux ; les barres de tous les tokens suivent la visibilité de chaque ressource ; un nom affiché
-   chez toi ("Show nameplate") l'est chez eux. Avec l'éclairage dynamique (expérimental), ils
-   voient la scène comme la popout.
-10. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
+4. Edit Token d'un personnage : activer **Controlled by players**. Les ressources que les joueurs
+   voient et modifient sont celles de la collection marquées **Players see it** (onglet **Resources**).
+5. Le joueur colle le lien dans son navigateur et a la carte comme le MJ :
+   - glisser son token (les autres le voient bouger en direct ; un token tenu par un joueur est
+     verrouillé pour les autres), poignée de rotation, +/- de ses ressources sur le token ;
+   - clic droit relâché sur place sur son token : menu Ressources / Conditions / Rotation ;
+     clic droit glissé : déplacer la carte ; molette : zoomer (même caméra que le MJ) ;
+   - barre en bas : recentrer sur la vue du MJ, panneau du groupe, plateau de dés ;
+   - initiative à droite (avec les numéros d'instance, "Gobelin 2"), dés en 3D.
+6. **Players Follow My Camera** (palette Atlas) ou "Toggle online players following your camera" :
+   les joueurs suivent ta caméra et ne peuvent plus bouger la leur.
+7. Ce que les joueurs voient suit tes réglages de la vue joueur (grille, noms, jets du MJ) et la
+   visibilité de chaque ressource. Pas d'éclairage dynamique en ligne : le brouillard seul révèle.
+8. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
 
 ### Fonctionnement
 
-- Le plugin (Electron, donc Node disponible) lance un serveur HTTP (`OnlineSessionServer`).
-  Chaque requête doit porter la clé du lien (`?k=`), sinon 403.
-- **La page joueur** (`playerPage.ts`) charge deux fichiers :
-  - `/client.js` : le client, écrit en TypeScript dans `src/app/online/client/` et compilé par
-    `vite/player-client.mts` (esbuild, pendant le build du plugin, exposé en
-    `virtual:atlas-player-client`). Il monte les **overlays de la popout joueur d'Atlas**
-    (`PlayerInitiativePanel`, `PlayerDiceRolls`) tels quels. Pour qu'ils tournent hors
-    d'Obsidian, le build remplace `obsidian` (`client/obsidianStub.ts`), `events`
-    (`client/eventsStub.ts`), le hook d'avatar lié au vault (`client/diceAvatar.ts`) et
-    `SettingsService` (`client/settingsStub.ts` : jets en carte de résultat, look par défaut), et
-    `client/obsidianDom.ts` ajoute les helpers DOM d'Obsidian (`createEl`, `createDiv`, `empty`…).
-    Les imports SCSS et les sons de dés (`.mp3?inline`) sont ignorés : les styles viennent du
-    fichier suivant, les sons sont joués chez le MJ. L'initiative reçoit ce que la collection
-    décide (PV visibles, règles d'initiative) par l'état envoyé (`initiativeRules`). three.js est
-    embarqué sans servir (la page fait environ 1,3 Mo minifiée).
-  - `/styles.css` : toutes les feuilles de style de la fenêtre du MJ (Obsidian, thème, Atlas),
-    lues au chargement de la page (`pageTheme.ts`), plus celles de la page
-    (`client/playerPage.css`). La page porte les classes de thème du MJ et celles de la popout
-    (`atlas-player-window`), donc les overlays ont exactement le rendu de la popout.
-- Le navigateur ouvre un flux Server-Sent Events (`/events`) avec la taille de sa fenêtre, son
-  framerate et sa qualité (`playerStreamRequest.ts`). Le serveur lui donne un id (`hello`) ; le
-  flux apporte ses images (`frame`), l'état partagé (`state`, voir `protocol.ts`), le mode caméra
-  (`mode`), le recentrage (`recenter`) et les jets de dés (`roll`, le `DiceRollResult` d'Atlas,
-  que la page ré-émet en `atlas-dice-rolled` pour la notification d'Atlas). Aucune image n'est
-  envoyée tant que le socket précédent n'est pas vidé (`drain`).
-- **Caméra libre** : la page place tout de suite la dernière image sous la caméra du joueur, puis
-  l'envoie (`POST /camera`, toutes les 50 ms au plus) ; les images suivantes sont rendues à travers
-  elle. Chaque image dit si elle vient de la caméra du MJ (`isDmCamera`) : un joueur sans caméra
-  propre (arrivée, recentrage, suivi du MJ) n'adopte que celles-là. Présenter une autre scène
-  recentre tout le monde.
-- `OnlineFrameStream` garde un "spectateur" par joueur (écran, caméra, framerate, qualité) et ne
-  rend sa frame "sûre pour les joueurs" (mêmes couches que la popout : tokens cachés, pins MJ,
-  brouillard, grille, barres, éclairage) que si le canvas MJ a changé ou si sa caméra a bougé,
-  puis l'encode en JPEG. Les changements du canvas sont comptés par `CanvasRenders` (le runner
-  `postrender` du renderer PIXI : rendus vers le canvas, hors ceux du flux lui-même). `PlayerFrameRenderer` (un par joueur) rend la scène dans une `RenderTexture` à la
-  taille exacte de l'écran du joueur, puis rend à nouveau le canvas MJ dans la même tâche.
-- `PlayerControls` publie l'état (`protocol.ts`) : les tokens que les joueurs contrôlent
-  (`playerTokens.ts`, avec leurs ressources visibles via `visibleResources`), les conditions et
-  ressources de la collection (`mapConditions`, `mapResources`), ses règles d'initiative, la scène
-  pour les overlays (`playerScene.ts` : tokens visibles avec leur camp, initiative sans les tours
-  cachés, noms retirés si les réglages les cachent, PV seulement si la collection les montre) et
-  les réglages de la vue joueur. Il applique les commandes (`POST /command`, `playerCommands.ts`) :
-  `move` (snappé avec `snapToCellCenter`), `resource` (par clé, seulement une ressource visible
-  des joueurs, bornée via `resourceUpdate` / `withCurrent`), `condition` / `conditionValue` (seulement une
-  condition que la collection définit), `roll` (`isSafeDiceFormula` : dés et modificateurs, 100
-  dés au plus). Tout passe par les actions normales du store : sauvegarde automatique, et Ctrl+Z
-  du MJ annule une action de joueur.
-- `PlayerDiceFeed` écoute `atlas-dice-rolled` : chaque jet de joueur, et les jets du MJ si
-  `showDiceRolls`, masqués pour un token caché (`diceRollForPlayers`, partagé avec la popout). Un
-  jet de joueur pour un personnage est de type `statblock`, pour que les notifications d'Atlas
-  montrent son nom et son portrait.
-- `GET /image?path=` ne sert que l'artwork des tokens et tours d'initiative que les joueurs voient,
-  et des jets reçus (`tokenImage.ts`) ; jamais un autre fichier du vault.
-- Quand le MJ passe sur un autre onglet de scène, les joueurs gardent la dernière image et le
-  dernier état, et leurs commandes sont refusées (le store de la vue contient alors l'autre
-  scène) ; quand il revient, le direct reprend. Sans joueur connecté, rien n'est rendu.
+- **Le moteur sans Obsidian** : le canvas (`PixiRendererOrchestrator` et ce qu'il importe) et le
+  store (`createSceneStore`) n'importent ni `obsidian`, ni l'UI React du MJ, ni Node
+  (`tests/unit/canvasImportGraph.test.ts`). Ce qui vient d'Obsidian passe par un `CanvasHost`
+  (`src/app/canvas/canvasHost.ts`) : images, règles de collection, réglages, menu du token, joueur,
+  éclairage, audio. L'hôte du MJ est `services/canvasHost/obsidianCanvasHost.ts`, celui du navigateur
+  `online/client/pageCanvasHost.ts`. Notifications, icônes et menus passent par de petits registres
+  que le plugin remplit au chargement (`ui/notices.ts`, `ui/icons.ts`, `ui/contextMenus.ts`).
+- Serveur HTTP (`OnlineSessionServer`), chaque requête porte la clé (`?k=`) : `/` la page,
+  `/client.js` et `/styles.css` (feuilles du MJ + `client/playerPage.css`), `/events` le flux SSE,
+  `POST /command` les commandes, `/image/<chemin>` les images de la scène et des jets.
+- **Réplication** (`online/scene/`) : `SceneReplicator` envoie la scène entière à l'arrivée d'un
+  joueur et à chaque chargement (`scene`), puis seulement les objets et champs changés (`changes`),
+  au plus une fois par frame ; `context` porte les règles de la collection et les réglages de la vue
+  joueur ; `DmCameraFeed` envoie la caméra du MJ (`camera`). Le MJ fait seul autorité.
+- **Commandes** : le joueur édite le store de sa page comme le MJ le sien ; `client/commandBridge.ts`
+  traduit ses changements en commandes (`drag`, `move`, `rotate`, `resource`, `condition`,
+  `conditionValue`, `roll`) ; le MJ les valide (`playerCommands.ts`, tokens "Controlled by players"
+  seulement, hors historique d'annulation du MJ), `PlayerHolds` verrouille un token tenu. Une
+  commande refusée remet la scène telle que le MJ l'a envoyée.
+- `PlayerDiceFeed` envoie les jets des joueurs et ceux du MJ si `showDiceRolls`, masqués pour un
+  token caché. Les dés lisent leur environnement par un contexte React (`diceEnvironment.ts`).
+- Quand le MJ passe sur un autre onglet, les joueurs gardent leur scène et leurs commandes sont
+  refusées ; au retour, la scène est renvoyée entière.
 
 ### Fichiers ajoutés
 
-- `src/app/online/` (côté MJ) :
-  - `OnlineSession.ts` : démarrage, arrêt, lien, scène présentée, images autorisées.
-  - `OnlineSessionServer.ts` : serveur HTTP, clé, flux SSE par joueur, routes de la page.
-  - `OnlineFrameStream.ts`, `PlayerFrameRenderer.ts`, `CanvasRenders.ts` : rendu et encodage des
-    images par joueur, quand le canvas du MJ a changé.
-  - `PlayerControls.ts`, `playerScene.ts`, `playerTokens.ts`, `playerCommands.ts` : état publié
-    et commandes des joueurs.
-  - `PlayerDiceFeed.ts` : jets de dés vers et depuis les joueurs.
-  - `playerStreamRequest.ts`, `protocol.ts` : ce que la page demande et reçoit.
-  - `playerPage.ts`, `pageTheme.ts`, `tokenImage.ts` : la page, ses styles, ses images.
-  - `onlineSessionSettingsSection.ts` : la section de réglages.
-  - `playerClient.d.ts` : type du module virtuel du client.
-- `src/app/online/client/` (la page joueur, compilée pour le navigateur) : `main.ts` (démarrage),
-  `connection.ts` (flux), `session.ts` (clé, requêtes), `playerState.ts` (état reçu), `camera.ts`,
-  `frames.ts`, `mapInput.ts` (carte, drag, pan, zoom), `partyPanel.ts`, `diceLauncher.ts`,
-  `streamSettings.ts`, `atlasOverlays.ts` (overlays d'Atlas), `dom.ts`, `playerPage.css`, et les
-  remplaçants `obsidianStub.ts`, `eventsStub.ts`, `obsidianDom.ts`, `diceAvatar.ts`,
-  `settingsStub.ts`.
-- `vite/player-client.mts` : compilation du client.
-- `src/app/services/mapConditions.ts`, `src/app/services/mapInitiativeCollection.ts`,
-  `src/app/tools/diceRollForPlayers.ts`, `src/app/pixi/token-renderer/playerTokenUISettings.ts` :
-  règles partagées avec la popout.
-- Tests (`tests/unit/`) : `onlineSessionServer`, `playerStreamRequest`, `playerCommands`,
-  `playerScene`, `playerTokenUISettings`, `diceToolModifiers` (vérifie désormais le moteur de dés
-  de l'original) ; `tests/mocks/playerClient.ts`
-  remplace le module virtuel dans les tests.
+- `src/app/canvas/canvasHost.ts` : ce que le canvas reçoit de son hôte.
+- `src/app/online/` (côté MJ) : `OnlineSession.ts`, `OnlineSessionServer.ts`, `PlayerControls.ts`,
+  `playerCommands.ts`, `playerHolds.ts`, `playerTokens.ts`, `PlayerDiceFeed.ts`, `playerPage.ts`,
+  `pageTheme.ts`, `tokenImage.ts`, `onlineSessionSettingsSection.ts`, `playerClient.d.ts`, et
+  `scene/` (`sceneReplica.ts`, `sceneProtocol.ts`, `SceneReplicator.ts`, `DmCameraFeed.ts`).
+- `src/app/online/client/` (la page, compilée pour le navigateur par `vite/player-client.mts`) :
+  `main.ts`, `PlayerCanvas.ts`, `pageCanvasHost.ts`, `commandBridge.ts`, `sceneConnection.ts`,
+  `pageCamera.ts`, `PlayerHud.tsx`, `PartyPanel.tsx`, `playerTokenMenu.ts`, `pageDice.tsx`,
+  `pageMenus.tsx`, `pageIcons.ts`, `initiativeOverlay.ts`, `pageStandIns.ts`, `session.ts`,
+  `dom.ts`, `obsidianDom.ts`, `events.ts`, `playerPage.css`, `player-hud.scss`.
+- Côté MJ, sorties du moteur : `services/canvasHost/`, `services/TokenStatblockSync.ts`,
+  `services/obsidianDiceEnvironment.ts`, `react/components/context-menu/gmTokenMenu.ts`,
+  `pixi/audio/AudioFeature.ts`, `pixi/mapDisplay.ts`, `viewStore.ts`, `services/sceneFileVersion.ts`,
+  `utils/imageMimeTypes.ts`, `keyboard/runtimePlatform.ts`.
 
 ### Points de contact dans le code d'origine
 
-Garder ces modifications aussi petites que possible : ce sont les seuls endroits où un merge du
-dev d'origine peut entrer en conflit.
+La séparation moteur / Obsidian touche beaucoup de fichiers de l'original ; au merge, garder ces
+règles : le moteur prend ce qui vient d'Obsidian par `CanvasHost`, et `canvasImportGraph.test.ts`
+doit rester vert.
 
-- `main.ts` : crée `OnlineSession`, ajoute les trois commandes (démarrer, arrêter, suivre la
-  caméra du MJ) et la section de réglages, arrête la session dans `onunload`.
-- `vite.config.mts` : plugin `playerClient()` (compile la page joueur).
-- `vitest.config.mts` : alias de `virtual:atlas-player-client` vers son mock.
-- `src/app/services/SettingsService.ts` : réglage `onlineSession` (`port`, `publicHost`, `secret`)
-  avec `getOnlineSessionSettings` / `setOnlineSessionSettings`.
-- `src/app/services/PlayerWindowPresenter.ts` : `presentTabInPlayerWindow` envoie la scène à
-  `OnlineSession` et n'ouvre la popout que si aucune session en ligne ne tourne.
-- `src/app/dashboard-view.tsx` : tuile "Online Session".
-- `src/app/react/components/CommandPalette.tsx` : entrée "Players Follow My Camera" (bascule,
-  section mode, à côté de "Freeze Player Camera").
-- `src/app/services/PlayerWindowService.ts` : passe `mapInitiativeCollection(app)` au panneau
-  d'initiative.
-- `src/app/PixiRendererOrchestrator.ts` : la liste des couches de la vue joueur est sortie de
-  `withPlayerSafeFrame` dans la méthode publique `getPlayerViewLayers`, et la grille n'y est
-  visible que si le MJ l'affiche (**change aussi la popout**).
-- `src/app/pixi/token-renderer/UIManager.ts` : noms des tokens vus par les joueurs via
-  `playerTokenUISettings` : "Show nameplate" du token respecté (**change aussi la popout**).
-- `src/app/pixi/token-renderer/EditTokenModal.tsx` et `EditTokenSections.tsx` : interrupteur
-  "Controlled by players" (champ `playerLinked` existant, personnages seulement), passé en
-  option `playerLinked` à `TokenIdentitySection`.
-- `src/app/services/PlayerInitiativePanel.ts` : ce que le panneau demande à la collection
-  (PV visibles, règles d'initiative) arrive par le constructeur (`InitiativeCollection`) au lieu
-  d'être lu dans le vault, pour que la page joueur le fournisse sans `AssetService`.
-- `src/app/react/components/dice/PlayerDiceToasts.tsx` : le masquage des jets pour un token caché
-  est sorti dans `tools/diceRollForPlayers.ts` (même comportement).
-- `src/app/pixi/TokenRenderer.ts` : la lecture des conditions de la collection passe par
-  `services/mapConditions.ts` (même comportement).
-- `src/app/tools/DiceTool.ts` : plus modifié. Notre correctif des modificateurs est remplacé par
-  le moteur de dés de la 0.5.0 (`rollFormula`), que `diceToolModifiers` vérifie.
-
-Si le dev d'origine modifie `PlayerInitiativePanel`, `PlayerDiceRolls`, `PlayerDiceToasts`,
-`DiceRollDisplay`, `DiceToast`, `useDiceAvatar` ou `TokenPortrait`, vérifier que le client joueur compile toujours
-(`npm run build`) : il les utilise hors d'Obsidian. Une nouvelle dépendance à Obsidian dans ces
-fichiers demande un remplaçant de plus dans `vite/player-client.mts`.
-
-### Suite prévue
-
-1. ~~Les joueurs déplacent leur token et modifient leurs PV.~~ Fait.
-2. ~~Caméra libre pour les joueurs, et le MJ peut les forcer à suivre la sienne.~~ Fait.
-3. ~~Initiative et dés côté joueur, avec les composants d'Atlas.~~ Fait.
-4. ~~Conditions que le joueur active sur son token.~~ Fait.
-5. Idées : widgets côté joueur (`PlayerWidgetBar`, même approche que l'initiative), lien par
-   joueur, pinch-zoom tactile.
+- `PixiRendererOrchestrator`, `TokenRenderer`, `InteractionController`, `UIManager`,
+  `TokenUIRenderer`, `TextureCache` : `CanvasHost` à la place de l'`App` d'Obsidian ; menu du token,
+  synchronisation des fiches et audio sortis ; joueur (`CanvasPlayer`) pour les droits.
+- `storeFactory.ts` : `createSceneStore` ; `createViewAtlasStore` est dans `viewStore.ts`.
+- `MapController`, `MapLoader` : affichage de la carte dans `pixi/mapDisplay.ts`.
+- `ContextMenuContext.tsx`, `AtlasContextMenu.tsx` : registre et icônes dans `ui/`.
+- `DiceRollDisplay`, `useDiceAvatar`, `useDiceDisplay`, `useDiceLook`, `DiceDropdownMenu` :
+  environnement des dés par contexte React.
+- `PlayerInitiativePanel`, `InitiativeCard` : badge d'instance partagé (`shownInstanceNumber`).
+- `main.ts` : session en ligne, registres (notices, icônes, plateforme). `PlayerView`
+  (`atlas-vtt-player`, jamais ouverte) est supprimée.
+- `vite.config.mts`, `vitest.config.mts` (alias `events` pour les tests GPU), `SettingsService`
+  (`onlineSession`), `PlayerWindowPresenter`, `dashboard-view.tsx`, `CommandPalette.tsx`,
+  `EditTokenModal` (interrupteur "Controlled by players").
 
 ### Limites connues
 
-- Un rendu par joueur : chaque image rend aussi à nouveau le canvas du MJ. Aucun souci à 1-2
-  joueurs ; à 4 joueurs à 60 i/s, baisser leur framerate si Obsidian rame.
-- Pas de pinch-zoom tactile sur la page joueur (molette uniquement).
-- Les polices et images que les styles d'Obsidian chargent depuis l'application (`app://`) ne
-  sont pas accessibles aux joueurs : leur navigateur prend une police de remplacement.
-- `playerLinked` sert aussi ailleurs dans Atlas : un token contrôlé par les joueurs compte comme
-  PJ (et non PNJ) dans l'initiative.
-- Tout joueur qui a le lien peut déplacer tous les tokens "Controlled by Players" (un seul lien
-  pour la table, pas de lien par joueur).
+- **Sécurité** : le navigateur reçoit la scène en données, tokens cachés et zones sous le
+  brouillard compris ; un joueur qui ouvre la console peut les lire (dette acceptée, ADR 0001).
+- Pas d'éclairage dynamique en ligne.
+- Un seul lien pour la table : tout joueur pilote tous les tokens "Controlled by players".
+- Pas d'undo côté joueur ; pas de ping ni de règle de mesure partagée ; les pins restent cachés.
+- Les jets s'affichent sans son chez les joueurs (les sons restent dans le plugin).
 - Lien en `http` (pas de chiffrement) : suffisant entre amis, la clé du lien protège l'accès.
-- Les 7 tests en échec de la suite (`playerWindowPresenter`, `worktreeTargets`, `lightPopover`)
-  échouent déjà sur l'original sous Windows.

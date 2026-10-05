@@ -1,55 +1,44 @@
-import type { SettingsService } from '../services/SettingsService';
+import type { StoreApi } from 'zustand';
+import type { GridSystem } from '../grid/GridSystem';
+import type { ResourceDefinition } from '../resources/resourceTypes';
+import type { ViewAtlasState } from '../storeFactory';
 import type { Character } from '../types';
-import type { OnlineFrameSource } from './OnlineFrameStream';
+import type { ConditionDefinition } from '../types/collectionSettingsTypes';
 import { applyPlayerCommand, parsePlayerCommand } from './playerCommands';
-import { playerScene } from './playerScene';
-import type { PlayerState } from './protocol';
-import { isPlayerControlled, playerTokens } from './playerTokens';
+import { isPlayerControlled } from './playerTokens';
 import { PlayerHolds } from './playerHolds';
 
 /** Rolls `formula` with the DM's dice engine, for `token` when given; returns whether it rolled. */
 export type RollDice = (formula: string, token: Character | undefined) => boolean;
 
+/** The presented scene as players' commands change it: its store, grid and collection rules. */
+export interface CommandSource {
+  store: StoreApi<ViewAtlasState>;
+  grid(): GridSystem | null;
+  /** The conditions the scene's collection defines. */
+  conditions(): ConditionDefinition[];
+  /** The resources the scene's collection gives tokens. */
+  resources(): ResourceDefinition[];
+}
+
 /**
- * Lets players act on the presented scene: publishes what they see of it (the tokens
- * they control, the initiative order, what the player view settings show), and applies
- * their commands. Only while the scene is live: a held
- * frame shows a scene the view no longer holds (its store then shows the DM's other
- * tab), so commands are refused until the DM presents or returns to it.
+ * Applies players' commands to the presented scene. Only while the scene is live: while the DM
+ * works on another tab, the view's store holds that tab, so commands are refused until the DM
+ * presents or returns to it. While a player drags a token, nobody else may drag or drop it.
  */
 export class PlayerControls {
-  private source: OnlineFrameSource | null = null;
-  private unsubscribers: Array<() => void> = [];
+  private source: CommandSource | null = null;
   private readonly holds = new PlayerHolds();
 
-  constructor(
-    private readonly settingsService: SettingsService,
-    private readonly publishState: (state: PlayerState) => void,
-    private readonly rollDice: RollDice,
-  ) {}
+  constructor(private readonly rollDice: RollDice) {}
 
-  /** The live scene, or null while it is held or gone: players then keep what they saw last. */
-  setSource(source: OnlineFrameSource | null): void {
-    this.unsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
+  /** The live scene, or null while it is held or gone. */
+  setSource(source: CommandSource | null): void {
     this.source = source;
-    if (source) {
-      // Player view settings decide whether players see initiative and names
-      this.unsubscribers.push(this.settingsService.onChange(() => this.publish()));
-      this.unsubscribers.push(source.store.subscribe((state, previous) => {
-        if (state.isMapLoading) return;
-        const changed = previous.isMapLoading
-          || state.objects.tokens !== previous.objects.tokens
-          || state.grid?.size !== previous.grid?.size
-          || state.initiative !== previous.initiative
-          || state.initiativeTrackerOpen !== previous.initiativeTrackerOpen;
-        if (changed) this.publish();
-      }));
-      this.publish();
-    }
   }
 
   /** The map view owning `store` is closing. */
-  releaseSource(store: OnlineFrameSource['store']): void {
+  releaseSource(store: StoreApi<ViewAtlasState>): void {
     if (this.source?.store === store) this.setSource(null);
   }
 
@@ -64,9 +53,9 @@ export class PlayerControls {
     }
     const isDrag = command.type === 'drag' || command.type === 'move';
     if (isDrag && !this.holds.allows(command.id, playerId)) return false;
-    const applied = applyPlayerCommand(source.store, source.renderer.getGridSystem(), command, {
-      conditions: source.getConditions(),
-      resources: source.getResources(),
+    const applied = applyPlayerCommand(source.store, source.grid(), command, {
+      conditions: source.conditions(),
+      resources: source.resources(),
     });
     if (applied && command.type === 'drag') this.holds.take(command.id, playerId);
     if (applied && command.type === 'move') this.holds.release(command.id);
@@ -76,20 +65,5 @@ export class PlayerControls {
   /** The player left: tokens they were dragging are free again. */
   playerLeft(playerId: string): void {
     this.holds.releasePlayer(playerId);
-  }
-
-  private publish(): void {
-    const source = this.source;
-    const state = source?.store.getState();
-    if (!source || !state || state.isMapLoading) return;
-    const settings = this.settingsService.getLocalPlayerViewSettings();
-    const resources = source.getResources();
-    this.publishState({
-      tokens: playerTokens(state.objects.tokens, state.grid?.size ?? 70, resources),
-      conditions: source.getConditions().map(({ id, name, color, valued }) => ({ id, name, color, valued: valued === true })),
-      scene: playerScene(state, settings, resources),
-      initiativeRules: source.getInitiativeRules(),
-      settings,
-    });
   }
 }

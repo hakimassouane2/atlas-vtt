@@ -67,7 +67,7 @@ export const MainToolbar = forwardRef<HTMLDivElement, MainToolbarProps>(({ viewI
   const hotkeyLabel = useHotkeyLabels()
   const lightingOn = useExperimentalFeature('dynamicLighting')
 
-  const isActualPlayerView = view?.getViewType?.() === 'atlas-vtt-player'
+  const isActualPlayerView = useAtlasStore(state => state.isPlayerView)
 
   const diceTool = useMemo(() => view?.serviceManager?.getToolController?.()?.getDiceTool?.() ?? null, [view]);
 
@@ -195,7 +195,7 @@ export const MainToolbar = forwardRef<HTMLDivElement, MainToolbarProps>(({ viewI
         <div ref={diceButtonRef} className="relative flex items-center">
           <ToolButton icon={Dices} label="Roll Dice" shortcut={hotkeyLabel('diceTray')} isActive={isDiceTrayOpen} onClick={toggleDiceTray} />
           {diceTool && (
-            <DiceDropdownMenu diceTool={diceTool} isOpen={isDiceTrayOpen} onToggle={toggleDiceTray} triggerRef={diceButtonRef} />
+            <DiceDropdownMenu roll={(formula) => diceTool.rollDice(formula)} isOpen={isDiceTrayOpen} onToggle={toggleDiceTray} triggerRef={diceButtonRef} />
           )}
         </div>
       ),

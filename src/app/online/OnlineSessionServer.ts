@@ -1,8 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http';
-import type { FrameView } from './PlayerFrameRenderer';
 import { playerPageHtml } from './playerPage';
-import { playerCanvasPageHtml } from './playerCanvasPage';
-import { parseStreamRequest, type PlayerStreamRequest } from './playerStreamRequest';
 
 /** Keeps idle connections open through routers and proxies that drop silent sockets. */
 const HEARTBEAT_MS = 20_000;
@@ -11,15 +8,12 @@ const MAX_BODY_BYTES = 4096;
 
 /** What the session does with players; the server only carries messages. */
 export interface OnlineSessionHandlers {
-  onJoin(playerId: string, request: PlayerStreamRequest): void;
-  /** A player opened the canvas page (`/play`), which draws the scene itself. */
-  onCanvasJoin(playerId: string): void;
+  /** A player opened the page; its event stream is open. */
+  onJoin(playerId: string): void;
   onLeave(playerId: string): void;
-  /** A player moved their camera (the parsed JSON body). */
-  onCamera(playerId: string, body: unknown): void;
   /** Applies a command (the parsed JSON body) of the player with that id, if the page gave one; returns whether it was accepted. */
   onCommand(body: unknown, playerId: string | null): boolean;
-  /** An image file players may see (token artwork): its bytes, a URL to fetch it from, or null. */
+  /** An image file players may see (the map, token artwork): its bytes, a URL to fetch it from, or null. */
   onImage(path: string): Promise<TokenImage | null>;
   /** The DM's stylesheets and theme classes, so the page looks like Atlas does for the DM. */
   pageTheme(): PageTheme;
@@ -30,36 +24,24 @@ export interface PageTheme {
   bodyClass: string;
 }
 
-/**
- * The player pages' scripts and own stylesheets, built with the plugin: the frame page
- * (`src/app/online/client/`) and the canvas page (`src/app/online/canvas/`).
- */
+/** The player page's script and own stylesheet (`src/app/online/client/`), built with the plugin. */
 export interface PlayerClient {
   script: string;
   styles: string;
-  canvasScript: string;
-  canvasStyles: string;
 }
 
 export type TokenImage = { data: Uint8Array; contentType: string } | { url: string };
 
-interface PlayerConnection {
-  response: ServerResponse;
-  /** The socket buffer is full: no new frame until it drains, the player's connection is the limit. */
-  isBlocked: boolean;
-}
-
 /**
- * HTTP server players reach with their link. It serves the player pages and keeps one
- * Server-Sent Events stream per player: `/events` for the frame page, which carries that
- * player's frames, `/scene-events` for the canvas page (`/play`), which carries the scene;
- * both carry what every player shares (the tokens they control, whether they follow the
- * DM's camera). Players send their camera (`POST /camera`) and commands (`POST /command`).
- * Every request must carry the session key.
+ * HTTP server players reach with their link. It serves the player page and keeps one
+ * Server-Sent Events stream per player (`/events`), which carries the presented scene and what
+ * every player shares (where the DM looks, whether players follow it, rolls). Players send their
+ * commands (`POST /command`) and load the scene's images (`/image/<path>`). Every request must
+ * carry the session key.
  */
 export class OnlineSessionServer {
   private server: Server | null = null;
-  private readonly players = new Map<string, PlayerConnection>();
+  private readonly players = new Map<string, ServerResponse>();
   /** Shared events a player receives when they connect, by name. */
   private readonly shared = new Map<string, string>();
   private heartbeat: number | null = null;
@@ -82,7 +64,7 @@ export class OnlineSessionServer {
       server.once('error', reject);
       server.listen(port, '0.0.0.0', () => {
         server.off('error', reject);
-        this.heartbeat = window.setInterval(() => this.players.forEach((player) => player.response.write(': ping\n\n')), HEARTBEAT_MS);
+        this.heartbeat = window.setInterval(() => this.players.forEach((player) => player.write(': ping\n\n')), HEARTBEAT_MS);
         resolve();
       });
     });
@@ -99,46 +81,28 @@ export class OnlineSessionServer {
     this.shared.clear();
   }
 
-  /** Whether `playerId` can take a new frame now. */
-  isReady(playerId: string): boolean {
-    const player = this.players.get(playerId);
-    return !!player && !player.isBlocked;
-  }
-
-  /** Sends `playerId` a frame (JPEG) seen through `view`, the DM's camera when `isDmCamera`. */
-  sendFrame(playerId: string, image: Uint8Array, view: FrameView, isDmCamera: boolean): void {
-    const player = this.players.get(playerId);
-    if (!player) return;
-    const header = JSON.stringify({ ...view, isDmCamera });
-    const flushed = player.response.write(sseEvent('frame', `${header}\ndata: ${Buffer.from(image).toString('base64')}`));
-    if (!flushed) {
-      player.isBlocked = true;
-      player.response.once('drain', () => { player.isBlocked = false; });
-    }
-  }
-
   /** Sends `data` to every player now, and to every player who connects later. */
   share(event: string, data: unknown): void {
     const message = sseEvent(event, JSON.stringify(data));
     this.shared.set(event, message);
-    this.players.forEach((player) => player.response.write(message));
-  }
-
-  /** Sends `data` to `playerId` alone. */
-  sendTo(playerId: string, event: string, data: unknown): void {
-    this.players.get(playerId)?.response.write(sseEvent(event, JSON.stringify(data)));
+    this.players.forEach((player) => player.write(message));
   }
 
   /** Sends `data` to every player now only. */
   broadcast(event: string, data: unknown): void {
     const message = sseEvent(event, JSON.stringify(data));
-    this.players.forEach((player) => player.response.write(message));
+    this.players.forEach((player) => player.write(message));
+  }
+
+  /** Sends `data` to `playerId` alone. */
+  sendTo(playerId: string, event: string, data: unknown): void {
+    this.players.get(playerId)?.write(sseEvent(event, JSON.stringify(data)));
   }
 
   private handle(request: IncomingMessage, response: ServerResponse): void {
     const url = new URL(request.url ?? '/', 'http://localhost');
     if (url.searchParams.get('k') !== this.secret) {
-      response.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Lien invalide');
+      response.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Invalid link');
       return;
     }
     switch (url.pathname) {
@@ -154,48 +118,21 @@ export class OnlineSessionServer {
           .end(`${this.handlers.pageTheme().css}\n${this.client.styles}`);
         return;
       case '/events':
-        this.connect(request, response, parseStreamRequest(url.searchParams));
+        this.connect(request, response);
         return;
-      case '/play':
-        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' })
-          .end(playerCanvasPageHtml(this.secret, this.handlers.pageTheme().bodyClass));
-        return;
-      case '/canvas.js':
-        response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' }).end(this.client.canvasScript);
-        return;
-      case '/canvas.css':
-        response.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'no-store' })
-          .end(`${this.handlers.pageTheme().css}\n${this.client.canvasStyles}`);
-        return;
-      case '/scene-events':
-        this.connect(request, response, null);
-        return;
-      case '/camera': {
-        const playerId = url.searchParams.get('id') ?? '';
-        this.receive(request, response, (body) => {
-          if (!this.players.has(playerId)) return false;
-          this.handlers.onCamera(playerId, body);
-          return true;
-        });
-        return;
-      }
       case '/command': {
         const playerId = url.searchParams.get('id');
         this.receive(request, response, (body) => this.handlers.onCommand(body, playerId && this.players.has(playerId) ? playerId : null));
         return;
       }
-      case '/image':
-        this.sendImage(response, url.searchParams.get('path') ?? '');
-        return;
       default:
-        // The canvas page names the image in the path, so PIXI sees its extension
+        // The image is named in the path, so its URL ends with its extension, by which PIXI picks its loader
         if (url.pathname.startsWith('/image/')) this.sendImage(response, decodeURIComponent(url.pathname.slice('/image/'.length)));
         else response.writeHead(404).end();
     }
   }
 
-  /** Opens a player's event stream: of frames asked for with `streamRequest`, or of the scene when it is null. */
-  private connect(request: IncomingMessage, response: ServerResponse, streamRequest: PlayerStreamRequest | null): void {
+  private connect(request: IncomingMessage, response: ServerResponse): void {
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-store',
@@ -205,9 +142,8 @@ export class OnlineSessionServer {
     response.write('retry: 2000\n\n');
     response.write(sseEvent('hello', JSON.stringify({ id: playerId })));
     this.shared.forEach((message) => response.write(message));
-    this.players.set(playerId, { response, isBlocked: false });
-    if (streamRequest) this.handlers.onJoin(playerId, streamRequest);
-    else this.handlers.onCanvasJoin(playerId);
+    this.players.set(playerId, response);
+    this.handlers.onJoin(playerId);
     request.on('close', () => this.disconnect(playerId));
   }
 
@@ -221,7 +157,7 @@ export class OnlineSessionServer {
         response.writeHead(200, { 'Content-Type': image.contentType, 'Cache-Control': 'max-age=300' }).end(Buffer.from(image.data));
       }
     }).catch((error: unknown) => {
-      console.error('[OnlineSessionServer] Could not send a token image:', error);
+      console.error('[OnlineSessionServer] Could not send an image:', error);
       response.writeHead(500).end();
     });
   }
@@ -253,7 +189,7 @@ export class OnlineSessionServer {
     const player = this.players.get(playerId);
     if (!player) return;
     this.players.delete(playerId);
-    player.response.end();
+    player.end();
     this.handlers.onLeave(playerId);
   }
 }

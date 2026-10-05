@@ -1,22 +1,21 @@
 import React, { useEffect, useRef } from 'react';
 import { cn } from 'src/utils/cn';
 import { useKeepInView } from '../../../packages/components/primitives/useKeepInView';
-import { DiceTool } from '../../../tools/DiceTool';
 import { DiceTray } from './DiceTray';
-import { useAtlasUI } from '../../root/AtlasUIContext';
+import { useDiceEnvironment } from './diceEnvironment';
 import { diceFontClass, useDiceLook } from '../../hooks/useDiceLook';
 
 export interface DiceDropdownMenuProps {
-  diceTool: DiceTool;
+  /** Rolls the tray's formula: the GM's dice engine, or a player's request to the DM's Atlas. */
+  roll: (formula: string) => void;
   isOpen: boolean;
   onToggle: () => void;
   triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
-export function DiceDropdownMenu({ diceTool, isOpen, onToggle, triggerRef }: DiceDropdownMenuProps): React.ReactElement | null {
+export function DiceDropdownMenu({ roll, isOpen, onToggle, triggerRef }: DiceDropdownMenuProps): React.ReactElement | null {
   const trayRef = useRef<HTMLDivElement>(null);
-  const { app } = useAtlasUI();
-  const look = useDiceLook(app ?? undefined);
+  const look = useDiceLook(useDiceEnvironment().settings);
   const keepInView = useKeepInView(trayRef, isOpen, 'top');
 
   // ── Click-outside ────────────────────────────
@@ -54,7 +53,7 @@ export function DiceDropdownMenu({ diceTool, isOpen, onToggle, triggerRef }: Dic
       <div className="atlas-dice-panel">
         <DiceTray
           onRoll={(formula) => {
-            diceTool.rollDice(formula);
+            roll(formula);
             onToggle();
           }}
         />

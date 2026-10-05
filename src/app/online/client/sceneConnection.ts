@@ -1,13 +1,23 @@
 import type { PlayerCanvasContext, PlayerSceneMessage } from '../scene/sceneProtocol';
 import type { ReplicatedScene, SceneChange } from '../scene/sceneReplica';
-import { setStatus } from '../client/dom';
-import { sessionUrl, setPlayerId } from '../client/session';
+import type { PlayerCameraState } from '../../local-player-view';
+import type { DiceRollResult } from '../../tools/DiceTool';
+import { setStatus } from './dom';
+import { sessionUrl, setPlayerId } from './session';
 
 /** What the canvas page does with the messages of the DM's Atlas. */
 export interface SceneListener {
   context(context: PlayerCanvasContext): void;
   scene(scene: ReplicatedScene): void;
   changes(changes: SceneChange[]): void;
+  /** Where the DM looks. */
+  camera(camera: PlayerCameraState): void;
+  /** Whether the DM makes players follow their camera. */
+  following(isFollowingDm: boolean): void;
+  /** The DM presented another scene: players start from the DM's framing. */
+  recenter(): void;
+  /** A roll players may see. */
+  roll(result: DiceRollResult): void;
 }
 
 /** Opens the event stream of the presented scene; the browser reopens it after a lost connection. */
@@ -25,9 +35,14 @@ export function connectToScene(listener: SceneListener): EventSource {
     listener.scene(data);
   });
   on<Extract<PlayerSceneMessage, { event: 'changes' }>>('changes', (data) => listener.changes(data));
+  const json = <T>(message: Event): T => JSON.parse((message as MessageEvent<string>).data) as T;
+  stream.addEventListener('camera', (message) => listener.camera(json<PlayerCameraState>(message)));
+  stream.addEventListener('mode', (message) => listener.following(json<{ isFollowingDm: boolean }>(message).isFollowingDm));
+  stream.addEventListener('recenter', () => listener.recenter());
+  stream.addEventListener('roll', (message) => listener.roll(json<DiceRollResult>(message)));
   stream.onopen = (): void => {
-    setStatus(document.body.classList.contains('online-live') ? '' : 'En attente de la scène du MJ...');
+    setStatus(document.body.classList.contains('online-live') ? '' : "Waiting for the GM's scene…");
   };
-  stream.onerror = (): void => setStatus('Connexion perdue, nouvelle tentative...');
+  stream.onerror = (): void => setStatus('Connection lost, trying again…');
   return stream;
 }

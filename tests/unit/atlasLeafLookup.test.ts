@@ -25,18 +25,6 @@ describe('findAtlasLeafByViewId', () => {
     expect(findAtlasLeafByViewId(workspace as any, 'view-map-1')).toBe(sourceLeaf);
   });
 
-  it('falls back across atlas player leaves too', () => {
-    const playerLeaf = createLeaf('atlas-vtt-player', 'player-view-1');
-    const workspace = {
-      getLeavesOfType: (type: string) => (
-        type === 'atlas-vtt-player'
-          ? [playerLeaf]
-          : []
-      ),
-    };
-
-    expect(findAtlasLeafByViewId(workspace as any, 'player-view-1')).toBe(playerLeaf);
-  });
 
   it('returns null when no atlas leaf matches the view id', () => {
     const workspace = {

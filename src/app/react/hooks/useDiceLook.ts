@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { App } from 'obsidian';
 import { DEFAULT_DICE_LOOK, type DiceLook } from '../../dice3d/diceLook';
-import { SettingsService } from '../../services/SettingsService';
+import type { DiceSettingsSource } from '../components/dice/diceEnvironment';
 
 /** The dice look from Atlas' settings, kept current as it changes. */
-export function useDiceLook(app: App | undefined): DiceLook {
-  const settings = SettingsService.forApp(app);
+export function useDiceLook(settings: DiceSettingsSource | undefined): DiceLook {
   const [look, setLook] = useState<DiceLook>(() => settings?.getDiceLook() ?? { ...DEFAULT_DICE_LOOK });
 
   useEffect(() => {

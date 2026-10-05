@@ -7,7 +7,7 @@ interface WorkspaceLike {
 export function findAtlasLeafByViewId(
   workspace: WorkspaceLike,
   viewId: string,
-  allowedViewTypes: string[] = ['atlas-vtt', 'atlas-vtt-player'],
+  allowedViewTypes: string[] = ['atlas-vtt'],
 ): WorkspaceLeaf | null {
   for (const viewType of allowedViewTypes) {
     const matchingLeaf = workspace.getLeavesOfType?.(viewType)

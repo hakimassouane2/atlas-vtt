@@ -9,6 +9,7 @@ import { scrollWithin } from '../utils/scrollWithin';
 import { PlayerSceneOverlay, type PlayerSettings } from './PlayerSceneOverlay';
 import type { SettingsService } from './SettingsService';
 import './player-initiative.scss';
+import { shownInstanceNumber } from '../stores/tokenInstanceNumbers';
 
 /** What the panel asks the collection holding the presented map. */
 export interface InitiativeCollection {
@@ -37,6 +38,8 @@ interface EntryToken {
   showRing: boolean;
   ringColor?: string | undefined;
   side: InitiativeSide;
+  /** The number of the token's badge, as the map shows it (Goblin 2); null without one. */
+  instance: number | null;
 }
 
 /** A combatant the players see, with what the list shows of its token. */
@@ -54,7 +57,7 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
     super({ cls: 'atlas-player-initiative-container' }, settings);
   }
 
-  protected select({ initiative, initiativeTrackerOpen, objects, mapPath }: ViewAtlasState): InitiativeScene {
+  protected select({ initiative, initiativeTrackerOpen, objects, mapPath, tokenSettings }: ViewAtlasState): InitiativeScene {
     const tokens = objects?.tokens;
     const entries = initiative?.entries ?? [];
     const visibleTokenIds = entries
@@ -63,7 +66,13 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
       .join(TOKEN_ID_SEPARATOR);
     const entryTokens = JSON.stringify(entries.map((entry): EntryToken => {
       const token = tokens?.[entry.tokenId];
-      return { hp: token?.resources?.hp ?? null, showRing: token?.showRing !== false, ringColor: token?.ringColor, side: sideOf(token) };
+      return {
+        hp: token?.resources?.hp ?? null,
+        showRing: token?.showRing !== false,
+        ringColor: token?.ringColor,
+        side: sideOf(token),
+        instance: tokens ? shownInstanceNumber(tokens, entry.tokenId, tokenSettings?.showInstanceBadges) : null,
+      };
     }));
     return { initiative, initiativeTrackerOpen, visibleTokenIds, mapPath: mapPath ?? null, tokens: entryTokens };
   }
@@ -76,7 +85,7 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
     const hpVisible = this.collection.showsHp(scene.mapPath);
     const combatants = initiative.entries
       .map((entry, index): Combatant => {
-        const token = tokenOf[index] ?? { hp: null, showRing: true, side: 'opponents' };
+        const token = tokenOf[index] ?? { hp: null, showRing: true, side: 'opponents', instance: null };
         return { entry, token: hpVisible ? token : { ...token, hp: null } };
       })
       .filter(({ entry }) => visibleTokenIds.has(entry.tokenId))
@@ -132,7 +141,9 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
     if (entry.imagePath) {
       const src = /^(?:https?:|data:|blob:|app:)/.test(entry.imagePath)
         ? entry.imagePath : this.app.vault.adapter.getResourcePath(entry.imagePath);
-      createTokenPortrait(card, { src, alt: settings.showTokenNameplates ? entry.name : '', cls: 'atlas-player-initiative__avatar', showRing: token.showRing, ringColor: token.ringColor });
+      const portrait = card.createDiv({ cls: 'atlas-player-initiative__portrait' });
+      createTokenPortrait(portrait, { src, alt: settings.showTokenNameplates ? entry.name : '', cls: 'atlas-player-initiative__avatar', showRing: token.showRing, ringColor: token.ringColor });
+      if (token.instance !== null) portrait.createSpan({ cls: 'atlas-player-initiative__instance-badge', text: String(token.instance) });
     }
     if (showValue) card.createSpan({ cls: 'atlas-player-initiative__value', text: String(entry.initiative) });
     if (settings.showTokenNameplates) {

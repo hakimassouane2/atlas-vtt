@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSceneStore } from '../../src/app/storeFactory';
-import { CommandBridge, commandsFor } from '../../src/app/online/canvas/commandBridge';
+import { CommandBridge, commandsFor } from '../../src/app/online/client/commandBridge';
 import type { Character, TokenEntity } from '../../src/app/types';
 
 const hero: Character = {

@@ -5,6 +5,8 @@ import { ReadableViewStoreProvider, type ReadableViewStore } from '../../ViewSto
 import type { DiceRollResult } from '../../../tools/DiceTool';
 import { DiceRollDisplay } from './DiceRollDisplay';
 import { diceRollForPlayers } from '../../../tools/diceRollForPlayers';
+import { DiceEnvironmentContext } from './diceEnvironment';
+import { obsidianDiceEnvironment } from '../../../services/obsidianDiceEnvironment';
 
 interface PlayerDiceToastsProps {
   app: App;
@@ -22,6 +24,7 @@ interface PlayerDiceToastsProps {
  */
 export function PlayerDiceToasts({ app, store, container }: PlayerDiceToastsProps): React.ReactElement {
   const context = useMemo((): AtlasUIContextValue => ({ app, view: null, pixiApp: null, renderer: null }), [app]);
+  const dice = useMemo(() => obsidianDiceEnvironment(app), [app]);
 
   const forPlayers = useCallback(
     (result: DiceRollResult): DiceRollResult => diceRollForPlayers(result, store.getState().objects?.tokens),
@@ -30,10 +33,12 @@ export function PlayerDiceToasts({ app, store, container }: PlayerDiceToastsProp
 
   return (
     <AtlasUIContext.Provider value={context}>
-      <ReadableViewStoreProvider store={store}>
-        {/* The DM's window plays the sound; a second one here would echo it. */}
-        <DiceRollDisplay container={container} prepare={forPlayers} muted />
-      </ReadableViewStoreProvider>
+      <DiceEnvironmentContext.Provider value={dice}>
+        <ReadableViewStoreProvider store={store}>
+          {/* The DM's window plays the sound; a second one here would echo it. */}
+          <DiceRollDisplay container={container} prepare={forPlayers} muted />
+        </ReadableViewStoreProvider>
+      </DiceEnvironmentContext.Provider>
     </AtlasUIContext.Provider>
   );
 }

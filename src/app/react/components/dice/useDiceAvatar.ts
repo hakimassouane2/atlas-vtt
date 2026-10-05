@@ -1,10 +1,7 @@
 import { useMemo } from 'react';
-import { TFile } from 'obsidian';
-import { useAtlasUI } from '../../root/AtlasUIContext';
 import { useOptionalAtlasStore } from '../../ViewStoreContext';
 import type { DiceRollResult } from '../../../tools/DiceTool';
-import { AssetService } from '../../../services/AssetService';
-import { TokenStatblockLinkService } from '../../../services/TokenStatblockLinkService';
+import { useDiceEnvironment } from './diceEnvironment';
 
 export interface DiceAvatar {
   src: string;
@@ -22,7 +19,7 @@ export interface DiceAvatar {
  * other image is shown unframed.
  */
 export function useDiceAvatar(source: DiceRollResult['source']): DiceAvatar | null {
-  const { app } = useAtlasUI();
+  const { art } = useDiceEnvironment();
   const tokenId = source?.tokenId;
   // One selector per field: selecting the token itself would re-render on every move.
   // The player window reads the presented scene's store, lent to it. Without a store, and for
@@ -41,27 +38,12 @@ export function useDiceAvatar(source: DiceRollResult['source']): DiceAvatar | nu
   );
   // ponytail: read per render, so a re-link shows on the next re-render (the log
   // ticks every 10 s); subscribe to metadataCache 'changed' if that is too slow.
-  const statblockFile = source?.statblockPath
-    ? app.vault.getAbstractFileByPath(source.statblockPath)
-    : null;
-  const linkedImagePath =
-    statblockFile instanceof TFile
-      ? TokenStatblockLinkService.getInstance(app).readStatblockImage(statblockFile)
-      : null;
+  const linkedImagePath = source?.statblockPath ? art?.statblockImage(source.statblockPath) ?? null : null;
   const imagePath = currentImagePath ?? linkedImagePath ?? source?.tokenImagePath;
-  const file = imagePath ? app.vault.getAbstractFileByPath(imagePath) : null;
-  const imageFile = file instanceof TFile ? file : null;
+  const src = imagePath ? art?.src(imagePath) ?? null : null;
   const showRing = currentImagePath !== undefined
     ? mapShowRing !== false
-    : libraryTokenShowsRing(AssetService.getInstance(app), imageFile);
+    : !!imagePath && !!src && !!art?.libraryShowsRing(imagePath);
 
-  return useMemo((): DiceAvatar | null => (
-    imageFile ? { src: app.vault.getResourcePath(imageFile), showRing, ringColor } : null
-  ), [app, imageFile, showRing, ringColor]);
-}
-
-function libraryTokenShowsRing(assets: AssetService, imageFile: TFile | null): boolean {
-  if (!imageFile) return false;
-  const asset = assets.findTokenAssetByImagePath(imageFile.path);
-  return asset ? asset.showRing !== false : false;
+  return useMemo((): DiceAvatar | null => (src ? { src, showRing, ringColor } : null), [src, showRing, ringColor]);
 }

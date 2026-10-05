@@ -7,7 +7,7 @@ import type { CollectionSettings } from '../../types/collectionSettingsTypes';
 import { DEFAULT_MAP_HOTKEYS } from '../../keyboard/mapHotkeys';
 import { DEFAULT_LASER_POINTER_SETTINGS } from '../../tools/laserPointerSettings';
 import { imageMimeTypeOfPath } from '../../utils/imageMimeTypes';
-import { sceneImageUrl } from '../client/session';
+import { sceneImageUrl } from './session';
 
 /** The collection of the presented scene, as the DM's Atlas sends it (`context`). */
 export class SentCollection implements CanvasCollections {

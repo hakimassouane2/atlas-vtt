@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { LightPopoverHost } from '../pixi/lighting/LightPopover';
+import { DiceEnvironmentContext } from './components/dice/diceEnvironment';
+import { obsidianDiceEnvironment } from '../services/obsidianDiceEnvironment';
 import { LightZonePopoverHost } from '../pixi/lighting/LightZonePopover';
 import { SceneLightingPanelHost } from '../pixi/lighting/SceneLightingPanel';
 import { App } from 'obsidian';
@@ -85,9 +87,11 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
     [app, view, pixiApp]
   );
 
+  const diceEnvironment = useMemo(() => obsidianDiceEnvironment(app), [app]);
+
   // Check if this is a player view - use store state which is authoritative
   const storeIsPlayerView = useAtlasStore(state => state.isPlayerView);
-  const isPlayerView = storeIsPlayerView || view?.getViewType?.() === 'atlas-vtt-player';
+  const isPlayerView = storeIsPlayerView;
   // Get loading state from store
   const isMapLoading = useAtlasStore(state => state.isMapLoading);
   const mapLoadingProgress = useAtlasStore(state => state.mapLoadingProgress);
@@ -147,6 +151,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
 
   return (
     <AtlasUIContext.Provider value={contextValue}>
+      <DiceEnvironmentContext.Provider value={diceEnvironment}>
       <ContextMenuProvider>
         {hotkeyHelpOpen && (
           <PanelBoundary name="the hotkey help">
@@ -243,6 +248,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
 
         </div>
       </ContextMenuProvider>
+      </DiceEnvironmentContext.Provider>
     </AtlasUIContext.Provider>
   );
 };

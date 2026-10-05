@@ -3,7 +3,7 @@ import { DEFAULT_INITIATIVE_RULES } from '../../gameSystems/initiativeRules';
 import { mapResources, type CollectionLookup } from '../../resources/collectionResources';
 import type { ViewAtlasStore } from '../../storeFactory';
 import type { InitiativeRules } from '../../types/initiativeRulesTypes';
-import { PageSettings, pageApp } from '../client/pageStandIns';
+import { PageSettings, pageApp } from './pageStandIns';
 import type { PlayerCanvasContext } from '../scene/sceneProtocol';
 
 /** The local player window's initiative order on the canvas page, read from the page's own store. */

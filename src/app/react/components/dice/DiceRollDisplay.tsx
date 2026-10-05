@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAtlasUI } from '../../root/AtlasUIContext';
+import { AtlasUIContext } from '../../root/AtlasUIContext';
+import { useDiceEnvironment } from './diceEnvironment';
 import { useDiceDisplay } from '../../hooks/useDiceDisplay';
 import { diceFontClass, useDiceLook } from '../../hooks/useDiceLook';
 import { cn } from '../../../../utils/cn';
@@ -30,9 +31,10 @@ interface DiceRollDisplayProps {
  * result card when 3D dice are off or the roll holds dice no real body shows.
  */
 export function DiceRollDisplay({ container, prepare, muted = false }: DiceRollDisplayProps): React.ReactElement | null {
-  const { app, view } = useAtlasUI();
-  const display = useDiceDisplay(app ?? undefined);
-  const look = useDiceLook(app ?? undefined);
+  const view = useContext(AtlasUIContext)?.view ?? null;
+  const { settings } = useDiceEnvironment();
+  const display = useDiceDisplay(settings);
+  const look = useDiceLook(settings);
   const { toasts, addToast, dismissToast, dismissAllToasts } = useDiceToasts();
   const [rolls, setRolls] = useState<readonly StackedRoll[]>([]);
 

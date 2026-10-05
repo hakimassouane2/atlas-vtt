@@ -169,7 +169,7 @@ export class NotePreviewUIManager {
         this.forgetHover();
       }
       const viewType = leaf.view?.getViewType?.();
-      if (viewType !== 'atlas-vtt' && viewType !== 'atlas-vtt-player') {
+      if (viewType !== 'atlas-vtt') {
         this.hideAllUnpinnedPreviews();
       }
     });

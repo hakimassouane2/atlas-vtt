@@ -11,6 +11,7 @@ import { zoomToTokenWithHighlight } from '../../pixi/utils/tokenHighlight';
 import { isModHeld, isModKey } from '../../keyboard/modKey';
 import { LabelTooltip } from '../../packages/components/primitives/tooltip';
 import { TokenPortrait } from '../../packages/components/shared/TokenPortrait';
+import { shownInstanceNumber } from '../../stores/tokenInstanceNumbers';
 
 interface InitiativeCardProps {
   entry: InitiativeEntry;
@@ -49,15 +50,10 @@ export const InitiativeCard: React.FC<InitiativeCardProps> = ({
   const isModifierKeyDownRef = useRef(false);
 
   // Instance badge: show when 2+ tokens share the same imagePath
-  const instanceBadge = useMemo((): number | null => {
-    if (!(tokenSettings?.showInstanceBadges ?? true)) return null;
-    const token = tokens[entry.tokenId];
-    if (!token?.instanceNumber) return null;
-    const sameImageCount = Object.values(tokens).filter(
-      (t) => t.imagePath === token.imagePath,
-    ).length;
-    return sameImageCount >= 2 ? token.instanceNumber : null;
-  }, [tokens, entry.tokenId, tokenSettings?.showInstanceBadges]);
+  const instanceBadge = useMemo(
+    (): number | null => shownInstanceNumber(tokens, entry.tokenId, tokenSettings?.showInstanceBadges),
+    [tokens, entry.tokenId, tokenSettings?.showInstanceBadges],
+  );
 
   // Read live from the token: the resources that defeat it (hit points), and whether one of them has
   const definitions = useMapResources();

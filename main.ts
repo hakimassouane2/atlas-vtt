@@ -4,7 +4,6 @@ import './styles/index.css';
 import './styles/main.scss';
 import { AtlasView, ATLAS_VIEW_TYPE } from './src/app/atlas-view';
 import { LocalPlayerView, LOCAL_PLAYER_VIEW_TYPE } from './src/app/local-player-view';
-import { PlayerView, PLAYER_VIEW_TYPE } from './src/app/player-view';
 import { DashboardView, DASHBOARD_VIEW_TYPE } from './src/app/dashboard-view';
 import { initializeAtlasStorage } from './src/app/atlasStorageInit';
 import { CreatureIndex } from './src/app/creatures/CreatureIndex';
@@ -103,7 +102,6 @@ export default class AtlasVTTPlugin extends Plugin {
     this.imageDisplayService = new ImageDisplayService(this.app);
     const onlineSession = new OnlineSession(this.app, this.settingsService);
     this.addCommand({ id: 'online-session-start', name: 'Start online session and copy the player link', callback: () => void onlineSession.startAndCopyLink() });
-    this.addCommand({ id: 'online-session-start-canvas', name: 'Start online session and copy the canvas player link (beta)', callback: () => void onlineSession.startAndCopyLink('canvas') });
     this.addCommand({ id: 'online-session-stop', name: 'Stop online session', callback: () => onlineSession.stop() });
     this.addCommand({ id: 'online-session-follow', name: 'Toggle online players following your camera', callback: () => onlineSession.toggleFollowingDm() });
 
@@ -168,7 +166,6 @@ export default class AtlasVTTPlugin extends Plugin {
     this.registerExtensions([EXTENSION_ATLASMAP], ATLAS_VIEW_TYPE);
     this.registerView(ATLAS_VIEW_TYPE, (leaf) => new AtlasView(leaf, this));
     this.registerView(LOCAL_PLAYER_VIEW_TYPE, (leaf) => new LocalPlayerView(leaf));
-    this.registerView(PLAYER_VIEW_TYPE, (leaf) => new PlayerView(leaf, this));
     this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
     registerLootQueryView(this);
   }

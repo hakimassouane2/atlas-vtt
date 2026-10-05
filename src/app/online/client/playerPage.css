@@ -1,59 +1,25 @@
 /*
- * The player page's own controls. Atlas' overlays (initiative, dice toasts) bring their
- * styles with the DM's stylesheet; these use the same Obsidian variables and Atlas'
- * surface treatment (atlas-elevated-surface: 1.5px border, radius-l, shadow-l) to match.
+ * The player page: Atlas' canvas fills the window, with a status line over it. Atlas' own
+ * controls bring their styles with the DM's stylesheet.
  */
+html, body { height: 100%; }
+body { overflow: hidden; -webkit-app-region: no-drag; user-select: none; }
 
-#scene { position: absolute; display: none; max-width: none; pointer-events: none; }
-body.online-live #scene { display: block; }
-#overlay { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
-#overlay.is-over-token { cursor: pointer; }
-#overlay.is-panning { cursor: grabbing; }
-
-.online-surface {
+.online-hud {
   position: fixed;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px;
+  border-radius: var(--radius-m, 8px);
+  background: var(--background-primary);
   color: var(--text-normal);
   font-family: var(--font-interface);
   font-size: var(--font-ui-small);
-  background: var(--background-primary);
-  border: 1.5px solid color-mix(in oklch, var(--mono-100, #fff) 18%, transparent);
-  border-radius: var(--radius-l, 12px);
-  box-shadow: var(--shadow-l);
+  pointer-events: none;
   z-index: 10;
 }
-.online-row { display: flex; align-items: center; gap: 8px; }
-.online-button { cursor: pointer; }
-.online-surface input, .online-surface select { font: inherit; }
-
-#following { top: 12px; display: none; }
-body.online-following #following { display: block; }
-
-#corner { position: fixed; top: 12px; left: 12px; display: flex; gap: 8px; z-index: 10; }
-body.online-following #recenter { display: none; }
-#settings { top: 56px; left: 12px; display: none; }
-#settings.open { display: flex; }
-#settings label { display: flex; flex-direction: column; gap: 4px; }
-
-#party { left: 12px; bottom: 12px; }
-#party:empty { display: none; }
-.online-member { display: flex; flex-direction: column; gap: 8px; }
-.online-member-name { font-weight: var(--font-semibold); }
-.online-resource-label { width: 48px; color: var(--text-muted); }
-.online-resource input { width: 56px; text-align: center; }
-.online-conditions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 280px; }
-.online-condition {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1.5px solid;
-  border-radius: 999px;
-}
-.online-condition .online-button { width: 22px; height: 22px; padding: 0; border-radius: 999px; }
-
-#dice { right: 12px; bottom: 12px; }
-#formula { width: 96px; }
+#status { bottom: 72px; }
+#status:empty { display: none; }
+body:not(.online-live) #status { bottom: 50%; font-size: var(--font-ui-medium); }
+#content { position: absolute; inset: 0; }
+#content canvas { display: block; }

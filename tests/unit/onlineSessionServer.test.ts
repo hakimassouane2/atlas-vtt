@@ -6,7 +6,6 @@ import { OnlineSessionServer, type OnlineSessionHandlers } from '../../src/app/o
 // A new port per test: fetch would otherwise reuse a keep-alive socket of the previous server
 let port = 39_517;
 let base = '';
-const view = { centerX: 1, centerY: 2, zoom: 3, cssWidth: 800, cssHeight: 600 };
 
 /** A player's event stream: wait for text to arrive, then close it. */
 interface EventStream {
@@ -14,11 +13,11 @@ interface EventStream {
   close(): void;
 }
 
-function openEvents(query = '', path = '/events'): EventStream {
+function openEvents(): EventStream {
   let body = '';
   let waiters: Array<{ text: string; resolve: (body: string) => void }> = [];
   let response: IncomingMessage | null = null;
-  get(`${base}${path}?k=secret&${query}`, (incoming: IncomingMessage) => {
+  get(`${base}/events?k=secret`, (incoming: IncomingMessage) => {
     response = incoming;
     incoming.on('data', (chunk: Buffer) => {
       body += chunk.toString();
@@ -46,16 +45,14 @@ describe('OnlineSessionServer', () => {
     vi.stubGlobal('window', globalThis);
     handlers = {
       onJoin: vi.fn(),
-      onCanvasJoin: vi.fn(),
       onLeave: vi.fn(),
-      onCamera: vi.fn(),
       onCommand: vi.fn((body: unknown) => (body as { ok?: boolean }).ok === true),
-      onImage: vi.fn((path: string) => Promise.resolve(path === 'hero.png' ? { data: new Uint8Array([7]), contentType: 'image/png' } : null)),
+      onImage: vi.fn((path: string) => Promise.resolve(path === 'tokens/hero.png' ? { data: new Uint8Array([7]), contentType: 'image/png' } : null)),
       pageTheme: vi.fn(() => ({ css: 'body { color: red; }', bodyClass: 'theme-dark atlas-player-window' })),
     };
     port++;
     base = `http://127.0.0.1:${port}`;
-    server = new OnlineSessionServer('secret', handlers as unknown as OnlineSessionHandlers, { script: 'start();', styles: '#party {}', canvasScript: 'draw();', canvasStyles: '#content {}' });
+    server = new OnlineSessionServer('secret', handlers as unknown as OnlineSessionHandlers, { script: 'draw();', styles: '#content {}' });
     await server.listen(port);
   });
 
@@ -71,75 +68,33 @@ describe('OnlineSessionServer', () => {
 
   test('serves the player page, its script and the DM theme with the key', async () => {
     const page = await (await fetch(`${base}/?k=secret`)).text();
-    expect(page).toContain('<body class="theme-dark atlas-player-window">');
+    expect(page).toContain('<body class="theme-dark atlas-player-window atlas-vtt-plugin">');
     expect(page).toContain('/client.js?k=secret');
-    expect(await (await fetch(`${base}/client.js?k=secret`)).text()).toBe('start();');
-    expect(await (await fetch(`${base}/styles.css?k=secret`)).text()).toBe('body { color: red; }\n#party {}');
+    expect(await (await fetch(`${base}/client.js?k=secret`)).text()).toBe('draw();');
+    expect(await (await fetch(`${base}/styles.css?k=secret`)).text()).toBe('body { color: red; }\n#content {}');
   });
 
-  test('serves the canvas page, its script and the DM theme with the key', async () => {
-    const page = await (await fetch(`${base}/play?k=secret`)).text();
-    expect(page).toContain('<body class="theme-dark atlas-player-window">');
-    expect(page).toContain('/canvas.js?k=secret');
-    expect(await (await fetch(`${base}/canvas.js?k=secret`)).text()).toBe('draw();');
-    expect(await (await fetch(`${base}/canvas.css?k=secret`)).text()).toBe('body { color: red; }\n#content {}');
-  });
-
-  test('serves an image named in the path, so its URL ends with its extension', async () => {
-    const image = await fetch(`${base}/image/hero.png?k=secret`);
+  test('serves only the images the session allows, named in the path so the URL ends with the extension', async () => {
+    const image = await fetch(`${base}/image/tokens/hero.png?k=secret`);
+    expect(image.headers.get('content-type')).toBe('image/png');
     expect([...new Uint8Array(await image.arrayBuffer())]).toEqual([7]);
     expect((await fetch(`${base}/image/secret-notes.md?k=secret`)).status).toBe(404);
   });
 
-  test('opens a canvas page its scene stream, and sends one player alone what is for them', async () => {
-    const canvas = openEvents('', '/scene-events');
-    const playerId = playerIdIn(await canvas.waitFor('event: hello'));
-    expect(handlers.onCanvasJoin).toHaveBeenCalledWith(playerId);
-    expect(handlers.onJoin).not.toHaveBeenCalled();
-    server.sendTo(playerId, 'scene', { mapPath: 'cave' });
-    expect(await canvas.waitFor('event: scene')).toContain('data: {"mapPath":"cave"}');
-    canvas.close();
-  });
-
-  test('serves only the images the session allows', async () => {
-    const image = await fetch(`${base}/image?k=secret&path=hero.png`);
-    expect(image.headers.get('content-type')).toBe('image/png');
-    expect([...new Uint8Array(await image.arrayBuffer())]).toEqual([7]);
-    expect((await fetch(`${base}/image?k=secret&path=secret-notes.md`)).status).toBe(404);
-  });
-
-  test('greets a player with their id and reports what they ask for', async () => {
-    const events = openEvents('w=800&h=600&cw=400&fps=10&q=low');
-    const playerId = playerIdIn(await events.waitFor('event: hello'));
-    expect(handlers.onJoin).toHaveBeenCalledWith(playerId, { screen: { width: 800, height: 600, cssWidth: 400 }, fps: 10, quality: 'low' });
-    expect(server.playerCount).toBe(1);
-    events.close();
-  });
-
-  test('sends a player their frames with the view they show', async () => {
+  test('greets a player with their id, and sends one player alone what is for them', async () => {
     const events = openEvents();
     const playerId = playerIdIn(await events.waitFor('event: hello'));
-    expect(server.isReady(playerId)).toBe(true);
-    server.sendFrame(playerId, new Uint8Array([1, 2, 3]), view, true);
-    const body = await events.waitFor('data: AQID');
-    expect(body).toContain(`event: frame\ndata: ${JSON.stringify({ ...view, isDmCamera: true })}\ndata: AQID`);
+    expect(handlers.onJoin).toHaveBeenCalledWith(playerId);
+    expect(server.playerCount).toBe(1);
+    server.sendTo(playerId, 'scene', { mapPath: 'cave' });
+    expect(await events.waitFor('event: scene')).toContain('data: {"mapPath":"cave"}');
     events.close();
   });
 
   test('shares state with every player, including those who connect later', async () => {
-    server.share('state', { tokens: [] });
+    server.share('mode', { isFollowingDm: true });
     const events = openEvents();
-    expect(await events.waitFor('event: state')).toContain('data: {"tokens":[]}');
-    events.close();
-  });
-
-  test('passes a connected player camera on, and refuses unknown players', async () => {
-    const events = openEvents();
-    const playerId = playerIdIn(await events.waitFor('event: hello'));
-    const moved = await fetch(`${base}/camera?k=secret&id=${playerId}`, { method: 'POST', body: '{"recenter":true}' });
-    expect(moved.status).toBe(204);
-    expect(handlers.onCamera).toHaveBeenCalledWith(playerId, { recenter: true });
-    expect((await fetch(`${base}/camera?k=secret&id=nobody`, { method: 'POST', body: '{}' })).status).toBe(409);
+    expect(await events.waitFor('event: mode')).toContain('data: {"isFollowingDm":true}');
     events.close();
   });
 
@@ -151,10 +106,17 @@ describe('OnlineSessionServer', () => {
     expect(server.playerCount).toBe(0);
   });
 
-  test('passes player commands on and reports whether they were applied', async () => {
+  test('passes player commands on, with the id of a connected player, and reports whether they were applied', async () => {
     const accepted = await fetch(`${base}/command?k=secret`, { method: 'POST', body: '{"ok":true}' });
     expect(accepted.status).toBe(204);
     expect(handlers.onCommand).toHaveBeenCalledWith({ ok: true }, null);
+    const events = openEvents();
+    const playerId = playerIdIn(await events.waitFor('event: hello'));
+    await fetch(`${base}/command?k=secret&id=${playerId}`, { method: 'POST', body: '{"ok":true}' });
+    expect(handlers.onCommand).toHaveBeenLastCalledWith({ ok: true }, playerId);
+    await fetch(`${base}/command?k=secret&id=stranger`, { method: 'POST', body: '{"ok":true}' });
+    expect(handlers.onCommand).toHaveBeenLastCalledWith({ ok: true }, null);
+    events.close();
     expect((await fetch(`${base}/command?k=secret`, { method: 'POST', body: '{}' })).status).toBe(409);
     expect((await fetch(`${base}/command?k=secret`, { method: 'POST', body: 'not json' })).status).toBe(409);
     expect((await fetch(`${base}/command?k=wrong`, { method: 'POST', body: '{"ok":true}' })).status).toBe(403);

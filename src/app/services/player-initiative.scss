@@ -83,7 +83,12 @@
     }
   }
 
-  // A token portrait (`createTokenPortrait`): square, with the token's ring
+  // A token portrait (`createTokenPortrait`): square, with the token's ring, and its badge in a corner
+  &__portrait {
+    position: relative;
+    width: 100%;
+  }
+
   &__avatar {
     width: 100%;
   }

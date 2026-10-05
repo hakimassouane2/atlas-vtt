@@ -5,20 +5,6 @@ export function byId<T extends HTMLElement = HTMLElement>(id: string): T {
   return element as T;
 }
 
-/** A new element with a class and optional text (Obsidian's `createEl`, see `obsidianDom.ts`). */
-export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
-  return createEl(tag, { ...(className && { cls: className }), ...(text !== undefined && { text }) });
-}
-
-/** A small button in the page's style. */
-export function button(text: string, onClick: () => void, label?: string): HTMLButtonElement {
-  const created = element('button', 'online-button', text);
-  created.type = 'button';
-  if (label) created.setAttribute('aria-label', label);
-  created.addEventListener('click', onClick);
-  return created;
-}
-
 const status = (): HTMLElement => byId('status');
 
 /** A short message at the bottom of the page; empty hides it. */

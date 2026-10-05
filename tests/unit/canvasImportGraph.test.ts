@@ -8,8 +8,8 @@ import { build, type Metafile } from 'esbuild';
  * through its `CanvasHost`, never by importing them.
  */
 const CANVAS_ENTRIES = ['src/app/PixiRendererOrchestrator.ts', 'src/app/storeFactory.ts'];
-/** The player's canvas page, which mounts Atlas' player overlays besides the canvas. */
-const PAGE_ENTRY = 'src/app/online/canvas/main.ts';
+/** The player page, which mounts Atlas' player overlays besides the canvas. */
+const PAGE_ENTRY = 'src/app/online/client/main.ts';
 
 /** What the canvas may not reach, by import path or source file. */
 interface Rule {
@@ -73,7 +73,7 @@ describe('the canvas import graph', () => {
     expect(forbiddenChains(entry, await canvasImports(entry), [NO_OBSIDIAN, NO_GM_UI, NO_NODE])).toEqual([]);
   }, 30_000);
 
-  it('from the player canvas page reaches neither Obsidian nor Node', async () => {
+  it('from the player page reaches neither Obsidian nor Node', async () => {
     expect(forbiddenChains(PAGE_ENTRY, await canvasImports(PAGE_ENTRY), [NO_OBSIDIAN, NO_NODE])).toEqual([]);
   }, 30_000);
 });

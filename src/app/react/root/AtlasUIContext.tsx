@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
-import { App } from 'obsidian';
-import { Application } from 'pixi.js';
+import type { App } from 'obsidian';
+import type { Application } from 'pixi.js';
 import type { PixiRendererOrchestrator } from '../../PixiRendererOrchestrator';
 import type { AtlasView } from '../../atlas-view';
 

@@ -4,7 +4,7 @@ import type { GridSystem } from '../../src/app/grid/GridSystem';
 import type { ViewAtlasState } from '../../src/app/storeFactory';
 import type { Character, TokenEntity } from '../../src/app/types';
 import { applyPlayerCommand, isSafeDiceFormula, parsePlayerCommand } from '../../src/app/online/playerCommands';
-import { playerTokens } from '../../src/app/online/playerTokens';
+import { isPlayerControlled } from '../../src/app/online/playerTokens';
 import { HP_RESOURCE, STRESS_RESOURCE } from '../../src/app/resources/resourceDefinitions';
 
 const hero: Character = {
@@ -123,16 +123,11 @@ describe('applyPlayerCommand with conditions', () => {
   });
 });
 
-describe('playerTokens', () => {
-  test('lists only the visible tokens players control, with their resources', () => {
-    const goblin: Character = { ...hero, id: 'goblin', playerLinked: false };
-    const [token, ...others] = playerTokens({ hero, goblin }, 70, rules.resources);
-    expect(others).toEqual([]);
-    expect(token).toMatchObject({
-      id: 'hero', name: 'Hero', x: 35, y: 35, conditions: [],
-      resources: [{ key: 'hp', name: 'HP', value: { current: 10, max: 20 } }],
-    });
-    expect(token?.radius).toBeGreaterThan(0);
+describe('isPlayerControlled', () => {
+  test('is true only for visible characters the DM gave players', () => {
+    expect(isPlayerControlled(hero)).toBe(true);
+    expect(isPlayerControlled({ ...hero, playerLinked: false })).toBe(false);
+    expect(isPlayerControlled({ ...hero, isHidden: true })).toBe(false);
   });
 });
 

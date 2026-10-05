@@ -13,10 +13,10 @@ import { SettingRow } from './SettingRows';
 /** How dice rolls look, for every map: how they are shown, and the dice themselves. */
 export function DiceSettingsPanel(): React.ReactElement {
   const { app } = useAtlasUI();
-  const display = useDiceDisplay(app ?? undefined);
-  const look = useDiceLook(app ?? undefined);
-  const previews = useDicePreviews(app ?? undefined, look.font);
   const settings = SettingsService.forApp(app ?? undefined);
+  const display = useDiceDisplay(settings);
+  const look = useDiceLook(settings);
+  const previews = useDicePreviews(app ?? undefined, look.font);
 
   return (
     <div className="atlas-command-palette-panel">
