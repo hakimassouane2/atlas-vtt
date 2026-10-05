@@ -22,7 +22,7 @@ export interface SceneListener {
 
 /** Opens the event stream of the presented scene; the browser reopens it after a lost connection. */
 export function connectToScene(listener: SceneListener): EventSource {
-  const stream = new EventSource(sessionUrl('/scene-events'));
+  const stream = new EventSource(sessionUrl('/events'));
   const on = <M extends PlayerSceneMessage>(event: M['event'], handle: (data: M['data']) => void): void => {
     stream.addEventListener(event, (message) => handle(JSON.parse((message as MessageEvent<string>).data) as M['data']));
   };

@@ -12,7 +12,7 @@ import { installPageMenus } from './pageMenus';
 import { installPageDice } from './pageDice';
 import { PageCamera } from './pageCamera';
 import { PlayerHud } from './PlayerHud';
-// Bundled into the page's stylesheet (`/canvas.css`) by `vite/player-client.mts`
+// Bundled into the page's stylesheet (`/styles.css`) by `vite/player-client.mts`
 import './playerPage.css';
 
 /**
