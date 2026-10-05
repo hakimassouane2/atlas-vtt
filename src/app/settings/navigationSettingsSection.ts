@@ -1,7 +1,7 @@
 import type { NavigationInputMode, SettingsService } from '../services/SettingsService';
 import type { AtlasSettingSection } from './settingSections';
 
-const MODE_LABELS: Record<NavigationInputMode, string> = {
+export const INPUT_MODE_LABELS: Record<NavigationInputMode, string> = {
   mouse: 'Mouse',
   trackpad: 'Trackpad',
 };
@@ -22,7 +22,7 @@ export function navigationSettingsSection(settingsService: SettingsService): Atl
       render: (setting) => {
         setting.addDropdown((dropdown) => {
           dropdown
-            .addOptions(MODE_LABELS)
+            .addOptions(INPUT_MODE_LABELS)
             .setValue(settingsService.getNavigationSettings().inputMode)
             .onChange((value) => {
               const inputMode = value as NavigationInputMode;

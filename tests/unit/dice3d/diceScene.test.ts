@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { chainDepth, DIE_BODIES, layoutDice, restingFrame, sceneFromRolls } from '../../../src/app/dice3d/diceScene';
 
-/** Dolmenwood's percentile reading: tens `(face − 1) · 10`, units with 10 as 0, 00 + 0 = 100. */
+/** The table's percentile reading: both d10s count their 10 as 0, and 0 + 0 = 100. */
 function readPercentile(faces: number[]): number {
-  const total = (faces[0]! - 1) * 10 + (faces[1]! % 10);
+  const total = (faces[0]! % 10) * 10 + (faces[1]! % 10);
   return total === 0 ? 100 : total;
 }
 
@@ -53,9 +53,11 @@ describe('scene from rolls', () => {
       { sides: 10, role: 'tens' },
       { sides: 10, role: 'units' },
     ]);
-    expect(scene.faces).toEqual([4, 7]);
-    expect(sceneFromRolls([{ max: 100, value: 100 }])?.faces).toEqual([1, 10]);
-    expect(sceneFromRolls([{ max: 100, value: 10 }])?.faces).toEqual([2, 10]);
+    expect(scene.faces).toEqual([3, 7]);
+    expect(sceneFromRolls([{ max: 100, value: 92 }])?.faces).toEqual([9, 2]);
+    expect(sceneFromRolls([{ max: 100, value: 100 }])?.faces).toEqual([10, 10]);
+    expect(sceneFromRolls([{ max: 100, value: 10 }])?.faces).toEqual([1, 10]);
+    expect(sceneFromRolls([{ max: 100, value: 5 }])?.faces).toEqual([10, 5]);
   });
 
   it('reads every percentile value back through the printed rule', () => {

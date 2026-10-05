@@ -84,7 +84,7 @@ vocabulaire : `CONTEXT.md`.
      verrouillé pour les autres), poignée de rotation, +/- de ses ressources sur le token ;
    - clic droit relâché sur place sur son token : menu Ressources / Conditions / Rotation ;
      clic droit glissé : déplacer la carte ; molette : zoomer (même caméra que le MJ) ;
-   - barre en bas : recentrer sur la vue du MJ, panneau du groupe, plateau de dés ;
+   - barre en bas : plateau de dés et réglages (souris ou trackpad, retenu par le navigateur) ;
    - initiative à droite (avec les numéros d'instance, "Gobelin 2"), dés en 3D.
 6. Ce que les joueurs voient suit tes réglages de la vue joueur (grille, noms, jets du MJ) et la
    visibilité de chaque ressource. Pas d'éclairage dynamique en ligne : le brouillard seul révèle.
@@ -105,7 +105,7 @@ vocabulaire : `CONTEXT.md`.
 - **Réplication** (`online/scene/`) : `SceneReplicator` envoie la scène entière à l'arrivée d'un
   joueur et à chaque chargement (`scene`), puis seulement les objets et champs changés (`changes`),
   au plus une fois par frame ; `context` porte les règles de la collection et les réglages de la vue
-  joueur ; `DmCameraFeed` envoie la caméra du MJ (`camera`). Le MJ fait seul autorité.
+  joueur. Le MJ fait seul autorité.
 - **Commandes** : le joueur édite le store de sa page comme le MJ le sien ; `client/commandBridge.ts`
   traduit ses changements en commandes (`drag`, `move`, `rotate`, `resource`, `condition`,
   `conditionValue`, `roll`) ; le MJ les valide (`playerCommands.ts`, tokens "Controlled by players"
@@ -122,12 +122,12 @@ vocabulaire : `CONTEXT.md`.
 - `src/app/online/` (côté MJ) : `OnlineSession.ts`, `OnlineSessionServer.ts`, `PlayerControls.ts`,
   `playerCommands.ts`, `playerHolds.ts`, `playerTokens.ts`, `PlayerDiceFeed.ts`, `playerPage.ts`,
   `pageTheme.ts`, `tokenImage.ts`, `onlineSessionSettingsSection.ts`, `playerClient.d.ts`, et
-  `scene/` (`sceneReplica.ts`, `sceneProtocol.ts`, `SceneReplicator.ts`, `DmCameraFeed.ts`).
+  `scene/` (`sceneReplica.ts`, `sceneProtocol.ts`, `SceneReplicator.ts`).
 - `src/app/online/client/` (la page, compilée pour le navigateur par `vite/player-client.mts`) :
   `main.ts`, `PlayerCanvas.ts`, `pageCanvasHost.ts`, `commandBridge.ts`, `sceneConnection.ts`,
-  `pageCamera.ts`, `PlayerHud.tsx`, `PartyPanel.tsx`, `playerTokenMenu.ts`, `pageDice.tsx`,
+  `PlayerHud.tsx`, `playerTokenMenu.ts`, `pageDice.tsx`,
   `pageMenus.tsx`, `pageIcons.ts`, `initiativeOverlay.ts`, `pageStandIns.ts`, `session.ts`,
-  `dom.ts`, `obsidianDom.ts`, `events.ts`, `playerPage.css`, `player-hud.scss`.
+  `dom.ts`, `obsidianDom.ts`, `events.ts`, `playerPage.css`, `PlayerSettingsMenu.tsx`, `inputDevice.ts`.
 - Côté MJ, sorties du moteur : `services/canvasHost/`, `services/TokenStatblockSync.ts`,
   `services/obsidianDiceEnvironment.ts`, `react/components/context-menu/gmTokenMenu.ts`,
   `pixi/audio/AudioFeature.ts`, `pixi/mapDisplay.ts`, `viewStore.ts`, `services/sceneFileVersion.ts`,

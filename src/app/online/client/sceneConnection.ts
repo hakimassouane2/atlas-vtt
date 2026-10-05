@@ -1,6 +1,5 @@
 import type { PlayerCanvasContext, PlayerSceneMessage } from '../scene/sceneProtocol';
 import type { ReplicatedScene, SceneChange } from '../scene/sceneReplica';
-import type { PlayerCameraState } from '../../local-player-view';
 import type { DiceRollResult } from '../../tools/DiceTool';
 import { setStatus } from './dom';
 import { sessionUrl, setPlayerId } from './session';
@@ -10,10 +9,6 @@ export interface SceneListener {
   context(context: PlayerCanvasContext): void;
   scene(scene: ReplicatedScene): void;
   changes(changes: SceneChange[]): void;
-  /** Where the DM looks. */
-  camera(camera: PlayerCameraState): void;
-  /** The DM presented another scene: players start from the DM's framing. */
-  recenter(): void;
   /** A roll players may see. */
   roll(result: DiceRollResult): void;
 }
@@ -34,8 +29,6 @@ export function connectToScene(listener: SceneListener): EventSource {
   });
   on<Extract<PlayerSceneMessage, { event: 'changes' }>>('changes', (data) => listener.changes(data));
   const json = <T>(message: Event): T => JSON.parse((message as MessageEvent<string>).data) as T;
-  stream.addEventListener('camera', (message) => listener.camera(json<PlayerCameraState>(message)));
-  stream.addEventListener('recenter', () => listener.recenter());
   stream.addEventListener('roll', (message) => listener.roll(json<DiceRollResult>(message)));
   stream.onopen = (): void => {
     setStatus(document.body.classList.contains('online-live') ? '' : "Waiting for the GM's scene…");

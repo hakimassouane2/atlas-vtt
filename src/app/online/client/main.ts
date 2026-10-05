@@ -3,14 +3,13 @@ import { createRoot } from 'react-dom/client';
 import { installObsidianDom } from './obsidianDom';
 import { byId } from './dom';
 import { post } from './session';
-import { mapResources } from '../../resources/collectionResources';
 import { connectToScene } from './sceneConnection';
 import { InitiativeOverlay } from './initiativeOverlay';
 import { PlayerCanvas } from './PlayerCanvas';
 import { PagePlayer, SentCollection, pageCanvasHost } from './pageCanvasHost';
 import { installPageMenus } from './pageMenus';
 import { installPageDice } from './pageDice';
-import { PageCamera } from './pageCamera';
+import { storedInputDevice } from './inputDevice';
 import { PlayerHud } from './PlayerHud';
 // Bundled into the page's stylesheet (`/styles.css`) by `vite/player-client.mts`
 import './playerPage.css';
@@ -27,23 +26,16 @@ async function start(): Promise<void> {
   const collection = new SentCollection();
   const player = new PagePlayer();
   const canvas = new PlayerCanvas(pageCanvasHost(collection, player), (command) => post('/command', command));
-  await canvas.mount(content);
-  const camera = new PageCamera(() => canvas.viewport);
+  await canvas.mount(content, storedInputDevice());
   const initiative = new InitiativeOverlay(content, canvas.store, collection);
   const showRoll = installPageDice(content, canvas.store);
-  const resources = (): ReturnType<typeof mapResources> => mapResources(collection, canvas.store.getState().mapPath);
 
   const hud = content.createDiv({ cls: 'atlas-player-hud' });
   createRoot(hud).render(createElement(PlayerHud, {
     store: canvas.store,
-    camera,
     controls: (token) => player.controls(token),
-    resources,
     roll: (formula, tokenId) => void post('/command', { type: 'roll', formula, ...(tokenId && { id: tokenId }) }),
-    focus: (token) => {
-      canvas.store.getState().setSelection([token.id]);
-      canvas.viewport?.animate({ position: { x: token.x, y: token.y }, time: 300, ease: 'easeInOutSine', removeOnInterrupt: true });
-    },
+    setInputDevice: (mode) => canvas.setInputDevice(mode),
   }));
 
   connectToScene({
@@ -55,8 +47,6 @@ async function start(): Promise<void> {
     },
     scene: (scene) => void canvas.showScene(scene),
     changes: (changes) => canvas.applyChanges(changes),
-    camera: (dm) => camera.setDmCamera(dm),
-    recenter: () => camera.recenter(),
     roll: showRoll,
   });
   addEventListener('resize', () => canvas.resize(window.innerWidth, window.innerHeight));

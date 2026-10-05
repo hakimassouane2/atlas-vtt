@@ -17,7 +17,6 @@ import { mapInitiativeRules } from '../services/mapInitiativeRules';
 import { mapResources } from '../resources/collectionResources';
 import type { Character } from '../types';
 import { SceneReplicator, type ReplicatedSource } from './scene/SceneReplicator';
-import { DmCameraFeed } from './scene/DmCameraFeed';
 
 export interface OnlineSessionState {
   isRunning: boolean;
@@ -33,8 +32,8 @@ export const onlineSessionStore: StoreApi<OnlineSessionState> = createStore<Onli
 
 /**
  * Lets players join from a browser with a link. The server runs on this computer; the player's
- * browser runs Atlas' own canvas on the scene the DM presents (ADR 0001), through their own camera,
- * which recenters on the DM's. Players move, turn and change the tokens the DM gave them, follow
+ * browser runs Atlas' own canvas on the scene the DM presents (ADR 0001), through their own camera.
+ * Players move, turn and change the tokens the DM gave them, follow
  * the initiative order and roll dice.
  */
 export class OnlineSession {
@@ -44,15 +43,11 @@ export class OnlineSession {
   private readonly diceFeed: PlayerDiceFeed;
   /** Keeps the players' scenes in step with the presented one. */
   private readonly replicator: SceneReplicator;
-  /** Where the DM looks, for players who recenter on it. */
-  private readonly cameraFeed: DmCameraFeed;
   /** The view whose scene players see; its dice engine rolls for them. */
   private presentedView: AtlasView | null = null;
   /** Artwork of the rolls players were sent, which their pages load. */
   private readonly rollImages = new Set<string>();
   private stopWatchingTab: (() => void) | null = null;
-  /** The presented scene tab; presenting another one recenters every player. */
-  private presentedTabId: string | null = null;
   /** Views that already release the session when they close. */
   private readonly viewsReleasingOnClose = new WeakSet<AtlasView>();
 
@@ -70,7 +65,6 @@ export class OnlineSession {
       toAll: (event, data) => this.server?.broadcast(event, data),
       toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
     });
-    this.cameraFeed = new DmCameraFeed((camera) => this.server?.broadcast('camera', camera));
     OnlineSession.instance = this;
   }
 
@@ -94,7 +88,6 @@ export class OnlineSession {
 
   stop(): void {
     this.stopWatchingTab?.();
-    this.presentedTabId = null;
     this.setSource(null);
     this.diceFeed.stop();
     this.presentedView = null;
@@ -110,8 +103,6 @@ export class OnlineSession {
    */
   present(view: AtlasView, tabId: string, source: PlayerFrameSource, resolveSource: () => Promise<PlayerFrameSource | null>): void {
     this.setSource({ view, source });
-    if (tabId !== this.presentedTabId) this.server?.broadcast('recenter', {});
-    this.presentedTabId = tabId;
     this.presentedView = view;
     this.stopWatchingTab?.();
     const stopWatching = view.tabMetaStore.subscribe((state, previous) => {
@@ -135,10 +126,7 @@ export class OnlineSession {
         this.stopWatchingTab?.();
         this.controls.releaseSource(view.atlasStore);
         this.replicator.releaseSource(view.atlasStore);
-        if (this.presentedView === view) {
-          this.presentedView = null;
-          this.cameraFeed.setSource(null);
-        }
+        if (this.presentedView === view) this.presentedView = null;
       });
     }
   }
@@ -149,13 +137,11 @@ export class OnlineSession {
     if (!presented || !store) {
       this.controls.setSource(null);
       this.replicator.setSource(null);
-      this.cameraFeed.setSource(null);
       return;
     }
-    const { view, source } = presented;
+    const { view } = presented;
     this.controls.setSource(this.commandSource(view, store));
     this.replicator.setSource(this.replicatedSource(view, store));
-    this.cameraFeed.setSource(() => source.getCamera?.());
   }
 
   private commandSource(view: AtlasView, store: StoreApi<ViewAtlasState>): CommandSource {
@@ -202,8 +188,6 @@ export class OnlineSession {
     const server = new OnlineSessionServer(settings.secret, {
       onJoin: (playerId) => {
         this.replicator.sendTo(playerId);
-        const camera = this.cameraFeed.current();
-        if (camera) server.sendTo(playerId, 'camera', camera);
         onlineSessionStore.setState({ playerCount: server.playerCount });
       },
       onLeave: (playerId) => {

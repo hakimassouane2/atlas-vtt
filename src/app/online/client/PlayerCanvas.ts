@@ -7,7 +7,7 @@ import { backgroundTextureCache } from '../../pixi/backgroundTextureCache';
 import { centerAndFitMap, mapPlaceholderTexture, showMapImage } from '../../pixi/mapDisplay';
 import { createSceneStore, type ViewAtlasStore } from '../../storeFactory';
 import { getHistoryStore } from '../../stores/history';
-import type { AtlasSettings } from '../../services/SettingsService';
+import type { AtlasSettings, NavigationInputMode } from '../../services/SettingsService';
 import type { CanvasHost, CanvasPlayer } from '../../canvas/canvasHost';
 import type { PlayerCommand } from '../playerCommands';
 import { sceneOf, withSceneChanges, type ReplicatedScene, type SceneChange } from '../scene/sceneReplica';
@@ -50,10 +50,15 @@ export class PlayerCanvas {
     this.bridge = new CommandBridge(this.store, (token) => host.player.controls(token), send, () => this.resync());
   }
 
-  async mount(container: HTMLElement): Promise<void> {
+  async mount(container: HTMLElement, inputDevice: NavigationInputMode): Promise<void> {
     await this.renderer.init(container);
+    this.setInputDevice(inputDevice);
+  }
+
+  /** Zooms and pans as the player's device expects: wheel zoom for a mouse, scroll and pinch for a trackpad. */
+  setInputDevice(mode: NavigationInputMode): void {
     const viewport = this.renderer.getViewportInstance();
-    if (viewport) applyNavigationMode(viewport, 'mouse');
+    if (viewport) applyNavigationMode(viewport, mode);
   }
 
   /** The PIXI application the canvas draws with. */

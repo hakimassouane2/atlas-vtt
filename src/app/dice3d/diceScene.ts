@@ -5,8 +5,9 @@
  * has no other real dice. A d13 still rolls, it just gets no stage: a die with
  * thirteen faces would be a lie.
  *
- * Justified exception: **d100** is two d10s, tens and units, with the printed
- * rule `00 + 0 = 100`.
+ * Justified exception: **d100** is two d10s, tens and units. Their faces read
+ * 1 to 10, so both take the table rule that the 10 counts as 0, and
+ * `0 + 0 = 100`: a 9 and a 2 are 92, a 10 and a 5 are 5.
  *
  * Second justified exception: **d2 and d3** have no body either, and the usual
  * table rule says how to roll them on a d6 whose faces are grouped: for a d2,
@@ -94,7 +95,7 @@ export function sceneFromRolls(
       const tens = Math.floor((roll.value % 100) / 10);
       const units = roll.value % 10;
       plan.push({ sides: 10, role: 'tens' }, { sides: 10, role: 'units' });
-      faces.push(tens + 1, units === 0 ? 10 : units);
+      faces.push(tens === 0 ? 10 : tens, units === 0 ? 10 : units);
       continue;
     }
 
