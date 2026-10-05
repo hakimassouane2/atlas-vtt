@@ -28,13 +28,17 @@ export function sceneImageUrl(path: string): string {
 }
 
 /**
- * Sends `body` to the DM's Atlas. A refused command usually means the DM is on
- * another scene tab, where players cannot act.
+ * Sends `body` to the DM's Atlas; resolves with whether it was accepted. A refused command
+ * usually means the DM is on another scene tab, where players cannot act.
  */
-export function post(path: '/camera' | '/command', body: unknown): void {
-  window.fetch(sessionUrl(path, playerId ? { id: playerId } : {}), { method: 'POST', body: JSON.stringify(body) })
+export function post(path: '/camera' | '/command', body: unknown): Promise<boolean> {
+  return window.fetch(sessionUrl(path, playerId ? { id: playerId } : {}), { method: 'POST', body: JSON.stringify(body) })
     .then((response) => {
       if (response.status === 409 && path === '/command') setStatus('Action refusée : le MJ est peut-être sur une autre scène.');
+      return response.ok;
     })
-    .catch(() => setStatus('Action non envoyée, connexion perdue.'));
+    .catch(() => {
+      setStatus('Action non envoyée, connexion perdue.');
+      return false;
+    });
 }

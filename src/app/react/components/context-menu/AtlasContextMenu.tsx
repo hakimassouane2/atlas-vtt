@@ -1,6 +1,6 @@
 import React, { useEffect, useReducer, useRef } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { setIcon } from 'obsidian';
+import { renderIcon } from '../../../ui/icons';
 import { runInBackground } from '../../../utils/backgroundTask';
 import { LabelTooltip } from '../../../packages/components/primitives/tooltip';
 import './atlas-context-menu.scss';
@@ -56,7 +56,7 @@ function runEntryAction(entry: ContextMenuItemEntry): void {
 
 // ── Icon helper ─────────────────────────────────────────────────────────────
 
-function ObsidianIcon({ name }: { name: string }): React.ReactElement {
+function MenuIcon({ name }: { name: string }): React.ReactElement {
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ function ObsidianIcon({ name }: { name: string }): React.ReactElement {
       while (ref.current.firstChild) {
         ref.current.removeChild(ref.current.firstChild);
       }
-      setIcon(ref.current, name);
+      renderIcon(ref.current, name);
     }
   }, [name]);
 
@@ -93,13 +93,13 @@ function Stepper({ stepper }: { stepper: MenuStepper }): React.ReactElement {
     <span className="atlas-ctx-stepper">
       <LabelTooltip label={`Lower ${stepper.label}`}>
         <button type="button" tabIndex={-1} className="atlas-ctx-stepper__button" disabled={!stepper.canDecrement} onClick={stepperClick(stepper.onDecrement)}>
-          <ObsidianIcon name="minus" />
+          <MenuIcon name="minus" />
         </button>
       </LabelTooltip>
       <span className="atlas-ctx-stepper__value">{stepper.value}</span>
       <LabelTooltip label={`Raise ${stepper.label}`}>
         <button type="button" tabIndex={-1} className="atlas-ctx-stepper__button" onClick={stepperClick(stepper.onIncrement)}>
-          <ObsidianIcon name="plus" />
+          <MenuIcon name="plus" />
         </button>
       </LabelTooltip>
     </span>
@@ -131,7 +131,7 @@ function ItemContent({ entry }: { entry: ContextMenuItemEntry }): React.ReactEle
           {entry.stepper && <Stepper stepper={entry.stepper} />}
           {entry.checked !== undefined && (
             <DropdownMenu.ItemIndicator forceMount className="atlas-ctx-item__check">
-              <ObsidianIcon name="check" />
+              <MenuIcon name="check" />
             </DropdownMenu.ItemIndicator>
           )}
         </span>
@@ -162,11 +162,11 @@ export function renderEntries(
               className={`atlas-ctx-item atlas-ctx-submenu-trigger`}
             >
               <span className="atlas-ctx-item__leading">
-                {entry.icon ? <ObsidianIcon name={entry.icon} /> : <span className="atlas-ctx-icon-spacer" />}
+                {entry.icon ? <MenuIcon name={entry.icon} /> : <span className="atlas-ctx-icon-spacer" />}
                 <span className="atlas-ctx-item__label">{entry.label}</span>
               </span>
               <span className="atlas-ctx-item__trailing">
-                <ObsidianIcon name="chevron-right" />
+                <MenuIcon name="chevron-right" />
               </span>
             </DropdownMenu.SubTrigger>
             <DropdownMenu.Portal>

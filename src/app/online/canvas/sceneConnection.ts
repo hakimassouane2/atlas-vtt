@@ -1,7 +1,7 @@
 import type { PlayerCanvasContext, PlayerSceneMessage } from '../scene/sceneProtocol';
 import type { ReplicatedScene, SceneChange } from '../scene/sceneReplica';
 import { setStatus } from '../client/dom';
-import { sessionUrl } from '../client/session';
+import { sessionUrl, setPlayerId } from '../client/session';
 
 /** What the canvas page does with the messages of the DM's Atlas. */
 export interface SceneListener {
@@ -16,6 +16,8 @@ export function connectToScene(listener: SceneListener): EventSource {
   const on = <M extends PlayerSceneMessage>(event: M['event'], handle: (data: M['data']) => void): void => {
     stream.addEventListener(event, (message) => handle(JSON.parse((message as MessageEvent<string>).data) as M['data']));
   };
+  // The DM's Atlas names the page's connection; commands carry the name (`post`)
+  stream.addEventListener('hello', (message) => setPlayerId((JSON.parse((message as MessageEvent<string>).data) as { id: string }).id));
   on<Extract<PlayerSceneMessage, { event: 'context' }>>('context', (data) => listener.context(data));
   on<Extract<PlayerSceneMessage, { event: 'scene' }>>('scene', (data) => {
     document.body.classList.add('online-live');

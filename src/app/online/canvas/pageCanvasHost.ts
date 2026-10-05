@@ -1,4 +1,8 @@
-import type { ArtSource, CanvasCollections, CanvasHost, CanvasSettings } from '../../canvas/canvasHost';
+import type { ArtSource, CanvasCollections, CanvasHost, CanvasPlayer, CanvasSettings } from '../../canvas/canvasHost';
+import type { PlayerTokenUISettings } from '../../pixi/token-renderer/playerTokenUISettings';
+import type { TokenEntity } from '../../types';
+import { isPlayerControlled } from '../playerTokens';
+import { playerTokenMenu } from './playerTokenMenu';
 import type { CollectionSettings } from '../../types/collectionSettingsTypes';
 import { DEFAULT_MAP_HOTKEYS } from '../../keyboard/mapHotkeys';
 import { DEFAULT_LASER_POINTER_SETTINGS } from '../../tools/laserPointerSettings';
@@ -58,12 +62,32 @@ const defaultSettings: CanvasSettings = {
   getLaserPointerSettings: () => DEFAULT_LASER_POINTER_SETTINGS,
 };
 
-/** The canvas of a player's page: what it reads comes from the DM's Atlas; it has no lighting, audio or menus. */
-export function pageCanvasHost(collection: SentCollection): CanvasHost {
+/** The player at the page: they act on the tokens the DM gave players, and see names as the DM shows them. */
+export class PagePlayer implements CanvasPlayer {
+  private shown: PlayerTokenUISettings = { showTokenNameplates: false };
+
+  controls(token: TokenEntity): boolean {
+    return isPlayerControlled(token);
+  }
+
+  tokenUI(): PlayerTokenUISettings {
+    return this.shown;
+  }
+
+  /** What the DM's Atlas sent of the player view settings. */
+  set({ showTokenNameplates }: PlayerTokenUISettings): void {
+    this.shown = { showTokenNameplates };
+  }
+}
+
+/** The canvas of a player's page: what it reads comes from the DM's Atlas; it has no lighting or audio. */
+export function pageCanvasHost(collection: SentCollection, player: PagePlayer): CanvasHost & { player: PagePlayer } {
   return {
     art: sentArt,
     collections: collection,
     settings: () => defaultSettings,
     prepareToken: async (token) => token,
+    player,
+    tokenMenu: playerTokenMenu(player),
   };
 }

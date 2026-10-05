@@ -174,7 +174,7 @@ export class TokenRenderer {
     this.textureCache = new TextureCache(host.art);
 
     // Initialize UI manager
-    this.uiManager = new UIManager(this.viewport, this.store, this.viewId, isPlayerView);
+    this.uiManager = new UIManager(this.viewport, this.store, this.viewId, isPlayerView, host.player);
     
     // Provide token sprite access to UI manager
     this.uiManager.setTokenSpriteProvider((tokenId: string) => this.tokenSprites[tokenId] || null);
@@ -216,6 +216,7 @@ export class TokenRenderer {
     this.uiManager.conditionDefsProvider = conditionDefsProvider;
     this.resourceDefsProvider = (): readonly ResourceDefinition[] => mapResources(host.collections, this.store.getState().mapPath);
     this.uiManager.resourceDefsProvider = this.resourceDefsProvider;
+    if (host.player) this.interactionController.mayControl = (token) => host.player!.controls(token);
     this.interactionController.tokenMenu = host.tokenMenu?.({
       store: this.store,
       gridSystem: this.gridSystem,
@@ -1552,6 +1553,11 @@ export class TokenRenderer {
 
     // 1. Hit-test individual tokens
     const tokenId = this.hitTestTokens(worldPos.x, worldPos.y);
+    // A player's token menu opens on a release in place: their right-drag over a token pans
+    if (tokenId && e.button === 2 && this.host.player) {
+      this.openMenuOnRelease(e, (up) => this.interactionController.openTokenMenu(tokenId, up));
+      return;
+    }
     if (tokenId) {
       markHandled(e);
       this.interactionController.handleViewportTokenPointerDown(tokenId, e);

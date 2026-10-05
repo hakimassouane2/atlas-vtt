@@ -43,7 +43,7 @@ function resourceRow(token: PlayerToken, { key, name: label, value }: PlayerReso
   field.dataset.resource = `${token.id}:${key}`;
   const send = (): void => {
     const current = Number(field.value);
-    if (Number.isFinite(current)) post('/command', { type: 'resource', id: token.id, key, current });
+    if (Number.isFinite(current)) void post('/command', { type: 'resource', id: token.id, key, current });
   };
   field.addEventListener('change', send);
   field.addEventListener('keydown', (event) => {
@@ -67,9 +67,9 @@ function resourceRow(token: PlayerToken, { key, name: label, value }: PlayerReso
 function conditionRow(token: PlayerToken, definitions: ConditionDefinitions): HTMLElement {
   const row = element('div', 'online-conditions');
   const setCondition = (conditionId: string, active: boolean): void =>
-    post('/command', { type: 'condition', id: token.id, conditionId, active });
+    void post('/command', { type: 'condition', id: token.id, conditionId, active });
   const step = (conditionId: string, delta: 1 | -1): void =>
-    post('/command', { type: 'conditionValue', id: token.id, conditionId, delta });
+    void post('/command', { type: 'conditionValue', id: token.id, conditionId, delta });
   for (const active of token.conditions) {
     const definition = definitions.find((condition) => condition.id === active.id);
     if (!definition) continue;

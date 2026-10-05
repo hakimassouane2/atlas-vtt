@@ -239,6 +239,7 @@ export class OnlineSession {
         onlineSessionStore.setState({ playerCount: server.playerCount });
       },
       onLeave: (playerId) => {
+        this.controls.playerLeft(playerId);
         this.stream.removeViewer(playerId);
         onlineSessionStore.setState({ playerCount: server.playerCount });
       },
@@ -246,7 +247,7 @@ export class OnlineSession {
         const camera = parseCameraRequest(body);
         if (camera) this.stream.setViewerCamera(playerId, camera === 'recenter' ? null : camera);
       },
-      onCommand: (body) => this.controls.apply(body),
+      onCommand: (body, playerId) => this.controls.apply(body, playerId),
       onImage: (path) => (this.mayLoadImage(path) ? tokenImage(this.app, path) : Promise.resolve(null)),
       pageTheme: () => pageTheme(document),
     }, playerClient);

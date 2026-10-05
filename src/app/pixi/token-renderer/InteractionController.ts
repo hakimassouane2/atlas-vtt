@@ -45,6 +45,8 @@ export class InteractionController implements ITokenInteractionController {
   
   /** Opens a right-clicked token's menu; none where the canvas offers no token menu. */
   public tokenMenu: TokenMenu | null = null;
+  /** Whether the person at this canvas may move `token`; unset, the GM moves every token and a player view none. */
+  public mayControl: ((token: TokenEntity) => boolean) | null = null;
   
   // Drag state
   private dragState: DragState = {
@@ -115,16 +117,12 @@ export class InteractionController implements ITokenInteractionController {
     e.stopPropagation();
 
     if (e.button === 2) {
-      const token = this.store.getState().objects.tokens[tokenId];
-      if (token && this.tokenMenu) this.tokenMenu(token, { x: e.clientX, y: e.clientY });
+      this.openTokenMenu(tokenId, e);
       return;
     }
 
     const token = this.store.getState().objects.tokens[tokenId];
-    if (!token) return;
-    if (this.isPlayerView) {
-      return;
-    }
+    if (!token || !this.controls(token)) return;
 
     this.prepareInteraction(token, e);
   }
@@ -138,12 +136,9 @@ export class InteractionController implements ITokenInteractionController {
 
     e.stopPropagation();
 
-    if (this.isPlayerView || tokenIds.length === 0) {
-      return;
-    }
-
-    // Use the first token as the reference for prepareInteraction (it will detect the multi-selection)
-    const firstToken = this.store.getState().objects.tokens[tokenIds[0]!];
+    // Use the first token the person here may move as the reference for prepareInteraction (it will detect the multi-selection)
+    const tokens = this.store.getState().objects.tokens;
+    const firstToken = tokenIds.map((id) => tokens[id]).find((token) => token && this.controls(token));
     if (!firstToken) return;
 
     this.prepareInteraction(firstToken, e);
@@ -195,6 +190,16 @@ export class InteractionController implements ITokenInteractionController {
     }
   }
 
+  /** Opens the menu of the token `tokenId`, right-clicked at the event's point of the window. */
+  public openTokenMenu(tokenId: string, e: { clientX: number; clientY: number }): void {
+    const token = this.store.getState().objects.tokens[tokenId];
+    if (token && this.tokenMenu) this.tokenMenu(token, { x: e.clientX, y: e.clientY });
+  }
+
+  private controls(token: TokenEntity): boolean {
+    return this.mayControl ? this.mayControl(token) : !this.isPlayerView;
+  }
+
   /** Query whether a drag is in progress. */
   public isDraggingTokens(): boolean {
     return this.dragState.isDragging;
@@ -223,7 +228,8 @@ export class InteractionController implements ITokenInteractionController {
     // Store the token for potential click handling
     this.dragState.clickToken = token;
     this.dragState.hasMoved = false;
-    this.dragState.copyOnDrag = e.altKey;
+    // Copies are new tokens, which only the GM makes
+    this.dragState.copyOnDrag = e.altKey && !this.isPlayerView;
     
     // Determine which tokens to potentially drag
     if (e.shiftKey) {
@@ -237,6 +243,12 @@ export class InteractionController implements ITokenInteractionController {
       // This ensures clicking on a different token switches selection
       setSelection(this.dragState.dragIds);
     }
+    // A selection may hold tokens the person here may not move: they stay where they are
+    const tokens = this.store.getState().objects.tokens;
+    this.dragState.dragIds = this.dragState.dragIds.filter((id) => {
+      const dragged = tokens[id];
+      return dragged !== undefined && this.controls(dragged);
+    });
 
     // Initialize drag state
     const worldPos = this.viewport.toWorld(e.global);

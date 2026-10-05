@@ -59,7 +59,7 @@ class PlayerCamera {
   /** Back to the DM's framing: the next frame taken with the DM's camera sets it. */
   recenter(): void {
     this.current = null;
-    post('/camera', { recenter: true });
+    void post('/camera', { recenter: true });
   }
 
   /** The DM's Atlas forgot this player's camera (another scene was presented). */
@@ -77,7 +77,7 @@ class PlayerCamera {
   /** Tells the DM's Atlas the player's camera now, e.g. on a new connection, which starts on the DM's. */
   sendNow(): void {
     if (this.current && !this.isFollowingDm) {
-      post('/camera', { centerX: this.current.centerX, centerY: this.current.centerY, scale: this.current.zoom });
+      void post('/camera', { centerX: this.current.centerX, centerY: this.current.centerY, scale: this.current.zoom });
     }
   }
 

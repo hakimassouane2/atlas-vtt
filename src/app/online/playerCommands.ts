@@ -6,6 +6,7 @@ import type { ResourceDefinition } from '../resources/resourceTypes';
 import { resourceUpdate, withCurrent } from '../resources/resourceValues';
 import { visibleResources } from '../resources/visibleResources';
 import { isPlayerControlled } from './playerTokens';
+import { runUntracked } from '../stores/history';
 
 /** Dice a player may roll at once, and the largest die: the dice engine rolls each die one by one. */
 const MAX_DICE = 100;
@@ -15,7 +16,12 @@ const DICE_FORMULA = /^\s*(\d*d\d+|\d+)(\s*[+-]\s*(\d*d\d+|\d+))*\s*$/i;
 
 /** What a player's page asks the DM's Atlas to do. Positions are world pixels. */
 export type PlayerCommand =
+  /** Drops the token there, on its grid cell as a DM's drop does. */
   | { type: 'move'; id: string; x: number; y: number }
+  /** Where a token the player drags is now, for everyone to see it move; the drop is a `move`. */
+  | { type: 'drag'; id: string; x: number; y: number }
+  /** Turns the token to `rotation` degrees, as the rotation handle does. */
+  | { type: 'rotate'; id: string; rotation: number }
   /** Sets the current value of the resource `key`, one the collection shows players. */
   | { type: 'resource'; id: string; key: string; current: number }
   /** Rolled by the DM's dice engine, for the token `id` when given. */
@@ -33,8 +39,11 @@ export function parsePlayerCommand(value: unknown): PlayerCommand | null {
     return { type, formula: command.formula.trim(), ...(typeof id === 'string' && { id }) };
   }
   if (typeof id !== 'string') return null;
-  if (type === 'move' && isFiniteNumber(command.x) && isFiniteNumber(command.y)) {
+  if ((type === 'move' || type === 'drag') && isFiniteNumber(command.x) && isFiniteNumber(command.y)) {
     return { type, id, x: command.x, y: command.y };
+  }
+  if (type === 'rotate' && isFiniteNumber(command.rotation)) {
+    return { type, id, rotation: ((command.rotation % 360) + 360) % 360 };
   }
   if (type === 'resource' && typeof command.key === 'string' && isFiniteNumber(command.current)) {
     return { type, id, key: command.key, current: Math.round(command.current) };
@@ -66,9 +75,19 @@ export interface PlayerRules {
 /**
  * Applies `command` to the presented scene when the token is one players control and
  * the scene's collection defines the condition, or shows the resource to players.
- * Moves snap like a DM drag does. Returns whether anything was applied.
+ * Drops snap like a DM drag does. What players change is no step of the DM's undo history,
+ * so the DM never undoes it by undoing their own edit. Returns whether anything was applied.
  */
 export function applyPlayerCommand(
+  store: StoreApi<ViewAtlasState>,
+  grid: GridSystem | null,
+  command: Exclude<PlayerCommand, { type: 'roll' }>,
+  rules: PlayerRules,
+): boolean {
+  return runUntracked(store, () => applyToToken(store, grid, command, rules));
+}
+
+function applyToToken(
   store: StoreApi<ViewAtlasState>,
   grid: GridSystem | null,
   command: Exclude<PlayerCommand, { type: 'roll' }>,
@@ -77,6 +96,16 @@ export function applyPlayerCommand(
   const state = store.getState();
   const token = state.objects.tokens[command.id];
   if (!isPlayerControlled(token)) return false;
+
+  if (command.type === 'drag') {
+    state.setTokenPositions([{ id: token.id, x: command.x, y: command.y }]);
+    return true;
+  }
+
+  if (command.type === 'rotate') {
+    state.updateToken(token.id, { rotation: command.rotation });
+    return true;
+  }
 
   if (command.type === 'move') {
     const snap = (state.grid?.snapToGrid ?? true) && grid;

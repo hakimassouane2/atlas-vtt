@@ -5,6 +5,7 @@ import { applyPlayerCommand, parsePlayerCommand } from './playerCommands';
 import { playerScene } from './playerScene';
 import type { PlayerState } from './protocol';
 import { isPlayerControlled, playerTokens } from './playerTokens';
+import { PlayerHolds } from './playerHolds';
 
 /** Rolls `formula` with the DM's dice engine, for `token` when given; returns whether it rolled. */
 export type RollDice = (formula: string, token: Character | undefined) => boolean;
@@ -19,6 +20,7 @@ export type RollDice = (formula: string, token: Character | undefined) => boolea
 export class PlayerControls {
   private source: OnlineFrameSource | null = null;
   private unsubscribers: Array<() => void> = [];
+  private readonly holds = new PlayerHolds();
 
   constructor(
     private readonly settingsService: SettingsService,
@@ -51,7 +53,8 @@ export class PlayerControls {
     if (this.source?.store === store) this.setSource(null);
   }
 
-  apply(body: unknown): boolean {
+  /** Applies a command of the player `playerId` (null for a page that has not said who it is). */
+  apply(body: unknown, playerId: string | null): boolean {
     const command = parsePlayerCommand(body);
     const source = this.source;
     if (!command || !source || source.store.getState().isMapLoading) return false;
@@ -59,10 +62,20 @@ export class PlayerControls {
       const token = command.id ? source.store.getState().objects.tokens[command.id] : undefined;
       return this.rollDice(command.formula, isPlayerControlled(token) ? token : undefined);
     }
-    return applyPlayerCommand(source.store, source.renderer.getGridSystem(), command, {
+    const isDrag = command.type === 'drag' || command.type === 'move';
+    if (isDrag && !this.holds.allows(command.id, playerId)) return false;
+    const applied = applyPlayerCommand(source.store, source.renderer.getGridSystem(), command, {
       conditions: source.getConditions(),
       resources: source.getResources(),
     });
+    if (applied && command.type === 'drag') this.holds.take(command.id, playerId);
+    if (applied && command.type === 'move') this.holds.release(command.id);
+    return applied;
+  }
+
+  /** The player left: tokens they were dragging are free again. */
+  playerLeft(playerId: string): void {
+    this.holds.releasePlayer(playerId);
   }
 
   private publish(): void {

@@ -154,7 +154,7 @@ describe('OnlineSessionServer', () => {
   test('passes player commands on and reports whether they were applied', async () => {
     const accepted = await fetch(`${base}/command?k=secret`, { method: 'POST', body: '{"ok":true}' });
     expect(accepted.status).toBe(204);
-    expect(handlers.onCommand).toHaveBeenCalledWith({ ok: true });
+    expect(handlers.onCommand).toHaveBeenCalledWith({ ok: true }, null);
     expect((await fetch(`${base}/command?k=secret`, { method: 'POST', body: '{}' })).status).toBe(409);
     expect((await fetch(`${base}/command?k=secret`, { method: 'POST', body: 'not json' })).status).toBe(409);
     expect((await fetch(`${base}/command?k=wrong`, { method: 'POST', body: '{"ok":true}' })).status).toBe(403);

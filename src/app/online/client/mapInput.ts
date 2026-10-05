@@ -132,7 +132,7 @@ function pointerUp(): void {
       landing.delete(id);
       drawOverlay();
     }, LANDING_MS);
-    post('/command', { type: 'move', id, x: to.x, y: to.y });
+    void post('/command', { type: 'move', id, x: to.x, y: to.y });
   }
   drag = null;
   pan = null;

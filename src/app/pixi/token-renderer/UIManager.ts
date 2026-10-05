@@ -21,12 +21,15 @@ import { TokenResizeUI } from '../TokenResizeUI';
 import type { ConditionDefinition } from '../../types/collectionSettingsTypes';
 import { destroyTree } from '../utils/destroyTree';
 import { restingTokenUIScale } from './tokenSizing';
+import type { CanvasPlayer } from '../../canvas/canvasHost';
 
 export class UIManager implements ITokenUIManager {
   private viewport: Viewport;
   private store: ViewAtlasStore;
   private viewId: string;
   private isPlayerView: boolean;
+  /** The player at this canvas, who works only the controls of their own tokens. */
+  private readonly player: CanvasPlayer | undefined;
   
   // UI containers and renderers
   private uiContainer: Container;
@@ -57,12 +60,14 @@ export class UIManager implements ITokenUIManager {
     viewport: Viewport,
     store: ViewAtlasStore,
     viewId: string,
-    isPlayerView: boolean = false
+    isPlayerView: boolean = false,
+    player?: CanvasPlayer,
   ) {
     this.viewport = viewport;
     this.store = store;
     this.viewId = viewId;
     this.isPlayerView = isPlayerView;
+    this.player = player;
     
     // Create UI container for non-rotating elements
     this.uiContainer = new Container();
@@ -75,16 +80,17 @@ export class UIManager implements ITokenUIManager {
     // Force viewport to sort children to ensure proper z-ordering
     this.viewport.sortChildren();
     
-    // Token controls are DM-only
-    if (!this.isPlayerView) {
+    // The GM works every token's controls, a player those of their own tokens; size is the GM's alone
+    if (!this.isPlayerView || this.player) {
       this.tokenControlsUI = new TokenControlsUI(this.viewport, this.store);
       this.tokenControlsUI.resourceDefsProvider = () => this.resourceDefsProvider();
       this.tokenControlsUI.slotsProvider = (tokenId) => this.tokenUIs[tokenId]?.getResourceSlots() ?? [];
       this.tokenRotationUI = new TokenRotationUI(this.viewport, this.store);
+    }
+    if (!this.isPlayerView) {
       this.tokenResizeUI = new TokenResizeUI(this.viewport, this.store);
-      
       // Set up cross-references between rotation and resize UI
-      this.tokenRotationUI.setResizeUI(this.tokenResizeUI);
+      this.tokenRotationUI!.setResizeUI(this.tokenResizeUI);
     }
     
     // Set up subscriptions
@@ -133,6 +139,8 @@ export class UIManager implements ITokenUIManager {
     ui.resourceDefsProvider = () => this.resourceDefsProvider();
     ui.zoomProvider = () => this.viewport.scale.x;
     ui.onScaleChange = (scale) => this.tokenControlsUI?.setScaleFor(tokenId, scale);
+    const player = this.player;
+    if (player) ui.playerSettingsFor = (shown) => playerTokenUISettings(shown as TokenEntity, player.tokenUI());
     this.tokenUIs[tokenId] = ui;
     
     const uiElement = ui.getContainer();
@@ -164,7 +172,9 @@ export class UIManager implements ITokenUIManager {
     ui.update(token, sprite?.width || 70);
   }
 
-  updateSelectionUI(selectedTokenIds: string[]): void {
+  updateSelectionUI(selection: string[]): void {
+    // Controls show only for a token the person at this canvas may work
+    const selectedTokenIds = this.player ? selection.filter((id) => this.playerControls(id)) : selection;
     // Update TokenControlsUI based on selection
     if (this.tokenControlsUI) {
       if (selectedTokenIds.length === 1) {
@@ -226,7 +236,7 @@ export class UIManager implements ITokenUIManager {
     for (const tokenId in this.tokenUIs) {
       const ui = this.tokenUIs[tokenId];
       if (ui) {
-        const isSelected = selectedTokenIds.includes(tokenId);
+        const isSelected = selection.includes(tokenId);
         ui.setSelectionState(isSelected);
       }
     }
@@ -238,6 +248,11 @@ export class UIManager implements ITokenUIManager {
     if (selectedIds.length > 0) {
       this.updateSelectionUI(selectedIds);
     }
+  }
+
+  private playerControls(tokenId: string): boolean {
+    const token = this.store.getState().objects.tokens[tokenId];
+    return !!token && !!this.player?.controls(token);
   }
 
   showTokenControls(tokenId: string, container: Container): void {

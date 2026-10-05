@@ -18,7 +18,7 @@ function renderTargets(state: PlayerState | null): void {
 /** Asks the DM's Atlas to roll `formula`; its dice engine rolls and every page shows the toast. */
 function roll(formula: string): void {
   const id = target().value;
-  post('/command', { type: 'roll', formula, ...(id && { id }) });
+  void post('/command', { type: 'roll', formula, ...(id && { id }) });
 }
 
 /** Quick dice buttons and a formula field. */

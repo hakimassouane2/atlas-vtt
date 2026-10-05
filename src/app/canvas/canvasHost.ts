@@ -10,6 +10,7 @@ import type { LightingControllerDeps } from '../pixi/lighting/LightingController
 import type { AudioFeature, AudioFeatureDeps } from '../pixi/audio/AudioFeature';
 import type { HotkeySettings } from '../keyboard/mapHotkeys';
 import type { LaserPointerSettings } from '../tools/laserPointerSettings';
+import type { PlayerTokenUISettings } from '../pixi/token-renderer/playerTokenUISettings';
 
 /** The bytes of an image a canvas shows, with their type. */
 export interface ArtFile {
@@ -49,6 +50,17 @@ export interface CanvasSettings extends HotkeySettings {
   getLaserPointerSettings(): LaserPointerSettings;
 }
 
+/**
+ * The player at a canvas that shows them the scene. A GM's canvas has none: the GM acts on every
+ * token, and a canvas that only shows players the scene (the local player window) on none.
+ */
+export interface CanvasPlayer {
+  /** Whether the player may move and rotate `token`, and change its resources and conditions. */
+  controls(token: TokenEntity): boolean;
+  /** What the DM shows players of each token's UI (names); read on every draw. */
+  tokenUI(): PlayerTokenUISettings;
+}
+
 /** What a canvas hands its lighting; the host adds what it needs of its own. */
 export type CanvasLightingDeps = Omit<LightingControllerDeps, 'obsApp'>;
 
@@ -69,7 +81,12 @@ export interface CanvasHost {
    * data); `resources` are its map's.
    */
   prepareToken(token: TokenEntity, resources: readonly ResourceDefinition[]): Promise<TokenEntity>;
-  /** The menu a right-click on a token opens; none where the canvas offers none. */
+  /** The player at this canvas, for a canvas where a player acts on the scene. */
+  readonly player?: CanvasPlayer;
+  /**
+   * The menu a right-click on a token opens; none where the canvas offers none. A player's opens
+   * when the button is released in place, so a right-drag over a token still pans.
+   */
   readonly tokenMenu?: (canvas: TokenMenuCanvas) => TokenMenu;
   /** Dynamic lighting, for a canvas that has it. */
   readonly lighting?: (deps: CanvasLightingDeps) => LightingFeature;

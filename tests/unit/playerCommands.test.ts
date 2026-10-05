@@ -135,3 +135,35 @@ describe('playerTokens', () => {
     expect(token?.radius).toBeGreaterThan(0);
   });
 });
+
+describe('dragging and turning a token', () => {
+  test('parses drags and turns, a turn kept within a full circle', () => {
+    expect(parsePlayerCommand({ type: 'drag', id: 'hero', x: 1, y: 2 })).toEqual({ type: 'drag', id: 'hero', x: 1, y: 2 });
+    expect(parsePlayerCommand({ type: 'rotate', id: 'hero', rotation: -45 })).toEqual({ type: 'rotate', id: 'hero', rotation: 315 });
+    expect(parsePlayerCommand({ type: 'rotate', id: 'hero', rotation: 'north' })).toBeNull();
+  });
+
+  test('shows a drag where the pointer is, unsnapped, and turns the token', () => {
+    const store = sceneStore({ hero });
+    const setTokenPositions = vi.fn();
+    store.setState({ setTokenPositions } as never);
+    expect(applyPlayerCommand(store, grid, { type: 'drag', id: 'hero', x: 100, y: 101 }, rules)).toBe(true);
+    expect(setTokenPositions).toHaveBeenCalledWith([{ id: 'hero', x: 100, y: 101 }]);
+    expect(applyPlayerCommand(store, grid, { type: 'rotate', id: 'hero', rotation: 90 }, rules)).toBe(true);
+    expect(store.getState().updateToken).toHaveBeenCalledWith('hero', { rotation: 90 });
+  });
+});
+
+describe('player commands and the DM undo history', () => {
+  test('a player command is no step the DM can undo', async () => {
+    const { createSceneStore } = await import('../../src/app/storeFactory');
+    const { getHistoryStore } = await import('../../src/app/stores/history');
+    const store = createSceneStore(`player-undo-${Math.random()}`);
+    store.getState().setPersistenceEnabled(false);
+    store.setState({ objects: { ...store.getState().objects, tokens: { hero } } });
+    const steps = getHistoryStore(store)!.getState().pastStates.length;
+    applyPlayerCommand(store, grid, { type: 'move', id: 'hero', x: 200, y: 200 }, rules);
+    expect(store.getState().objects.tokens.hero).toMatchObject({ x: 175, y: 175 });
+    expect(getHistoryStore(store)!.getState().pastStates.length).toBe(steps);
+  });
+});

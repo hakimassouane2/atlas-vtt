@@ -62,6 +62,11 @@ export class TokenUIRenderer {
   private defeatedOverlay: Graphics;
   private themeObserver: MutationObserver | null = null;
   private editThemeObserver: MutationObserver | null = null;
+  /**
+   * On a canvas that shows the scene to players: what they see of a token's UI (names), on every
+   * draw that is not given player settings. Unset, the UI is the GM's.
+   */
+  public playerSettingsFor: ((token: BaseToken & Partial<Character>) => Pick<AtlasSettings['localPlayerView'], 'showTokenNameplates'>) | null = null;
   private currentToken: (BaseToken & Partial<Character>) | null = null;
   private currentTokenSize: number = 0;
   private isHovered: boolean = false;
@@ -305,7 +310,8 @@ export class TokenUIRenderer {
   
   
   /** Redraws the UI for `token`, whose sprite is `spriteWidth` world pixels wide. */
-  public update(token: BaseToken & Partial<Character>, spriteWidth: number, playerSettings?: Pick<AtlasSettings['localPlayerView'], 'showTokenNameplates'>): void {
+  public update(token: BaseToken & Partial<Character>, spriteWidth: number, shownToPlayers?: Pick<AtlasSettings['localPlayerView'], 'showTokenNameplates'>): void {
+    const playerSettings = shownToPlayers ?? this.playerSettingsFor?.(token);
     const tokenSettings = this.store?.getState().tokenSettings;
     // Players see the resources their definitions allow, whatever the DM hides on this map.
     const viewer: ResourceViewer = playerSettings ? 'player' : 'dm';

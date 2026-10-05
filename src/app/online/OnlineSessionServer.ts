@@ -17,8 +17,8 @@ export interface OnlineSessionHandlers {
   onLeave(playerId: string): void;
   /** A player moved their camera (the parsed JSON body). */
   onCamera(playerId: string, body: unknown): void;
-  /** Applies a player's command (the parsed JSON body); returns whether it was accepted. */
-  onCommand(body: unknown): boolean;
+  /** Applies a command (the parsed JSON body) of the player with that id, if the page gave one; returns whether it was accepted. */
+  onCommand(body: unknown, playerId: string | null): boolean;
   /** An image file players may see (token artwork): its bytes, a URL to fetch it from, or null. */
   onImage(path: string): Promise<TokenImage | null>;
   /** The DM's stylesheets and theme classes, so the page looks like Atlas does for the DM. */
@@ -179,9 +179,11 @@ export class OnlineSessionServer {
         });
         return;
       }
-      case '/command':
-        this.receive(request, response, (body) => this.handlers.onCommand(body));
+      case '/command': {
+        const playerId = url.searchParams.get('id');
+        this.receive(request, response, (body) => this.handlers.onCommand(body, playerId && this.players.has(playerId) ? playerId : null));
         return;
+      }
       case '/image':
         this.sendImage(response, url.searchParams.get('path') ?? '');
         return;

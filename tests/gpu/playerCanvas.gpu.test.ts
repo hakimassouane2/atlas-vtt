@@ -2,7 +2,7 @@ import { Rectangle } from 'pixi.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installObsidianDom } from '../../src/app/online/client/obsidianDom';
 import { PlayerCanvas } from '../../src/app/online/canvas/PlayerCanvas';
-import { SentCollection, pageCanvasHost } from '../../src/app/online/canvas/pageCanvasHost';
+import { PagePlayer, SentCollection, pageCanvasHost } from '../../src/app/online/canvas/pageCanvasHost';
 import type { ReplicatedScene } from '../../src/app/online/scene/sceneReplica';
 import type { AtlasSettings } from '../../src/app/services/SettingsService';
 import type { TokenEntity } from '../../src/app/types';
@@ -51,7 +51,7 @@ describe('the player canvas', () => {
     container = document.createElement('div');
     container.style.cssText = 'position:fixed;inset:0';
     document.body.appendChild(container);
-    canvas = new PlayerCanvas(pageCanvasHost(new SentCollection()));
+    canvas = new PlayerCanvas(pageCanvasHost(new SentCollection(), new PagePlayer()), async () => true);
     await canvas.mount(container);
     canvas.setPlayerView(PLAYER_VIEW);
     [red, blue] = await Promise.all([solidImage('#ff0000'), solidImage('#0000ff')]);
