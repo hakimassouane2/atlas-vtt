@@ -1,5 +1,3 @@
-import type { Workspace, WorkspaceLeaf } from 'obsidian';
-import { getActiveWorkspaceLeaf } from './embeddedLeafFocus';
 
 /**
  * Returns true when the currently active Obsidian workspace leaf
@@ -47,42 +45,4 @@ export function isShortcutScopeActive(scope: Element | null, viewId?: string): b
   }
 
   return isActiveAtlasLeaf(viewId);
-}
-
-type FocusWorkspaceLike = Pick<Workspace, 'getActiveViewOfType' | 'setActiveLeaf'>;
-
-/**
- * Reclaim workspace ownership for a custom Atlas view when another leaf keeps
- * a focused editor/input alive after a tab switch.
- */
-export function claimWorkspaceLeafFocus(
-  workspace: FocusWorkspaceLike | null | undefined,
-  leaf: WorkspaceLeaf | null | undefined,
-  container: HTMLElement | null,
-): void {
-  if (!workspace || !leaf || !container) {
-    return;
-  }
-
-  if (getActiveWorkspaceLeaf(workspace) !== leaf) {
-    workspace.setActiveLeaf(leaf, { focus: false });
-  }
-
-  const targetLeafEl = container.closest('.workspace-leaf');
-  const activeElement = document.activeElement;
-  const activeLeafEl = activeElement instanceof HTMLElement
-    ? activeElement.closest('.workspace-leaf')
-    : null;
-
-  const shouldFocusContainer =
-    activeElement === document.body ||
-    activeElement === null ||
-    (targetLeafEl !== null && activeLeafEl !== null && activeLeafEl !== targetLeafEl);
-
-  if (shouldFocusContainer && typeof container.focus === 'function') {
-    if (container.tabIndex < 0) {
-      container.tabIndex = -1;
-    }
-    container.focus({ preventScroll: true });
-  }
 }

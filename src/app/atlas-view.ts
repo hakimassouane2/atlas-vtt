@@ -6,7 +6,7 @@ import { withoutExploredEdits } from './stores/exploredEditHistory';
 import { createTabMetaStore, type TabMetaStore } from './stores/tabMetaStore';
 import type { SceneTab } from './types/sceneTabTypes';
 import type AtlasVTTPlugin from '../../main';
-import { claimWorkspaceLeafFocus } from './utils/activeLeafGuard';
+import { claimWorkspaceLeafFocus } from './utils/embeddedLeafFocus';
 import { isScenePath } from './utils/sceneFiles';
 
 export const ATLAS_VIEW_TYPE = "atlas-vtt";

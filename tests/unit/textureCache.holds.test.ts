@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TextureCache } from '../../src/app/pixi/token-renderer/TextureCache';
+import { vaultArtSource } from '../../src/app/services/canvasHost/vaultArtSource';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { stubJsdomGraphics } from '../mocks/jsdomGraphics';
 
@@ -7,7 +8,7 @@ const GOBLIN = 'tokens/goblin.png';
 const ORC = 'tokens/orc.png';
 
 function createCache(): TextureCache {
-  return new TextureCache(createInMemoryApp({ files: { [GOBLIN]: 'goblin-bytes', [ORC]: 'orc-bytes' } }).app);
+  return new TextureCache(vaultArtSource(createInMemoryApp({ files: { [GOBLIN]: 'goblin-bytes', [ORC]: 'orc-bytes' } }).app));
 }
 
 describe('TextureCache holds', () => {
@@ -100,30 +101,30 @@ describe('TextureCache holds', () => {
   });
 
   it('keeps the newest content when a file changes twice before the first reload finished', async () => {
-    const cache = createCache();
+    const art = vaultArtSource(createInMemoryApp({ files: { [GOBLIN]: 'goblin-bytes' } }).app);
+    const cache = new TextureCache(art);
     await cache.acquire(GOBLIN);
-    type Decode = (file: unknown) => Promise<HTMLCanvasElement>;
-    const decodes: Array<(canvas: HTMLCanvasElement) => void> = [];
-    vi.spyOn(cache as unknown as { decodeVaultImage: Decode }, 'decodeVaultImage')
-      .mockImplementation(() => new Promise((resolve) => decodes.push(resolve)));
+    const original = art.read.bind(art);
+    const reads: Array<() => void> = [];
+    vi.spyOn(art, 'read').mockImplementation((path) => new Promise((resolve) => reads.push(() => resolve(original(path)))));
     const shown: unknown[] = [];
     const older = cache.reload(GOBLIN, (texture) => shown.push(texture));
     const newer = cache.reload(GOBLIN, (texture) => shown.push(texture));
-    await vi.waitFor(() => expect(decodes).toHaveLength(2));
+    await vi.waitFor(() => expect(reads).toHaveLength(2));
 
-    decodes[0]!(document.createElement('canvas'));
+    reads[0]!();
     expect(await older).toBe(false);
-    decodes[1]!(document.createElement('canvas'));
+    reads[1]!();
     expect(await newer).toBe(true);
     expect(shown).toEqual([await cache.acquire(GOBLIN)]);
   });
 
-  it('keeps the current art when the changed file cannot be decoded', async () => {
-    const cache = createCache();
+  it('keeps the current art when the changed file cannot be read', async () => {
+    const art = vaultArtSource(createInMemoryApp({ files: { [GOBLIN]: 'goblin-bytes' } }).app);
+    const cache = new TextureCache(art);
     const before = await cache.acquire(GOBLIN);
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.spyOn(cache as unknown as { decodeVaultImage: () => Promise<never> }, 'decodeVaultImage')
-      .mockRejectedValue(new Error('The source image could not be decoded.'));
+    vi.spyOn(art, 'read').mockRejectedValue(new Error('The source image could not be decoded.'));
     expect(await cache.reload(GOBLIN, () => undefined)).toBe(false);
     expect(await cache.acquire(GOBLIN)).toBe(before);
     expect(before.destroyed).toBe(false);

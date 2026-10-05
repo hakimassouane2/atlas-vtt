@@ -1,15 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Rectangle, Ticker, type Application, type ApplicationOptions } from 'pixi.js';
 import { PixiAppManager } from '../../src/app/pixi/PixiAppManager';
+import { setNoticePresenter } from '../../src/app/ui/notices';
 
-const notices = vi.hoisted(() => [] as string[]);
-vi.mock('obsidian', () => ({
-  Notice: class {
-    constructor(message: string) {
-      notices.push(message);
-    }
-  },
-}));
+const notices: string[] = [];
+setNoticePresenter((message) => notices.push(message));
 
 const NO_WEBGL = 'This browser does not support WebGL. Try using the canvas renderer';
 

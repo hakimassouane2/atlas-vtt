@@ -9,6 +9,7 @@ import type { ViewAtlasStore } from '../storeFactory';
 import type { SettingsService } from './SettingsService';
 import { bindViewportNavigation } from '../pixi/viewportNavigation';
 import { bindMapLoadingFrameHold } from '../pixi/mapLoadingFrameHold';
+import { obsidianCanvasHost } from './canvasHost/obsidianCanvasHost';
 
 export class RendererService {
   // private renderer: PixiRenderer | null = null; // Old type
@@ -50,7 +51,9 @@ export class RendererService {
       }
       
       // Pass the PixiAppManager instance to the orchestrator
-      this.renderer = new PixiRendererOrchestrator(this.app, this.pixiAppManager, this.eventBus, this.store, this.viewId);
+      // A player view offers no token menu
+      const host = obsidianCanvasHost(this.app, { tokenMenu: !this.store.getState().isPlayerView });
+      this.renderer = new PixiRendererOrchestrator(host, this.pixiAppManager, this.eventBus, this.store, this.viewId);
       
       try {
         // The orchestrator's init will call pixiAppManager.init

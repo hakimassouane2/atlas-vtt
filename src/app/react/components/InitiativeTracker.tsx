@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { openContextMenuGlobal } from '../root/ContextMenuContext';
+import { openContextMenuGlobal } from '../../ui/contextMenus';
 import {
   Dices,
   Swords,

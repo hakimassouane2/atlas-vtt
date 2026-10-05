@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { openContextMenuGlobal } from '../../root/ContextMenuContext';
+import { openContextMenuGlobal } from '../../../ui/contextMenus';
 import type { SceneSnapshotEntry } from '../../../snapshots/SceneSnapshotService';
 import { SnapshotCard } from './SnapshotCard';
 import { useSceneSnapshots } from './useSceneSnapshots';

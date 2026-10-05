@@ -1,9 +1,9 @@
 import { EventEmitter } from 'events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Platform } from 'obsidian';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { createViewAtlasStore } from '../../src/app/storeFactory';
 import { NotePreviewUIManager } from '../../src/app/services/NotePreviewUIManager';
+import { runtimePlatform } from '../../src/app/keyboard/runtimePlatform';
 
 vi.mock('../../src/app/services/FantasyStatblocksService', () => ({
   findCreatureForNotePath: (): object => ({}),
@@ -34,7 +34,7 @@ describe('NotePreviewUIManager statblock previews', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.stubGlobal('ResizeObserver', class { observe(): void {} disconnect(): void {} });
-    Platform.isMacOS = true;
+    runtimePlatform.isMacOS = true;
     const { app } = createInMemoryApp({ files: { [NOTE_PATH]: '# Goblin' } });
     Object.assign(app.workspace, { getLeavesOfType: () => [], on: () => ({}) });
     eventBus = new EventEmitter();
@@ -45,7 +45,7 @@ describe('NotePreviewUIManager statblock previews', () => {
     manager.destroy();
     vi.runOnlyPendingTimers();
     document.body.empty();
-    Platform.isMacOS = false;
+    runtimePlatform.isMacOS = false;
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });

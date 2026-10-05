@@ -1,11 +1,11 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
-import type { ContextMenuEntry } from '../../src/app/react/root/ContextMenuContext';
+import type { ContextMenuEntry } from '../../src/app/ui/contextMenus';
 
 const menu = vi.hoisted(() => ({ entries: [] as ContextMenuEntry[] }));
 
-vi.mock('../../src/app/react/root/ContextMenuContext', () => ({
+vi.mock('../../src/app/ui/contextMenus', () => ({
   openContextMenuGlobal: (entries: ContextMenuEntry[]) => { menu.entries = entries; },
 }));
 vi.mock('../../src/app/ui/confirmDialog', () => ({ confirmAction: vi.fn(async () => true) }));

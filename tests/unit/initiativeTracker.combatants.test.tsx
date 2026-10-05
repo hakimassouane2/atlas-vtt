@@ -26,7 +26,7 @@ const state = vi.hoisted(() => ({
 }));
 
 const opened = vi.hoisted(() => ({ entries: [] as ContextMenuEntry[] }));
-vi.mock('../../src/app/react/root/ContextMenuContext', () => ({
+vi.mock('../../src/app/ui/contextMenus', () => ({
   openContextMenuGlobal: (entries: ContextMenuEntry[]) => { opened.entries = entries; },
 }));
 vi.mock('../../src/app/react/root/AtlasUIContext', () => ({ useAtlasUI: () => ({ app: null, view: null }) }));

@@ -51,7 +51,7 @@ vi.mock('../../src/app/pixi/lighting/createSceneLighting', () => ({
 vi.mock('../../src/app/utils/activeLeafGuard', () => ({ isActiveAtlasLeaf: () => true }));
 
 const openContextMenuGlobal = vi.hoisted(() => vi.fn());
-vi.mock('../../src/app/react/root/ContextMenuContext', () => ({ openContextMenuGlobal, closeContextMenuGlobal: vi.fn() }));
+vi.mock('../../src/app/ui/contextMenus', () => ({ openContextMenuGlobal, closeContextMenuGlobal: vi.fn() }));
 
 /** What `LightingController.wire` hands the token renderer's viewport dispatch. */
 interface Wired {

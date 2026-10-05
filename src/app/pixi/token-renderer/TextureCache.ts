@@ -1,5 +1,5 @@
 import { Texture, Graphics, CanvasSource, ImageSource, type Application } from 'pixi.js';
-import { App as ObsidianApp, TFile } from 'obsidian';
+import type { ArtFile, ArtSource } from '../../canvas/canvasHost';
 import type { ITextureCache } from './types';
 import { normalizeImagePath } from '../../utils/pathUtils';
 import { loadAsset, unloadAsset } from '../utils/assetLifecycle';
@@ -19,8 +19,8 @@ const DEFAULT_TOKEN_TEXTURE_KEY = 'default-token';
  * Falls back to an <img> + canvas decode for formats createImageBitmap cannot
  * handle (notably SVG in Chromium).
  */
-async function decodeTokenImage(buffer: ArrayBuffer, mimeType: string): Promise<ImageBitmap | HTMLCanvasElement> {
-  const blob = new Blob([buffer], { type: mimeType });
+async function decodeTokenImage({ bytes, mimeType }: ArtFile): Promise<ImageBitmap | HTMLCanvasElement> {
+  const blob = new Blob([bytes], { type: mimeType });
   if (mimeType !== 'image/svg+xml') {
     try {
       const full = await createImageBitmap(blob);
@@ -47,21 +47,7 @@ async function decodeTokenImage(buffer: ArrayBuffer, mimeType: string): Promise<
   });
 }
 
-// MIME type mapping
-const MIME_MAP: Record<string, string> = {
-  'png': 'image/png',
-  'jpg': 'image/jpeg',
-  'jpeg': 'image/jpeg',
-  'gif': 'image/gif',
-  'webp': 'image/webp',
-  'svg': 'image/svg+xml',
-  'bmp': 'image/bmp',
-  'ico': 'image/x-icon',
-  'tiff': 'image/tiff',
-  'tif': 'image/tiff',
-};
-
-/** Image paths PIXI's `Assets` loads by URL instead of reading them from the vault. */
+/** Image paths PIXI's `Assets` loads by URL instead of reading them from the art source. */
 const URL_PREFIXES = ['data:', 'blob:', 'http://', 'https://', 'app://'];
 
 /**
@@ -76,13 +62,13 @@ export class TextureCache implements ITextureCache {
   private readonly holds = new Map<string, number>();
   // Textures loaded through Assets are owned by its cache and must be unloaded by URL
   private readonly assetUrlByKey = new Map<string, string>();
-  // Decoded bitmaps backing vault-loaded textures, closed on eviction
+  // Decoded bitmaps backing textures read from the art source, closed on eviction
   private readonly bitmapByKey = new Map<string, ImageBitmap>();
   /** Latest reload started per art path; only it may replace the texture. */
   private readonly reloadGenerations = new Map<string, number>();
   private pixiApp: Application | null = null;
 
-  constructor(private readonly obsApp: ObsidianApp) {}
+  constructor(private readonly art: ArtSource) {}
 
   setPixiApp(app: Application): void {
     this.pixiApp = app;
@@ -123,7 +109,7 @@ export class TextureCache implements ITextureCache {
     try {
       return URL_PREFIXES.some((prefix) => key.startsWith(prefix))
         ? await this.loadUrl(key)
-        : await this.loadVaultImage(key);
+        : await this.loadArt(key);
     } catch (error) {
       console.error(`[TextureCache] Failed to load texture: ${key}`, error);
       return this.getDefaultTokenTexture();
@@ -141,14 +127,14 @@ export class TextureCache implements ITextureCache {
     return texture;
   }
 
-  private async loadVaultImage(path: string): Promise<Texture> {
-    const file = this.obsApp.vault.getAbstractFileByPath(path);
-    if (!(file instanceof TFile)) {
+  private async loadArt(path: string): Promise<Texture> {
+    const file = await this.art.read(path);
+    if (!file) {
       console.error(`[TextureCache] File not found: ${path}`);
       return this.getDefaultTokenTexture();
     }
 
-    const decoded = await this.decodeVaultImage(file);
+    const decoded = await decodeTokenImage(file);
 
     // A concurrent call may have finished first; keep the existing texture.
     const existing = this.textures.get(path);
@@ -165,20 +151,21 @@ export class TextureCache implements ITextureCache {
   /**
    * Re-reads art whose file changed into a new texture, which `show` puts on every sprite
    * with the old one before that is destroyed. Returns false when the art is not cached
-   * from the vault, when a newer change to the same file overtook this one, or when the
+   * from the art source, when a newer change to the same file overtook this one, or when the
    * file cannot be decoded (a half-written file keeps the art it had).
    */
   async reload(imagePath: string, show: (texture: Texture) => void): Promise<boolean> {
     const key = normalizeImagePath(imagePath);
     const previous = this.textures.get(key);
-    const file = this.obsApp.vault.getAbstractFileByPath(key);
-    if (!previous || this.assetUrlByKey.has(key) || !(file instanceof TFile)) return false;
+    if (!previous || this.assetUrlByKey.has(key)) return false;
 
     const generation = (this.reloadGenerations.get(key) ?? 0) + 1;
     this.reloadGenerations.set(key, generation);
     let decoded: ImageBitmap | HTMLCanvasElement;
     try {
-      decoded = await this.decodeVaultImage(file);
+      const file = await this.art.read(key);
+      if (!file) return false;
+      decoded = await decodeTokenImage(file);
     } catch (error) {
       console.warn(`[TextureCache] Could not reload ${key}:`, error);
       return false;
@@ -197,11 +184,6 @@ export class TextureCache implements ITextureCache {
     previous.destroy(true);
     previousBitmap?.close();
     return true;
-  }
-
-  private async decodeVaultImage(file: TFile): Promise<ImageBitmap | HTMLCanvasElement> {
-    const mimeType = MIME_MAP[file.extension.toLowerCase()] || 'image/png';
-    return decodeTokenImage(await this.obsApp.vault.readBinary(file), mimeType);
   }
 
   private createSource(path: string, decoded: ImageBitmap | HTMLCanvasElement): ImageSource | CanvasSource {

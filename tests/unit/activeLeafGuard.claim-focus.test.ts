@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { claimWorkspaceLeafFocus } from '../../src/app/utils/activeLeafGuard';
+import { claimWorkspaceLeafFocus } from '../../src/app/utils/embeddedLeafFocus';
 
 describe('claimWorkspaceLeafFocus', () => {
   it('reclaims the atlas leaf and focuses its container when another workspace leaf still owns focus', () => {

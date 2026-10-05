@@ -8,7 +8,7 @@ import { mapMarkerScale } from "./utils/mapMarkerScale";
 import { isHandled } from "./utils/handledEvents";
 import type { ViewAtlasState, ViewAtlasStore } from '../storeFactory';
 import { beginHistoryTransaction, endHistoryTransaction } from '../stores/history';
-import { openContextMenuGlobal } from '../react/root/ContextMenuContext';
+import { openContextMenuGlobal } from '../ui/contextMenus';
 import { pinSize } from '../styles/designTokens';
 import { isPinLabelKind, nextPinLabel } from '../tools/pinLabels';
 import { getPinIconDefinition, resolvePinIcon, type PinIconId } from '../types/pinIcons';

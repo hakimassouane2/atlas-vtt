@@ -5,38 +5,18 @@
  * hover effects, context menus, and path recording for smooth animations.
  */
 
-import type { ResourceDefsProvider } from '../../resources/resourceTypes';
-import { isKillable, resetLabel } from '../../resources/resourceValues';
-import { visibleResources } from '../../resources/visibleResources';
-import React from 'react';
 import { Container, FederatedPointerEvent } from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
-import { App } from 'obsidian';
-import { openEditTokenModal } from './EditTokenModal';
-import { STATBLOCK_UNLINK_UPDATES } from './statblockFrontmatter';
-import { openContextMenuGlobal, closeContextMenuGlobal, type ContextMenuEntry } from '../../react/root/ContextMenuContext';
-import { DestructiveActionRow } from './DestructiveActionRow';
 import type { ITokenInteractionController, TokenGroupContainer } from './types';
-import type { Character, TokenEntity } from '../../types';
+import type { TokenEntity } from '../../types';
+import type { TokenMenu } from '../../canvas/canvasHost';
 import type { ViewAtlasState } from '../../storeFactory';
 import type { StoreApi } from 'zustand';
 import type { GridSystem } from '../../grid/GridSystem';
 import { beginHistoryTransaction, endHistoryTransaction } from '../../stores/history';
-import { initiativeEntryForToken } from '../../stores/initiativeEntries';
 import { EventEmitter } from 'events';
-import { StatblockDialogService } from '../../services/StatblockDialogService';
-import { TokenStatblockLinkService } from '../../services/TokenStatblockLinkService';
-import type { ConditionDefinition } from '../../types/collectionSettingsTypes';
-import { dynamicLightingOn } from '../../experimental/experimentalFeatures';
-import { saveMapTokensAsEncounter } from '../../encounters/saveMapTokensAsEncounter';
-import { copyMapObjects } from '../../clipboard/mapClipboardActions';
 import { copyDragSelection } from './dragCopy';
 import type { DragRuler } from './DragRuler';
-import { runInBackground } from '../../utils/backgroundTask';
-import { tokenSizeSubmenu } from '../../react/components/context-menu/tokenSizeMenu';
-import { tokenLightingEntries } from '../../react/components/context-menu/tokenLightingMenu';
-import { mapLightPresets } from '../../services/mapCollectionRules';
-import { conditionsSubmenu } from '../../react/components/context-menu/conditionsMenu';
 import { holdTokens } from '../../lighting/sightOnDrop';
 
 interface DragState {
@@ -61,13 +41,10 @@ export class InteractionController implements ITokenInteractionController {
   private store: StoreApi<ViewAtlasState>;
   private gridSystem: GridSystem;
   private eventBus: EventEmitter;
-  private obsApp: App;
   public isPlayerView: boolean;
   
-  // Condition definitions provider — wired by PixiRendererOrchestrator
-  public conditionDefsProvider: (() => ConditionDefinition[]) | null = null;
-  /** The resources of the map's collection, for Kill and Reset. */
-  public resourceDefsProvider: ResourceDefsProvider = () => [];
+  /** Opens a right-clicked token's menu; none where the canvas offers no token menu. */
+  public tokenMenu: TokenMenu | null = null;
   
   // Drag state
   private dragState: DragState = {
@@ -101,14 +78,12 @@ export class InteractionController implements ITokenInteractionController {
     store: StoreApi<ViewAtlasState>,
     gridSystem: GridSystem,
     eventBus: EventEmitter,
-    obsApp: App,
     isPlayerView: boolean = false
   ) {
     this.viewport = viewport;
     this.store = store;
     this.gridSystem = gridSystem;
     this.eventBus = eventBus;
-    this.obsApp = obsApp;
     this.isPlayerView = isPlayerView;
   }
 
@@ -141,9 +116,7 @@ export class InteractionController implements ITokenInteractionController {
 
     if (e.button === 2) {
       const token = this.store.getState().objects.tokens[tokenId];
-      if (token && !this.isPlayerView) {
-        this.showContextMenu(token, e);
-      }
+      if (token && this.tokenMenu) this.tokenMenu(token, { x: e.clientX, y: e.clientY });
       return;
     }
 
@@ -547,200 +520,6 @@ export class InteractionController implements ITokenInteractionController {
     this.onTokensHeldChange?.(tokenIds);
   }
 
-  private getConditionDefs(): ConditionDefinition[] {
-    return this.conditionDefsProvider?.() ?? [];
-  }
-
-  /** The selected tokens when the right-clicked token is one of them, otherwise that token alone. */
-  private contextMenuTargets(tokenId: string): string[] {
-    const { selectedIds, objects } = this.store.getState();
-    if (!selectedIds.includes(tokenId)) return [tokenId];
-    return selectedIds.filter((id) => objects.tokens[id] !== undefined);
-  }
-
-  private showContextMenu(token: TokenEntity, e: FederatedPointerEvent): void {
-    const character = token.kind === 'character' ? token : undefined;
-    const entries: ContextMenuEntry[] = [];
-
-    const conditionDefs = this.getConditionDefs();
-    if (conditionDefs.length > 0) {
-      entries.push(conditionsSubmenu(this.store, conditionDefs, this.contextMenuTargets(token.id)));
-    }
-
-    // Size
-    entries.push(tokenSizeSubmenu(token.size, size => this.store.getState().updateToken(token.id, { size })));
-
-    // Hide/Show the selection in one undo step; the clicked token decides which way
-    const currentToken = this.store.getState().objects.tokens[token.id];
-    const isHidden = currentToken?.isHidden || false;
-    const hideTargets = this.contextMenuTargets(token.id);
-    entries.push({
-      type: 'item',
-      label: isHidden ? 'Show' : 'Hide',
-      icon: isHidden ? 'eye' : 'eye-off',
-      onClick: () => this.store.getState().updateTokens(
-        hideTargets.map((id) => ({ id, changes: { isHidden: !isHidden } })),
-      ),
-    });
-
-    // Vision and carried light, for the selection the token belongs to
-    if (!this.isPlayerView && dynamicLightingOn(this.obsApp)) {
-      const lightPresets = mapLightPresets(this.obsApp, this.store.getState());
-      entries.push(...tokenLightingEntries(this.store, token.id, this.contextMenuTargets(token.id), lightPresets));
-    }
-
-
-    // Save the selection (or this token alone) as an encounter — DM only
-    if (!this.isPlayerView) {
-      const selectedIds = this.store.getState().selectedIds;
-      const groupIds = selectedIds.includes(token.id) ? selectedIds : [token.id];
-      entries.push({
-        type: 'item',
-        label: 'Duplicate',
-        icon: 'files',
-        onClick: () => this.store.getState().duplicateMapObjects(groupIds),
-      });
-      entries.push({
-        type: 'item',
-        label: 'Copy',
-        icon: 'copy',
-        onClick: () => copyMapObjects(this.store, groupIds),
-      });
-      entries.push({
-        type: 'item',
-        label: 'Save as Encounter',
-        icon: 'swords',
-        onClick: () => {
-          void saveMapTokensAsEncounter(this.obsApp, this.store, this.gridSystem, groupIds);
-        },
-      });
-    }
-
-    // Edit Token
-    entries.push({
-      type: 'item',
-      label: 'Edit Token',
-      icon: 'edit',
-      onClick: () => this.showEditTokenModal(token),
-    });
-
-    // Initiative, for the selection the token belongs to; the clicked token decides which way
-    const initiativeEntries = this.store.getState().initiative?.entries || [];
-    const isInInitiative = initiativeEntries.some((entry) => entry.tokenId === token.id);
-    const initiativeTargets = this.contextMenuTargets(token.id);
-    entries.push({
-      type: 'item',
-      label: isInInitiative ? 'Remove from Initiative' : 'Add to Initiative',
-      icon: 'swords',
-      onClick: () => this.handleInitiativeToggle(initiativeTargets, isInInitiative),
-    });
-
-
-    // Statblock linking
-    const obsApp = this.obsApp;
-    const statblockPath = character?.statblockPath;
-    if (statblockPath) {
-      entries.push({
-        type: 'item',
-        label: 'Edit Statblock',
-        icon: 'file-text',
-        onClick: async () => {
-          if (obsApp) {
-            const file = obsApp.vault.getAbstractFileByPath(statblockPath);
-            if (file) await obsApp.workspace.openLinkText(file.path, '', true);
-          }
-        },
-      });
-      entries.push({
-        type: 'item',
-        label: 'Unlink Statblock',
-        icon: 'unlink',
-        onClick: async () => {
-          if (obsApp && token.imagePath) {
-            const linkService = TokenStatblockLinkService.getInstance(obsApp);
-            await linkService.unlinkToken(token.imagePath);
-            this.store.getState().updateToken(token.id, STATBLOCK_UNLINK_UPDATES);
-          }
-        },
-      });
-    } else {
-      entries.push({
-        type: 'item',
-        label: 'Link Statblock',
-        icon: 'link',
-        onClick: () => {
-          if (obsApp && token.imagePath) {
-            const dialogService = new StatblockDialogService(obsApp);
-            const linkService = TokenStatblockLinkService.getInstance(obsApp);
-            dialogService.showStatblockDialog(
-              null,
-              (statblockPath: string | null) => {
-                if (!statblockPath) return;
-                runInBackground(
-                  linkService.linkTokenToStatblock(token.imagePath, statblockPath).then(() => {
-                    this.store.getState().updateToken(token.id, { statblockPath });
-                  }),
-                  `Linking statblock ${statblockPath}`,
-                  'Could not link the statblock',
-                );
-              },
-              character?.name || 'Token',
-              { imagePath: token.imagePath, showRing: token.showRing },
-            );
-          }
-        },
-      });
-    }
-
-
-    // Ring color submenu
-    const currentRingColor = token.ringColor;
-    const ringColors = [
-      { name: 'Default', value: null },
-      { name: 'Blue', value: '#086ddd' },
-      { name: 'Orange', value: '#ec7500' },
-      { name: 'Red', value: '#e93147' },
-      { name: 'Yellow', value: '#e0ac00' },
-      { name: 'Brown', value: '#a97142' },
-      { name: 'Purple', value: '#7852ee' },
-      { name: 'Green', value: '#08b94e' },
-      { name: 'Pink', value: '#d53984' },
-      { name: 'Cyan', value: '#00bfbc' },
-      { name: 'Gray', value: '#ababab' },
-      { name: 'White', value: '#ffffff' },
-    ];
-    entries.push({
-      type: 'submenu',
-      label: 'Ring Color',
-      icon: 'circle',
-      children: ringColors.map(color => ({
-        type: 'item' as const,
-        label: color.name,
-        checked: color.value === currentRingColor || (color.value === null && !currentRingColor),
-        onClick: () => this.store.getState().setTokenRing(token.id, color.value),
-      })),
-    });
-
-    // Reset (only if the token tracks resources)
-    if (this.hasResources(character)) {
-      entries.push({
-        type: 'item',
-        label: resetLabel(this.resourceDefsProvider()),
-        icon: 'rotate-ccw',
-        onClick: () => this.store.getState().resetTokens([token.id], this.resourceDefsProvider()),
-      });
-    }
-
-
-    // Destructive actions row (Kill + Delete side by side)
-    entries.push({
-      type: 'custom',
-      render: () => this.renderDestructiveRow(token),
-    });
-
-    openContextMenuGlobal(entries, { x: e.clientX, y: e.clientY });
-  }
-
   handleDrag(
     tokenId: string,
     startX: number,
@@ -790,44 +569,12 @@ export class InteractionController implements ITokenInteractionController {
     this.dragRuler = ruler;
   }
 
-  private hasResources(character: Character | undefined): boolean {
-    return character !== undefined && visibleResources(character, this.resourceDefsProvider(), 'dm').length > 0;
-  }
-
-  private renderDestructiveRow(token: TokenEntity): React.ReactNode {
-    return React.createElement(DestructiveActionRow, {
-      tokenId: token.id,
-      store: this.store,
-      canKill: token.kind === 'character' && isKillable(token, this.resourceDefsProvider()),
-      definitions: this.resourceDefsProvider(),
-      onClose: () => closeContextMenuGlobal(),
-    });
-  }
-
-  private handleInitiativeToggle(tokenIds: string[], remove: boolean): void {
-    if (!this.store.getState().initiativeTrackerOpen) {
-      this.store.getState().setInitiativeTrackerOpen(true);
-    }
-
-    for (const tokenId of tokenIds) {
-      const { initiative, objects, addToInitiative, removeFromInitiative } = this.store.getState();
-      const entry = initiative.entries.find((e) => e.tokenId === tokenId);
-      const token = objects.tokens[tokenId];
-      if (remove && entry) removeFromInitiative(entry.id);
-      else if (!remove && !entry && token) addToInitiative(initiativeEntryForToken(token));
-    }
-  }
-
   private handleHoverStart(tokenId: string): void {
     // Hover start logic - could emit events or update UI
   }
 
   private handleHoverEnd(tokenId: string): void {
     // Hover end logic - could emit events or update UI
-  }
-
-  private showEditTokenModal(token: TokenEntity): void {
-    openEditTokenModal(token, this.store, this.obsApp, this.resourceDefsProvider());
   }
 
   destroyAll(): void {

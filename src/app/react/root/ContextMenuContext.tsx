@@ -2,18 +2,11 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { createPortal } from 'react-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { renderEntries, type ContextMenuEntry } from '../components/context-menu/AtlasContextMenu';
+import { registerContextMenuController, type ContextMenuController } from '../../ui/contextMenus';
 import { useAtlasStore } from '../ViewStoreContext';
 import { LabelTooltip } from '../../packages/components/primitives/tooltip';
 
-// Re-export the entry type so consumers only import from this file
-export type { ContextMenuEntry } from '../components/context-menu/AtlasContextMenu';
-
 // ── Context + hook ──────────────────────────────────────────────────────────
-
-interface ContextMenuController {
-  open: (entries: ContextMenuEntry[], position: { x: number; y: number }) => void;
-  close: () => void;
-}
 
 const ContextMenuCtx = createContext<ContextMenuController | null>(null);
 
@@ -22,25 +15,6 @@ export const useContextMenu = (): ContextMenuController => {
   if (!ctx) throw new Error('useContextMenu must be used inside <ContextMenuProvider>');
   return ctx;
 };
-
-// ── Global helpers (non-React callers like PIXI renderers) ──────────────────
-
-/**
- * Every mounted provider registers here. The newest one serves callers outside
- * React, so a provider that unmounts never disables the ones still on screen.
- */
-const controllers: ContextMenuController[] = [];
-
-export function openContextMenuGlobal(
-  entries: ContextMenuEntry[],
-  position: { x: number; y: number },
-): void {
-  controllers[controllers.length - 1]?.open(entries, position);
-}
-
-export function closeContextMenuGlobal(): void {
-  for (const controller of controllers) controller.close();
-}
 
 // ── Provider ────────────────────────────────────────────────────────────────
 
@@ -58,13 +32,7 @@ export const ContextMenuProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setMenuState({ entries, position });
   }, []);
 
-  useEffect(() => {
-    const controller: ContextMenuController = { open, close };
-    controllers.push(controller);
-    return () => {
-      controllers.splice(controllers.indexOf(controller), 1);
-    };
-  }, [open, close]);
+  useEffect(() => registerContextMenuController({ open, close }), [open, close]);
 
   const pos = menuState?.position ?? { x: 0, y: 0 };
 

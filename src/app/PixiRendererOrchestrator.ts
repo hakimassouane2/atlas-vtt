@@ -1,15 +1,13 @@
 import { canRunMapHotkeys, matchesMapHotkey } from './keyboard/mapHotkeys';
-import { SettingsService, type AtlasSettings } from './services/SettingsService';
+import type { AtlasSettings } from './services/SettingsService';
 import { DEFAULT_LASER_POINTER_SETTINGS } from './tools/laserPointerSettings';
 import { Application, Sprite, Container, type FederatedPointerEvent } from "pixi.js";
-import { runInBackground } from './utils/backgroundTask';
 import { Viewport } from "pixi-viewport"; // Keep for type, but instance comes from PixiAppManager
-import { WorkspaceLeaf } from 'obsidian';
 import { GridOptions, GridSystem, GridType } from "./grid/GridSystem";
 import { parseGridColor } from "./grid/gridContrastColor";
 import { hexNumberStyleOfGrid } from "./grid/hexNumbering";
-import type { App } from 'obsidian';
 import type { ViewAtlasState, ViewAtlasStore } from './storeFactory';
+import type { CanvasHost } from './canvas/canvasHost';
 import { EventEmitter } from 'events';
 import { PixiAppManager } from "./pixi/PixiAppManager"; // Import the new manager
 import { TokenRenderer } from "./pixi/token-renderer"; // Import TokenRenderer
@@ -30,18 +28,11 @@ import { DrawingInteraction } from "./pixi/DrawingInteraction";
 import { TextRenderer } from "./pixi/TextRenderer"; // Import TextRenderer
 import { TextTool } from "./tools/TextTool"; // Import TextTool
 import type { LightingController } from './pixi/lighting/LightingController';
-import { LightingFeature } from './pixi/lighting/LightingFeature';
+import type { LightingFeature } from './pixi/lighting/LightingFeature';
 import type { SceneFrame } from './pixi/lighting/engine/types';
 import { captureSceneFrame } from './pixi/sceneFrameCapture';
-import { AudioTool } from './tools/AudioTool';
-import { openAudioConfigPanel } from './pixi/audio/AudioConfigPanel';
-import { AudioRenderer } from './pixi/audio/AudioRenderer';
-import { SoundRegistry } from './audio/SoundRegistry';
-import { AudioBufferCache } from './audio/AudioBufferCache';
-import { SpatialAudioEngine } from './audio/SpatialAudioEngine';
-import { AssetService } from './services/AssetService';
+import type { AudioFeature } from './pixi/audio/AudioFeature';
 import { mapMeasurementSettings } from './services/mapMeasurementSettings';
-import { findAtlasLeafByViewId } from './utils/atlasLeafLookup';
 import { destroyTree } from './pixi/utils/destroyTree';
 import { requestRender } from './pixi/RenderScheduler';
 
@@ -61,15 +52,11 @@ export class PixiRendererOrchestrator { // Renamed class
   private textRenderer?: TextRenderer; // Add TextRenderer instance
   private textTool?: TextTool; // Add TextTool instance
   /** The view's lighting, built and removed as the GM switches dynamic lighting on and off. */
-  private lightingFeature?: LightingFeature;
+  private lightingFeature: LightingFeature | undefined;
   private get lighting(): LightingController | undefined {
     return this.lightingFeature?.controller;
   }
-  private audioRenderer?: AudioRenderer;
-  private audioTool?: AudioTool;
-  private soundRegistry?: SoundRegistry;
-  private bufferCache?: AudioBufferCache;
-  private spatialAudioEngine?: SpatialAudioEngine;
+  private audio: AudioFeature | undefined;
 
   private layerMap: Container | null = null;
   private layerGrid: Container | null = null;
@@ -78,13 +65,8 @@ export class PixiRendererOrchestrator { // Renamed class
   private layerFog: Container | null = null; // Add fog layer
   private gridSystem?: GridSystem; // Instance of GridSystem
   private backgroundSprite: Sprite | null = null;
-  private obsApp: App;
+  private readonly host: CanvasHost;
   private eventBus: EventEmitter;
-  private activeHoverLinkAnchorEl: HTMLElement | null = null;
-  private notePreviewEl: HTMLDivElement | null = null;
-  private notePreviewLeaf: WorkspaceLeaf | null = null;
-  private isPreviewPinned: boolean = false;
-  private _isShowingPreview: boolean = false;
   private store: ViewAtlasStore; // Add store
   private _unsubscribeFromToolChanges?: () => void; // Add tool subscription cleanup
   private _unsubscribeFromGridVisibility?: () => void; // Add grid visibility subscription cleanup
@@ -95,10 +77,6 @@ export class PixiRendererOrchestrator { // Renamed class
   private gridInitRetryTimeout: number | null = null;
   /** Screen-space overlays that exist only for the DM, such as tool previews. */
   private readonly dmScreenOverlays = new Set<Container>();
-
-  private getSourceLeaf(): WorkspaceLeaf | null {
-    return findAtlasLeafByViewId(this.obsApp.workspace, this.viewId);
-  }
 
   // Getter for the viewport, now from PixiAppManager
   private get viewport(): Viewport | null {
@@ -112,13 +90,13 @@ export class PixiRendererOrchestrator { // Renamed class
 
 
   constructor(
-    obsApp: App, 
-    pixiAppManager: PixiAppManager, 
+    host: CanvasHost,
+    pixiAppManager: PixiAppManager,
     eventBus: EventEmitter,
     store: ViewAtlasStore,
     viewId: string
   ) {
-    this.obsApp = obsApp;
+    this.host = host;
     this.pixiAppManager = pixiAppManager;
     this.eventBus = eventBus; 
     this.store = store;
@@ -320,7 +298,7 @@ export class PixiRendererOrchestrator { // Renamed class
     // This also means tokenContainer will be added to viewport earlier
     if (this.gridSystem) {
         this.tokenRenderer = new TokenRenderer(
-            this.obsApp,
+            this.host,
             viewport,
             this.gridSystem,
             () => this.selectionManager?.updateSelectionOverlay(),
@@ -374,29 +352,23 @@ export class PixiRendererOrchestrator { // Renamed class
     fogContainer.zIndex = 1000;
 
     if (!isPlayerView) {
-      this.lightingFeature = new LightingFeature({
+      this.lightingFeature = this.host.lighting?.({
         viewport,
         app: this.pixiAppManager.app,
         store: this.store,
         eventBus: this.eventBus,
-        obsApp: this.obsApp,
         viewId: this.viewId,
         bounds: () => this.getMapRect(),
         albedo: () => (this.backgroundSprite && !this.backgroundSprite.destroyed ? this.backgroundSprite.texture : null),
       });
     }
 
-    // Initialize Audio system
-    this.audioRenderer = new AudioRenderer(viewport, this.store);
-    this.audioTool = new AudioTool(this.eventBus);
-
-    // Initialize SoundRegistry and SpatialAudioEngine
-    const pluginDir = this.store.getState().plugin?.manifest?.dir ?? `${this.obsApp.vault.configDir}/plugins/atlas-vtt`;
-    this.soundRegistry = new SoundRegistry(this.obsApp, pluginDir);
-    void this.soundRegistry.scanCustomSounds();
-    this.bufferCache = new AudioBufferCache(new AudioContext(), this.obsApp, this.soundRegistry);
-    this.spatialAudioEngine = new SpatialAudioEngine(this.store, this.bufferCache);
-
+    this.audio = this.host.audio?.({
+      viewport,
+      store: this.store,
+      eventBus: this.eventBus,
+      canvas: () => this.pixiAppManager.getCanvasElement() ?? null,
+    });
 
     // Wire viewport-level event dispatch providers (only if TokenRenderer is available now;
     // otherwise initGrid() will wire them when TokenRenderer is created later)
@@ -413,7 +385,7 @@ export class PixiRendererOrchestrator { // Renamed class
       viewport, this.app, this.store,
       this.pixiAppManager.getCanvasElement(),
       // Looked up on every draw: a plugin reload replaces the settings service.
-      () => SettingsService.forApp(this.obsApp)?.getLaserPointerSettings() ?? DEFAULT_LASER_POINTER_SETTINGS,
+      () => this.host.settings()?.getLaserPointerSettings() ?? DEFAULT_LASER_POINTER_SETTINGS,
     );
     const laserPointerContainer = this.laserPointerRenderer.getContainer();
     viewport.addChild(laserPointerContainer);
@@ -527,7 +499,7 @@ export class PixiRendererOrchestrator { // Renamed class
     // Ensure TokenRenderer is initialized or updated if gridSystem was just created/updated
     if (!this.tokenRenderer && this.gridSystem && currentViewport) {
         this.tokenRenderer = new TokenRenderer(
-            this.obsApp,
+            this.host,
             currentViewport,
             this.gridSystem,
             () => this.selectionManager?.updateSelectionOverlay(), // Pass callback to SelectionManager
@@ -802,7 +774,7 @@ export class PixiRendererOrchestrator { // Renamed class
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!canRunMapHotkeys(e, this.viewId)) return;
-      const settings = SettingsService.forApp(this.obsApp);
+      const settings = this.host.settings();
       // Escape key
       if (matchesMapHotkey(e, 'cancel', settings)) {
         if (this.lighting?.handleEscape()) {
@@ -856,7 +828,6 @@ export class PixiRendererOrchestrator { // Renamed class
       screenX: e.clientX ?? e.global.x,
       screenY: e.clientY ?? e.global.y,
       pixiEvent: e,
-      sourceLeaf: this.getSourceLeaf(),
     });
   }
 
@@ -906,96 +877,14 @@ export class PixiRendererOrchestrator { // Renamed class
 
     this.lightingFeature?.wire(this.tokenRenderer);
 
-    // Wire audio tool viewport handlers
-    if (this.audioRenderer && this.audioTool) {
-      this.tokenRenderer.setAudioPointerDownHandler((worldX, worldY, _e) => {
-        return this.handleAudioPointerDown(worldX, worldY);
-      });
-      this.tokenRenderer.setAudioPointerMoveHandler((_worldX, _worldY, _e) => {
-        // Future: hover feedback for audio sources
-      });
-    }
+    this.audio?.wire(this.tokenRenderer);
   }
 
   /** Lets MeasureRenderer read the current map's measurement settings. */
   private wireMeasureRendererProvider(): void {
     if (!this.measureRenderer) return;
-    const assetService = AssetService.getInstance(this.obsApp);
-    this.measureRenderer.measurementSettingsProvider = () => mapMeasurementSettings(assetService, this.store.getState());
-  }
-
-  /** Handle audio tool pointer down: click to select existing source or place new one */
-  private handleAudioPointerDown(worldX: number, worldY: number): boolean {
-    if (!this.audioRenderer || !this.audioTool || !this.soundRegistry) return false;
-
-    // Check if clicking on an existing audio source
-    const hitId = this.audioRenderer.hitTestAudioSources(worldX, worldY);
-    if (hitId) {
-      this.audioRenderer.setSelectedAudio(hitId);
-      // Open config panel
-      if (this.viewport) {
-        const screenPos = this.viewport.toScreen(worldX, worldY);
-        const canvasRect = this.pixiAppManager.getCanvasElement()?.getBoundingClientRect();
-        const sx = (canvasRect?.left ?? 0) + screenPos.x;
-        const sy = (canvasRect?.top ?? 0) + screenPos.y;
-        openAudioConfigPanel(
-          hitId,
-          this.store,
-          this.soundRegistry,
-          (soundId) => this.previewSound(soundId),
-          sx,
-          sy,
-        );
-      }
-      return true;
-    }
-
-    // Place a new audio source
-    const settings = this.audioTool.getSettings();
-    const grid = this.store.getState().grid;
-    const gridSize = grid?.size ?? 70;
-    const unitDist = grid?.unitDistance ?? 5;
-    const innerPx = (10 / unitDist) * gridSize;  // Default 10 game units
-    const outerPx = (30 / unitDist) * gridSize;  // Default 30 game units
-
-    const newId = this.store.getState().addAudio({
-      x: worldX,
-      y: worldY,
-      innerRadius: innerPx,
-      outerRadius: outerPx,
-      volume: settings.defaultVolume,
-      soundId: settings.defaultSoundId,
-      loop: true,
-    });
-
-    this.audioRenderer.setSelectedAudio(newId);
-
-    // Open config panel for the new source
-    if (this.viewport) {
-      const screenPos = this.viewport.toScreen(worldX, worldY);
-      const canvasRect = this.pixiAppManager.getCanvasElement()?.getBoundingClientRect();
-      const sx = (canvasRect?.left ?? 0) + screenPos.x;
-      const sy = (canvasRect?.top ?? 0) + screenPos.y;
-      openAudioConfigPanel(
-        newId,
-        this.store,
-        this.soundRegistry,
-        (soundId) => this.previewSound(soundId),
-        sx,
-        sy,
-      );
-    }
-
-    return true;
-  }
-
-  private previewSound(soundId: string): void {
-    if (!this.spatialAudioEngine) return;
-    runInBackground(
-      this.spatialAudioEngine.previewSound(soundId),
-      `Previewing sound ${soundId}`,
-      'Could not play the sound preview',
-    );
+    const collections = this.host.collections;
+    this.measureRenderer.measurementSettingsProvider = () => mapMeasurementSettings(collections, this.store.getState());
   }
 
   destroy(): void {
@@ -1037,9 +926,7 @@ export class PixiRendererOrchestrator { // Renamed class
     this.textRenderer?.destroy(); // Destroy TextRenderer
     this.textTool?.destroy(); // Destroy TextTool
     this.lightingFeature?.destroy();
-    this.audioRenderer?.destroy();
-    this.spatialAudioEngine?.dispose();
-    this.bufferCache?.dispose();
+    this.audio?.destroy();
     this.gridSystem?.destroy(); // Destroy GridSystem
     this.selectionManager?.destroy(); // Destroy SelectionManager
     

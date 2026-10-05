@@ -5,7 +5,7 @@ import type { ViewAtlasState } from '../storeFactory';
 import { beginHistoryTransaction, endHistoryTransaction } from '../stores/history';
 import { hitTestDrawing } from './drawingGeometry';
 import { MAP_ICON_LABELS } from './mapIcons';
-import { openContextMenuGlobal, type ContextMenuEntry } from '../react/root/ContextMenuContext';
+import { openContextMenuGlobal, type ContextMenuEntry } from '../ui/contextMenus';
 
 /** Screen-space slack around ink, so thin lines stay grabbable at any zoom. */
 const HIT_TOLERANCE_PX = 6;

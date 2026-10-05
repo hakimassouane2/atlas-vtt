@@ -19,6 +19,7 @@ import { PinRenderer } from '../../../src/app/pixi/PinRenderer';
 import { FogOfWarRenderer } from '../../../src/app/pixi/fog/FogOfWarRenderer';
 import { TextTool } from '../../../src/app/tools/TextTool';
 import { AssetService } from '../../../src/app/services/AssetService';
+import { obsidianCanvasHost } from '../../../src/app/services/canvasHost/obsidianCanvasHost';
 import { createViewAtlasStore } from '../../../src/app/storeFactory';
 import { computeTokenPixelSize } from '../../../src/app/pixi/token-renderer/tokenSizing';
 import { getHistoryStore } from '../../../src/app/stores/history';
@@ -27,7 +28,7 @@ import { createInMemoryApp } from '../../mocks/inMemoryVault';
 import { stubJsdomGraphics } from '../../mocks/jsdomGraphics';
 
 const openContextMenuGlobal = vi.hoisted(() => vi.fn());
-vi.mock('../../../src/app/react/root/ContextMenuContext', () => ({
+vi.mock('../../../src/app/ui/contextMenus', () => ({
   openContextMenuGlobal,
   closeContextMenuGlobal: vi.fn(),
 }));
@@ -110,7 +111,7 @@ describe('TokenRenderer Integration Tests', () => {
 
   const createRenderer = (viewStore: ViewStore = store): TokenRenderer => {
     const renderer = new TokenRenderer(
-      obsidianApp,
+      obsidianCanvasHost(obsidianApp, { tokenMenu: true }),
       viewport,
       gridSystem,
       selectionOverlayUpdater,

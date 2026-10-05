@@ -95,7 +95,6 @@ export class NotePreviewUIManager {
       screenX: number;
       screenY: number;
       pixiEvent?: FederatedPointerEvent;
-      sourceLeaf?: WorkspaceLeaf | null;
     }) => {
       // Always update last hovered ID for proper cleanup
       this.lastHoveredPinId = data.pin.id;
@@ -108,7 +107,8 @@ export class NotePreviewUIManager {
       
       // Hover events only fire when the hovered element changes, so remember
       // the hover: every later modifier press replays it.
-      this.currentHover = { pin: data.pin, screenX: data.screenX, screenY: data.screenY, sourceLeaf: data.sourceLeaf ?? null };
+      const sourceLeaf = findAtlasLeafByViewId(this.app.workspace, this.viewId);
+      this.currentHover = { pin: data.pin, screenX: data.screenX, screenY: data.screenY, sourceLeaf };
       if (modifierKeyDown) {
         this.showPreviewFor(this.currentHover);
       }

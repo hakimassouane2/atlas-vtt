@@ -8,7 +8,7 @@
 import { Container, Graphics, Text as PIXIText, TextStyle, FederatedPointerEvent } from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
 import { OutlineFilter } from 'pixi-filters';
-import { openContextMenuGlobal, type ContextMenuEntry } from '../react/root/ContextMenuContext';
+import { openContextMenuGlobal, type ContextMenuEntry } from '../ui/contextMenus';
 import type { TextElement } from '../types';
 import type { GridSystem } from '../grid/GridSystem';
 import type { ViewAtlasState } from '../storeFactory';

@@ -4,6 +4,7 @@ import type { Viewport } from 'pixi-viewport';
 import type { EventEmitter } from 'events';
 import type { App } from 'obsidian';
 import { InteractionController } from '../../src/app/pixi/token-renderer/InteractionController';
+import { gmTokenMenu } from '../../src/app/react/components/context-menu/gmTokenMenu';
 import type { GridSystem } from '../../src/app/grid/GridSystem';
 import { createViewAtlasStore } from '../../src/app/storeFactory';
 import type { ContextMenuEntry } from '../../src/app/react/components/context-menu/AtlasContextMenu';
@@ -11,7 +12,7 @@ import type { Token } from '../../src/app/types';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
 const opened = vi.hoisted(() => ({ entries: [] as ContextMenuEntry[] }));
-vi.mock('../../src/app/react/root/ContextMenuContext', () => ({
+vi.mock('../../src/app/ui/contextMenus', () => ({
   openContextMenuGlobal: (entries: ContextMenuEntry[]) => { opened.entries = entries; },
   closeContextMenuGlobal: () => {},
 }));
@@ -23,9 +24,8 @@ function setup(selectedIds: string[]): { store: ReturnType<typeof createViewAtla
   const store = createViewAtlasStore(app, `initiative-${Math.random()}`);
   const tokens = Object.fromEntries(['a', 'b', 'c'].map((id) => [id, token(id)]));
   store.setState({ persistenceEnabled: false, activeTool: 'select', selectedIds, objects: { ...store.getState().objects, tokens } });
-  const controller = new InteractionController(
-    {} as Viewport, store, {} as GridSystem, {} as EventEmitter, app as unknown as App,
-  );
+  const controller = new InteractionController({} as Viewport, store, {} as GridSystem, {} as EventEmitter);
+  controller.tokenMenu = gmTokenMenu(app as unknown as App)({ store, gridSystem: {} as GridSystem, conditions: () => [], resources: () => [] });
   const rightClick = (id: string): void => controller.handleViewportTokenPointerDown(
     id, { button: 2, stopPropagation: () => {}, clientX: 0, clientY: 0, global: { x: 0, y: 0 } } as unknown as FederatedPointerEvent,
   );

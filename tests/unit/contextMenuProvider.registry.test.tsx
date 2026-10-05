@@ -1,7 +1,8 @@
 import React from 'react';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { ContextMenuProvider, openContextMenuGlobal } from '../../src/app/react/root/ContextMenuContext';
+import { ContextMenuProvider } from '../../src/app/react/root/ContextMenuContext';
+import { openContextMenuGlobal } from '../../src/app/ui/contextMenus';
 
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class {

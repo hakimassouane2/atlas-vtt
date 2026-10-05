@@ -1,8 +1,9 @@
 import { App, FileSystemAdapter, Menu, TFile, Notice, type EventRef } from 'obsidian';
-import { openContextMenuGlobal, type ContextMenuEntry } from '../react/root/ContextMenuContext';
+import { openContextMenuGlobal, type ContextMenuEntry } from '../ui/contextMenus';
 import { PlayerWindowService } from './PlayerWindowService';
 import { playImageEnter, playImageExit } from './imageDisplayMotion';
 import { ImageOverlayControls } from './imageOverlayControls';
+import { imageMimeType } from '../utils/imageMimeTypes';
 import './image-display.scss';
 
 /** An image overlay in the player window. */
@@ -406,17 +407,7 @@ export class ImageDisplayService {
    * Get MIME type for file extension
    */
   private getMimeType(extension: string): string {
-    const mimeTypes: Record<string, string> = {
-      'png': 'image/png',
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'gif': 'image/gif',
-      'bmp': 'image/bmp',
-      'svg': 'image/svg+xml',
-      'webp': 'image/webp'
-    };
-    
-    return mimeTypes[extension.toLowerCase()] || 'image/png';
+    return imageMimeType(extension) ?? 'image/png';
   }
 
   /**

@@ -1,11 +1,11 @@
 import { resolveMeasurementSettings, type MeasurementSettings } from '../grid/measurementFormat';
 import { collectionConeAngle } from '../gameSystems/coneAngle';
 import type { ViewAtlasState } from '../storeFactory';
-import type { AssetService } from './AssetService';
+import type { CollectionLookup } from '../resources/collectionResources';
 
 /** Measurement settings for the map in `state`, read from its collection when it has one. */
 export function mapMeasurementSettings(
-  assetService: AssetService,
+  assetService: CollectionLookup,
   state: Pick<ViewAtlasState, 'mapPath' | 'grid'>,
 ): MeasurementSettings {
   const collectionId = state.mapPath ? assetService.getCollectionForMap(state.mapPath) : null;

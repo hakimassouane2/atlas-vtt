@@ -1,7 +1,6 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Platform } from 'obsidian';
 import type { InitiativeEntry } from '../../src/app/types/initiativeTypes';
 
 vi.mock('../../src/app/react/root/AtlasUIContext', () => ({
@@ -23,6 +22,7 @@ vi.mock('../../src/app/pixi/utils/tokenHighlight', () => ({
 }));
 
 import { InitiativeCard } from '../../src/app/react/components/InitiativeCard';
+import { runtimePlatform } from '../../src/app/keyboard/runtimePlatform';
 
 function createEntry(): InitiativeEntry {
   return {
@@ -40,11 +40,11 @@ function createEntry(): InitiativeEntry {
 
 describe('InitiativeCard statblock preview hover behavior', () => {
   beforeEach(() => {
-    Platform.isMacOS = true;
+    runtimePlatform.isMacOS = true;
   });
 
   afterEach(() => {
-    Platform.isMacOS = false;
+    runtimePlatform.isMacOS = false;
   });
 
   it('does not repeatedly trigger onHover when this card is already active preview target', () => {

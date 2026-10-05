@@ -23,7 +23,7 @@ import type { LayerVisibility } from '../playerSafeFrame';
 import { destroyTree } from '../utils/destroyTree';
 import { requestRender } from '../RenderScheduler';
 import { isHandled } from '../utils/handledEvents';
-import { openContextMenuGlobal } from '../../react/root/ContextMenuContext';
+import { openContextMenuGlobal } from '../../ui/contextMenus';
 import { STROKE_COLORS, ShapeStroke, type StrokeMode } from '../../tools/shapeStroke';
 import { drawStrokeArea } from '../utils/strokePreview';
 

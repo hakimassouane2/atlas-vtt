@@ -2,7 +2,6 @@ import type { ExperimentalFeatureId } from '../experimental/experimentalFeatures
 import { AMBIENT_AUDIO_ENABLED } from '../featureFlags';
 import { isActiveAtlasLeaf } from '../utils/activeLeafGuard';
 import { handledByAnotherControl } from './tooltipEscape';
-import type { SettingsService } from '../services/SettingsService';
 
 export const MAP_HOTKEYS = [
   { id: 'help', label: 'Keyboard shortcuts', group: 'Map', defaultKey: '?' },
@@ -81,7 +80,12 @@ export function hotkeyFromEvent(event: KeyboardEvent): string | null {
 export function matchesHotkey(event: KeyboardEvent, binding: string, allowRepeat = false): boolean {
   return !!binding && (allowRepeat || !event.repeat) && !event.isComposing && hotkeyFromEvent(event) === binding;
 }
-export function matchesMapHotkey(event: KeyboardEvent, id: MapHotkeyId, settings?: SettingsService): boolean {
+/** Where the GM's own key bindings are read: Atlas' settings. */
+export interface HotkeySettings {
+  getHotkeys(): MapHotkeys;
+}
+
+export function matchesMapHotkey(event: KeyboardEvent, id: MapHotkeyId, settings?: HotkeySettings): boolean {
   return matchesHotkey(event, (settings?.getHotkeys() ?? DEFAULT_MAP_HOTKEYS)[id]);
 }
 export function formatHotkey(binding: string): string {

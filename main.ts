@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian';
+import { Notice, Platform, Plugin } from 'obsidian';
 // Tailwind first, so the custom SCSS can override it.
 import './styles/index.css';
 import './styles/main.scss';
@@ -39,6 +39,8 @@ import { runStartupMigration } from './src/app/plugin/startupMigration';
 import { registerStatusBarVisibility } from './src/app/plugin/statusBarVisibility';
 import { registerVaultSync } from './src/app/plugin/vaultSync';
 import { ChangelogService } from './src/app/changelog/ChangelogService';
+import { setNoticePresenter } from './src/app/ui/notices';
+import { runtimePlatform } from './src/app/keyboard/runtimePlatform';
 import { AtlasErrorLog } from './src/app/support/errorLog';
 import { IssueReporter } from './src/app/support/IssueReporter';
 import { runInBackground } from './src/app/utils/backgroundTask';
@@ -62,6 +64,8 @@ export default class AtlasVTTPlugin extends Plugin {
     // Record errors from the very start so startup problems can be reported too.
     const errorLog = new AtlasErrorLog();
     this.register(errorLog.attach());
+    this.register(setNoticePresenter((message, durationMs) => new Notice(message, durationMs)));
+    runtimePlatform.isMacOS = Platform.isMacOS;
     const issueReporter = new IssueReporter(this.app, this.manifest, errorLog);
     this.addCommand({ id: 'report-issue', name: 'Report an issue…', callback: () => issueReporter.open() });
 

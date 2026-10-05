@@ -32,7 +32,7 @@ const opened = vi.hoisted(() => ({ entries: [] as ContextMenuEntry[] }));
 const scrolls = vi.hoisted(() => ({ calls: [] as unknown[][] }));
 vi.mock('../../src/app/utils/scrollWithin', () => ({ scrollWithin: (...args: unknown[]) => { scrolls.calls.push(args); } }));
 vi.mock('../../src/app/initiative/useMapInitiativeRules', () => ({ useMapInitiativeRules: () => collection.rules }));
-vi.mock('../../src/app/react/root/ContextMenuContext', () => ({
+vi.mock('../../src/app/ui/contextMenus', () => ({
   openContextMenuGlobal: (entries: ContextMenuEntry[]) => { opened.entries = entries; },
 }));
 vi.mock('../../src/app/react/root/AtlasUIContext', () => ({ useAtlasUI: () => ({ app: null, view: null }) }));

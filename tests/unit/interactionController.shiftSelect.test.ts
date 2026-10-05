@@ -23,7 +23,7 @@ function makeController(selectedIds: string[]): { controller: InteractionControl
       setHeldTokens: vi.fn(),
     }),
   } as any;
-  const controller = new InteractionController(viewport, store, {} as any, {} as any, {} as any, false);
+  const controller = new InteractionController(viewport, store, {} as any, {} as any, false);
   controller.setTokenSpriteProvider(() => null);
   return { controller, setSelection, viewport };
 }

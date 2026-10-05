@@ -3,7 +3,7 @@ import type { FederatedPointerEvent } from 'pixi.js';
 import { FogOfWarRenderer } from '../../src/app/pixi/fog/FogOfWarRenderer';
 
 const openContextMenuGlobal = vi.hoisted(() => vi.fn());
-vi.mock('../../src/app/react/root/ContextMenuContext', () => ({ openContextMenuGlobal }));
+vi.mock('../../src/app/ui/contextMenus', () => ({ openContextMenuGlobal }));
 
 it('opens the fog menu at the pointer in the window, not at its position on the canvas', () => {
   const harness = Object.assign(Object.create(FogOfWarRenderer.prototype) as FogOfWarRenderer, {

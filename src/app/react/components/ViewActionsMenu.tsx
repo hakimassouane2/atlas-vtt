@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MoreVertical } from 'lucide-react';
 import { App, FileView, Notice } from 'obsidian';
 import { getActiveWorkspaceLeaf } from '../../utils/embeddedLeafFocus';
-import { openContextMenuGlobal, type ContextMenuEntry } from '../root/ContextMenuContext';
+import { openContextMenuGlobal, type ContextMenuEntry } from '../../ui/contextMenus';
 import { LabelTooltip } from '../../packages/components/primitives/tooltip';
 
 interface ViewActionsMenuProps {

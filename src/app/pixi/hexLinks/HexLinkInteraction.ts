@@ -2,7 +2,7 @@ import type { FederatedPointerEvent } from 'pixi.js';
 import type { Viewport } from 'pixi-viewport';
 import type { NotePin } from '../../types';
 import type { ViewAtlasStore } from '../../storeFactory';
-import { openContextMenuGlobal } from '../../react/root/ContextMenuContext';
+import { openContextMenuGlobal } from '../../ui/contextMenus';
 import { watchClick } from '../utils/clickRelease';
 import { dispatchPinAction } from '../utils/pinActions';
 import type { HexLinkRenderer } from './HexLinkRenderer';

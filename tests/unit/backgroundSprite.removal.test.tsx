@@ -15,6 +15,7 @@ import { BackgroundSprite } from '../../src/app/react/BackgroundSprite';
 import { AtlasUIContext } from '../../src/app/react/root/AtlasUIContext';
 import { ViewStoreProvider, useAtlasStore } from '../../src/app/react/ViewStoreContext';
 import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { obsidianCanvasHost } from '../../src/app/services/canvasHost/obsidianCanvasHost';
 
 function mapTexture(): Texture {
   return new Texture({ source: new TextureSource({ width: 280, height: 210 }) });
@@ -54,7 +55,7 @@ async function showScene(): Promise<Harness> {
     getApp: () => ({ renderer: { resolution: 1 } }),
     destroy: vi.fn(),
   };
-  const renderer = new PixiRendererOrchestrator(app, manager as never, new EventEmitter(), store, 'background-removal-test');
+  const renderer = new PixiRendererOrchestrator(obsidianCanvasHost(app, { tokenMenu: true }), manager as never, new EventEmitter(), store, 'background-removal-test');
   vi.spyOn(renderer as never, 'setupRenderersAndManagers').mockImplementation(() => {});
   vi.spyOn(renderer as never, 'setupKeyboardHandlers').mockImplementation(() => {});
   await renderer.init(document.createElement('div'));

@@ -1,4 +1,4 @@
-import type { ContextMenuEntry } from '../root/ContextMenuContext';
+import type { ContextMenuEntry } from '../../ui/contextMenus';
 import { SIDE_LABELS, otherSide, sideOf } from '../../initiative/sides';
 import type { TokenUpdates } from '../../storeFactory';
 import type { TokenEntity } from '../../types';

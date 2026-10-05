@@ -1,5 +1,5 @@
 import React from 'react';
-import { openContextMenuGlobal } from '../../../../react/root/ContextMenuContext';
+import { openContextMenuGlobal } from '../../../../ui/contextMenus';
 import { buildAssetContextMenuEntries } from '../contextMenus/assetContextMenu';
 import { buildFolderContextMenuEntries } from '../contextMenus/folderContextMenu';
 import { buildContentContextMenuEntries } from '../contextMenus/contentContextMenu';

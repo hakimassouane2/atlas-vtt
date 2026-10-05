@@ -1,9 +1,10 @@
 import { EventEmitter } from 'events';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { Platform, WorkspaceLeaf } from 'obsidian';
+import { WorkspaceLeaf } from 'obsidian';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { createViewAtlasStore } from '../../src/app/storeFactory';
 import { NotePreviewUIManager } from '../../src/app/services/NotePreviewUIManager';
+import { runtimePlatform } from '../../src/app/keyboard/runtimePlatform';
 
 const VIEW_ID = 'hover-context-test';
 
@@ -65,13 +66,13 @@ describe('NotePreviewUIManager hover replay', () => {
   let harness: ManagerHarness;
 
   beforeEach(() => {
-    Platform.isMacOS = true;
+    runtimePlatform.isMacOS = true;
     harness = createHarness();
   });
 
   afterEach(() => {
     harness.manager.destroy();
-    Platform.isMacOS = false;
+    runtimePlatform.isMacOS = false;
   });
 
   it('opens the preview when CMD is pressed while an element is hovered', () => {

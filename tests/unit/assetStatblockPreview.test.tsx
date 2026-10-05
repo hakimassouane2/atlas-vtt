@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Platform, type App } from 'obsidian';
+import type { App } from 'obsidian';
 import type { AnyAsset } from '../../src/app/packages/components/asset-manager/types';
 
 vi.mock('../../src/app/react/components/FantasyStatblock', () => ({
@@ -12,6 +12,7 @@ vi.mock('../../src/app/react/components/FantasyStatblock', () => ({
 
 import { useAssetStatblockPreview } from '../../src/app/packages/components/asset-manager/hooks/useAssetStatblockPreview';
 import { useModHoverStatblockPreview } from '../../src/app/packages/components/asset-manager/hooks/useModHoverStatblockPreview';
+import { runtimePlatform } from '../../src/app/keyboard/runtimePlatform';
 
 const app = {} as App;
 const WINDOW = '.atlas-statblock-preview-window';
@@ -52,14 +53,14 @@ describe('asset manager statblock preview', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.stubGlobal('ResizeObserver', class { observe(): void {} disconnect(): void {} });
-    Platform.isMacOS = true;
+    runtimePlatform.isMacOS = true;
   });
 
   afterEach(() => {
     cleanup();
     vi.runOnlyPendingTimers();
     document.body.empty();
-    Platform.isMacOS = false;
+    runtimePlatform.isMacOS = false;
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });

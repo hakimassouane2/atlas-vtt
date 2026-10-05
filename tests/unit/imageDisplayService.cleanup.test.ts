@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('../../src/app/react/root/ContextMenuContext', () => ({
+vi.mock('../../src/app/ui/contextMenus', () => ({
   openContextMenuGlobal: vi.fn(),
 }));
 

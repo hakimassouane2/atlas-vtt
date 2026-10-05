@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Plus } from 'lucide-react';
-import { openContextMenuGlobal, type ContextMenuEntry } from '../../../react/root/ContextMenuContext';
+import { openContextMenuGlobal, type ContextMenuEntry } from '../../../ui/contextMenus';
 import type { TagGroup } from '../../../services/tagGroups';
 import { confirmAction } from '../../../ui/confirmDialog';
 import { isShortcutScopeActive } from '../../../utils/activeLeafGuard';

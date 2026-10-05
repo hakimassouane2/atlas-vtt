@@ -36,7 +36,7 @@ const lightingView = vi.hoisted(() => (deps: SceneLightingDeps): SceneLightingVi
 }));
 vi.mock('../../src/app/utils/activeLeafGuard', () => ({ isActiveAtlasLeaf: () => true }));
 const openContextMenuGlobal = vi.hoisted(() => vi.fn());
-vi.mock('../../src/app/react/root/ContextMenuContext', () => ({ openContextMenuGlobal, closeContextMenuGlobal: vi.fn() }));
+vi.mock('../../src/app/ui/contextMenus', () => ({ openContextMenuGlobal, closeContextMenuGlobal: vi.fn() }));
 /** The context menu the controller opens. */
 export const contextMenuOpened = openContextMenuGlobal;
 

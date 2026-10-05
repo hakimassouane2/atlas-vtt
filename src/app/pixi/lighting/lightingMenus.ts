@@ -2,7 +2,7 @@ import { LIMITED_WALLS } from '../../featureFlags';
 import { readLight, readWall } from '../../lighting/lightingObjects';
 import type { ViewAtlasStore } from '../../storeFactory';
 import type { WallChannel } from '../../types/wallTypes';
-import { openContextMenuGlobal, type ContextMenuEntry } from '../../react/root/ContextMenuContext';
+import { openContextMenuGlobal, type ContextMenuEntry } from '../../ui/contextMenus';
 import type { WallInteraction } from '../vision/WallInteraction';
 import type { WallRenderer } from '../vision/WallRenderer';
 

@@ -15,6 +15,7 @@ import { SceneThumbnailUpdater } from './SceneThumbnailUpdater';
 import { WidgetSyncService } from './WidgetSyncService';
 import { SoundEffectService } from './SoundEffectService';
 import { DiceToastObserver } from './DiceToastObserver';
+import { TokenStatblockSync } from './TokenStatblockSync';
 import type { ViewAtlasStore } from '../storeFactory';
 
 /**
@@ -36,6 +37,7 @@ export class ServiceManager {
   private widgetSyncService?: WidgetSyncService;
   private soundEffectService: SoundEffectService;
   private diceToastObserver: DiceToastObserver;
+  private tokenStatblockSync: TokenStatblockSync;
   private viewId: string;
   private sceneThumbnails: SceneThumbnailUpdater;
   
@@ -56,6 +58,7 @@ export class ServiceManager {
     this.layerGraph = new LayerGraph(this.eventBus);
     this.uiOverlay = new UIOverlay(app, this.eventBus, store);
     this.mapService = new MapService(app, this.eventBus, store);
+    this.tokenStatblockSync = new TokenStatblockSync(app, store, this.eventBus);
     // Initialize SoundEffectService before ToolController
     this.soundEffectService = new SoundEffectService();
     this.diceToastObserver = new DiceToastObserver(this.soundEffectService, this.settingsService);
@@ -212,6 +215,7 @@ export class ServiceManager {
     this.diceToastObserver.destroy();
     this.soundEffectService.destroy();
     this.toolController.destroy();
+    this.tokenStatblockSync.destroy();
     this.rendererService.destroy();
     this.layerGraph.destroy();
     this.uiOverlay.unmount();

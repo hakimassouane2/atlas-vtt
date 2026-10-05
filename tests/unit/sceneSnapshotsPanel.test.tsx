@@ -16,7 +16,7 @@ vi.mock('../../src/app/react/root/AtlasUIContext', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../src/app/react/root/AtlasUIContext')>(),
   useAtlasUI: () => ui.current,
 }));
-vi.mock('../../src/app/react/root/ContextMenuContext', () => ({ openContextMenuGlobal: menu.open }));
+vi.mock('../../src/app/ui/contextMenus', () => ({ openContextMenuGlobal: menu.open }));
 vi.mock('../../src/app/ui/confirmDialog', () => ({ confirmAction: dialogs.confirmAction }));
 
 import { SceneSnapshotsPanel } from '../../src/app/react/components/command-palette/SceneSnapshotsPanel';
