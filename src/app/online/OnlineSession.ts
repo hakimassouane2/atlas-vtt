@@ -1,4 +1,4 @@
-import { Notice, type App } from 'obsidian';
+import { Notice, type App, type EventRef } from 'obsidian';
 import playerClient from 'virtual:atlas-player-client';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AtlasView } from '../atlas-view';
@@ -15,19 +15,25 @@ import { AssetService } from '../services/AssetService';
 import { mapConditions } from '../services/mapConditions';
 import { mapInitiativeRules } from '../services/mapInitiativeRules';
 import { mapResources } from '../resources/collectionResources';
-import type { Character } from '../types';
+import type { TokenEntity } from '../types';
+import type { PlayerProfile } from '../types/collectionSettingsTypes';
+import { mapPlayers } from '../players/playerProfiles';
+import { ConnectedPlayers, parseProfileChoice } from './connectedPlayers';
 import { SceneReplicator, type ReplicatedSource } from './scene/SceneReplicator';
 
 export interface OnlineSessionState {
   isRunning: boolean;
   /** Browsers currently connected with the player link. */
   playerCount: number;
+  /** The profiles of the presented scene's collection that someone is connected as. */
+  players: PlayerProfile[];
 }
 
 /** Read by the dashboard; one session per plugin, like the player window. */
 export const onlineSessionStore: StoreApi<OnlineSessionState> = createStore<OnlineSessionState>(() => ({
   isRunning: false,
   playerCount: 0,
+  players: [],
 }));
 
 /**
@@ -50,6 +56,9 @@ export class OnlineSession {
   private stopWatchingTab: (() => void) | null = null;
   /** Views that already release the session when they close. */
   private readonly viewsReleasingOnClose = new WeakSet<AtlasView>();
+  /** The connected pages and the profile each one's player chose. */
+  private readonly connected = new ConnectedPlayers();
+  private collectionSettingsRef: EventRef | null = null;
 
   constructor(private readonly app: App, private readonly settingsService: SettingsService) {
     this.controls = new PlayerControls((formula, token) => this.rollForPlayer(formula, token));
@@ -94,7 +103,10 @@ export class OnlineSession {
     this.server?.close();
     this.server = null;
     this.rollImages.clear();
-    onlineSessionStore.setState({ isRunning: false, playerCount: 0 });
+    this.connected.clear();
+    if (this.collectionSettingsRef) this.app.workspace.offref(this.collectionSettingsRef);
+    this.collectionSettingsRef = null;
+    onlineSessionStore.setState({ isRunning: false, playerCount: 0, players: [] });
   }
 
   /**
@@ -104,6 +116,7 @@ export class OnlineSession {
   present(view: AtlasView, tabId: string, source: PlayerFrameSource, resolveSource: () => Promise<PlayerFrameSource | null>): void {
     this.setSource({ view, source });
     this.presentedView = view;
+    this.showConnected();
     this.stopWatchingTab?.();
     const stopWatching = view.tabMetaStore.subscribe((state, previous) => {
       if (state.activeTabId === previous.activeTabId) return;
@@ -151,7 +164,15 @@ export class OnlineSession {
       grid: () => view.serviceManager.getRendererService().getRenderer()?.getGridSystem() ?? null,
       conditions: () => mapConditions(assets, store.getState().mapPath),
       resources: () => mapResources(assets, store.getState().mapPath),
+      players: () => mapPlayers(assets, store.getState().mapPath),
     };
+  }
+
+  /** Tells the dashboard who is connected, by the profiles of the presented scene's collection. */
+  private showConnected(): void {
+    const mapPath = this.presentedView?.atlasStore.getState().mapPath;
+    const players = mapPlayers(AssetService.getInstance(this.app), mapPath);
+    onlineSessionStore.setState({ playerCount: this.connected.count, players: this.connected.connectedProfiles(players) });
   }
 
   /** The scene of `store` for players' pages, with the collection whose rules it follows. */
@@ -172,7 +193,7 @@ export class OnlineSession {
     };
   }
 
-  private rollForPlayer(formula: string, token: Character | undefined): boolean {
+  private rollForPlayer(formula: string, token: TokenEntity | undefined): boolean {
     const diceTool = this.presentedView?.serviceManager.getToolController().getDiceTool();
     if (!diceTool) return false;
     this.diceFeed.rollForPlayer(diceTool, formula, token);
@@ -187,14 +208,22 @@ export class OnlineSession {
     }
     const server = new OnlineSessionServer(settings.secret, {
       onJoin: (playerId) => {
+        this.connected.join(playerId);
         this.replicator.sendTo(playerId);
-        onlineSessionStore.setState({ playerCount: server.playerCount });
+        this.showConnected();
       },
       onLeave: (playerId) => {
         this.controls.playerLeft(playerId);
-        onlineSessionStore.setState({ playerCount: server.playerCount });
+        this.connected.leave(playerId);
+        this.showConnected();
       },
-      onCommand: (body, playerId) => this.controls.apply(body, playerId),
+      onCommand: (body, playerId) => this.controls.apply(body, playerId, this.connected.profileOf(playerId)),
+      onProfile: (body, playerId) => {
+        const profile = parseProfileChoice(body);
+        if (profile === undefined || !this.connected.choose(playerId, profile)) return false;
+        this.showConnected();
+        return true;
+      },
       onImage: (path) => (this.mayLoadImage(path) ? tokenImage(this.app, path) : Promise.resolve(null)),
       pageTheme: () => pageTheme(document),
     }, playerClient);
@@ -208,7 +237,9 @@ export class OnlineSession {
     }
     this.server = server;
     this.diceFeed.start();
-    onlineSessionStore.setState({ isRunning: true, playerCount: 0 });
+    // A renamed or recoloured player shows so on the dashboard at once
+    this.collectionSettingsRef = this.app.workspace.on('atlas-vtt:collection-settings-changed', () => this.showConnected());
+    onlineSessionStore.setState({ isRunning: true, playerCount: 0, players: [] });
     return true;
   }
 

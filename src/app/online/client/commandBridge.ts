@@ -14,8 +14,8 @@ export function commandsFor(before: TokenEntity, token: TokenEntity, held: boole
   if (token.x !== before.x || token.y !== before.y) commands.push({ type: held ? 'drag' : 'move', id, x: token.x, y: token.y });
   if ((token.rotation ?? 0) !== (before.rotation ?? 0)) commands.push({ type: 'rotate', id, rotation: token.rotation ?? 0 });
 
-  const resources = token.kind === 'character' ? token.resources ?? {} : {};
-  const previous = before.kind === 'character' ? before.resources ?? {} : {};
+  const resources = token.resources ?? {};
+  const previous = before.resources ?? {};
   for (const [key, value] of Object.entries(resources)) {
     if (value.current !== previous[key]?.current) commands.push({ type: 'resource', id, key, current: value.current });
   }

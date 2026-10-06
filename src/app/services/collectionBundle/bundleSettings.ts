@@ -6,12 +6,21 @@ import type { CollectionSettings } from '../../types/collectionSettingsTypes';
 /**
  * A collection's settings as bundles compare them. Resources that only restate what the
  * settings read as before resources were stored are left out: Atlas stores them by itself
- * (`storeLegacyResources`), which is no edit of the GM's. Nor is what players see.
+ * (`storeLegacyResources`), which is no edit of the GM's. Nor is what players see, nor who
+ * the players are: they belong to the table, not to what is shared.
  */
-export function comparableSettings(settings: CollectionSettings | undefined): CollectionSettings | Omit<CollectionSettings, 'resources'> | undefined {
-  if (!settings?.resources) return settings;
-  const { resources, ...rest } = settings;
-  return sameResourceDefinitions(resources, legacyCollectionResources(rest, BUILT_IN_SYSTEM_PRESETS)) ? rest : settings;
+export function comparableSettings(settings: CollectionSettings | undefined): Omit<CollectionSettings, 'resources' | 'players'> | undefined {
+  if (!settings) return settings;
+  const { players: _players, ...shared } = settings;
+  if (!shared.resources) return shared;
+  const { resources, ...rest } = shared;
+  return sameResourceDefinitions(resources, legacyCollectionResources(rest, BUILT_IN_SYSTEM_PRESETS)) ? rest : shared;
+}
+
+/** `settings` without the table's players, which a bundle never carries. */
+export function withoutPlayers(settings: CollectionSettings): CollectionSettings {
+  const { players: _players, ...shared } = settings;
+  return shared;
 }
 
 /** `settings` with each loot base at the path `pathOf` gives it; a base without one is left out. */
@@ -20,7 +29,11 @@ export function withLootBases(settings: CollectionSettings, pathOf: (path: strin
   return lootBases ? { ...settings, lootBases: lootBases.flatMap((path) => pathOf(path) ?? []) } : settings;
 }
 
-/** The settings an import takes from a bundle. One written by an older Atlas names no resources: the vault keeps its own. */
+/**
+ * The settings an import takes from a bundle. One written by an older Atlas names no resources:
+ * the vault keeps its own. The vault always keeps its players.
+ */
 export function settingsFromBundle(theirs: CollectionSettings, mine: CollectionSettings | undefined): CollectionSettings {
-  return theirs.resources || !mine?.resources ? theirs : { ...theirs, resources: mine.resources };
+  const settings = theirs.resources || !mine?.resources ? withoutPlayers(theirs) : { ...withoutPlayers(theirs), resources: mine.resources };
+  return mine?.players ? { ...settings, players: mine.players } : settings;
 }

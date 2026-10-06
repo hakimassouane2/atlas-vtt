@@ -9,11 +9,11 @@ import { HP_RESOURCE, STRESS_RESOURCE } from '../../src/app/resources/resourceDe
 
 const hero: Character = {
   id: 'hero', kind: 'character', name: 'Hero', x: 35, y: 35, imagePath: 'hero.png',
-  playerLinked: true, resources: { hp: { current: 10, max: 20 }, stress: { current: 1, max: 6 } },
+  controlledBy: ['alice'], resources: { hp: { current: 10, max: 20 }, stress: { current: 1, max: 6 } },
 };
 
-/** HP is shown to players, stress is not. */
-const rules = { conditions: [], resources: [{ ...HP_RESOURCE, visibleToPlayers: true }, STRESS_RESOURCE] };
+/** Alice plays; HP is shown to players, stress is not. */
+const rules = { profileId: 'alice', conditions: [], resources: [{ ...HP_RESOURCE, visibleToPlayers: true }, STRESS_RESOURCE] };
 
 function sceneStore(tokens: Record<string, TokenEntity>, snapToGrid = true): StoreApi<ViewAtlasState> {
   return createStore(() => ({
@@ -73,12 +73,18 @@ describe('applyPlayerCommand', () => {
   });
 
   test('refuses tokens players do not control', () => {
-    const goblin: Character = { ...hero, id: 'goblin', playerLinked: false };
+    const goblin: Character = { ...hero, id: 'goblin', controlledBy: ['bob'] };
     const hidden: Character = { ...hero, id: 'hidden', isHidden: true };
     const store = sceneStore({ goblin, hidden });
     expect(applyPlayerCommand(store, grid, { type: 'move', id: 'goblin', x: 0, y: 0 }, rules)).toBe(false);
     expect(applyPlayerCommand(store, grid, { type: 'move', id: 'hidden', x: 0, y: 0 }, rules)).toBe(false);
     expect(applyPlayerCommand(store, grid, { type: 'move', id: 'missing', x: 0, y: 0 }, rules)).toBe(false);
+    expect(store.getState().moveToken).not.toHaveBeenCalled();
+  });
+
+  test('refuses everything to a player who chose no profile', () => {
+    const store = sceneStore({ hero });
+    expect(applyPlayerCommand(store, grid, { type: 'move', id: 'hero', x: 0, y: 0 }, { ...rules, profileId: null })).toBe(false);
     expect(store.getState().moveToken).not.toHaveBeenCalled();
   });
 
@@ -124,10 +130,18 @@ describe('applyPlayerCommand with conditions', () => {
 });
 
 describe('isPlayerControlled', () => {
-  test('is true only for visible characters the DM gave players', () => {
-    expect(isPlayerControlled(hero)).toBe(true);
-    expect(isPlayerControlled({ ...hero, playerLinked: false })).toBe(false);
-    expect(isPlayerControlled({ ...hero, isHidden: true })).toBe(false);
+  test('is true only for visible tokens the DM gave the player\'s profile', () => {
+    expect(isPlayerControlled(hero, 'alice')).toBe(true);
+    expect(isPlayerControlled(hero, 'bob')).toBe(false);
+    expect(isPlayerControlled(hero, null)).toBe(false);
+    expect(isPlayerControlled({ ...hero, controlledBy: undefined }, 'alice')).toBe(false);
+    expect(isPlayerControlled({ ...hero, isHidden: true }, 'alice')).toBe(false);
+  });
+
+  test('takes any kind of token, shared by several players', () => {
+    const cart: TokenEntity = { id: 'cart', kind: 'token', x: 0, y: 0, imagePath: 'cart.png', controlledBy: ['alice', 'bob'] };
+    expect(isPlayerControlled(cart, 'alice')).toBe(true);
+    expect(isPlayerControlled(cart, 'bob')).toBe(true);
   });
 });
 

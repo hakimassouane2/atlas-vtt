@@ -3,7 +3,7 @@ import { COLLECTIONS_DIR, type Asset, type AssetService, type CollectionMetadata
 import { BUNDLE_FORMAT, BUNDLE_MANIFEST, zipPathFor, type BundleFile, type CollectionBundleManifest } from './bundleFormat';
 import { rewriteContent } from './bundleContent';
 import { selectContent } from './bundleContents';
-import { withLootBases } from './bundleSettings';
+import { withLootBases, withoutPlayers } from './bundleSettings';
 import { reportFileStep, type BundleProgressListener } from './bundleProgress';
 import { coverCandidates, coverFileFor, currentCover, storeCover, type CoverCandidate, type CoverChoice, type CoverFile, type CurrentCover } from './collectionCover';
 import { CollectionReferenceCollector, type MissingReference } from './collectionReferences';
@@ -163,7 +163,7 @@ export async function exportCollectionBundle(
     ...exported,
     id: origin.collectionId,
     name: choice.kind === 'share' ? origin.name : exported.name,
-    settings: withLootBases(exported.settings, (path) => (packed.has(path) ? named(path) : undefined)),
+    settings: withLootBases(withoutPlayers(exported.settings), (path) => (packed.has(path) ? named(path) : undefined)),
   };
   if (cover) collection.coverPath = named(cover.path);
   else delete collection.coverPath;

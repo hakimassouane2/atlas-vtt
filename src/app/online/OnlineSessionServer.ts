@@ -13,6 +13,8 @@ export interface OnlineSessionHandlers {
   onLeave(playerId: string): void;
   /** Applies a command (the parsed JSON body) of the player with that id, if the page gave one; returns whether it was accepted. */
   onCommand(body: unknown, playerId: string | null): boolean;
+  /** The player with that id chose a profile (the parsed JSON body); returns whether it was accepted. */
+  onProfile(body: unknown, playerId: string): boolean;
   /** An image file players may see (the map, token artwork): its bytes, a URL to fetch it from, or null. */
   onImage(path: string): Promise<TokenImage | null>;
   /** The DM's stylesheets and theme classes, so the page looks like Atlas does for the DM. */
@@ -35,9 +37,9 @@ export type TokenImage = { data: Uint8Array; contentType: string } | { url: stri
 /**
  * HTTP server players reach with their link. It serves the player page and keeps one
  * Server-Sent Events stream per player (`/events`), which carries the presented scene and what
- * every player shares (where the DM looks, whether players follow it, rolls). Players send their
- * commands (`POST /command`) and load the scene's images (`/image/<path>`). Every request must
- * carry the session key.
+ * every player shares (where the DM looks, whether players follow it, rolls). Players say which
+ * profile they chose (`POST /profile`), send their commands (`POST /command`) and load the scene's
+ * images (`/image/<path>`). Every request must carry the session key.
  */
 export class OnlineSessionServer {
   private server: Server | null = null;
@@ -123,6 +125,11 @@ export class OnlineSessionServer {
       case '/command': {
         const playerId = url.searchParams.get('id');
         this.receive(request, response, (body) => this.handlers.onCommand(body, playerId && this.players.has(playerId) ? playerId : null));
+        return;
+      }
+      case '/profile': {
+        const playerId = url.searchParams.get('id');
+        this.receive(request, response, (body) => !!playerId && this.players.has(playerId) && this.handlers.onProfile(body, playerId));
         return;
       }
       default:

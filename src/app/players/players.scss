@@ -1,0 +1,101 @@
+// Player profiles: the dot that shows a player's colour wherever their name is,
+// and the player page's choice of profile (`ProfileChooser`).
+
+.atlas-player-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: $radius-full;
+  box-shadow: 0 0 0 $border-width-s color-mix(in oklch, var(--mono-100) 25%, transparent);
+}
+
+.atlas-profile-chooser {
+  @include atlas-modal-overlay;
+}
+
+.atlas-profile-chooser__panel {
+  @include atlas-elevated-surface;
+  @include atlas-panel-radius($radius-2xl);
+  @include atlas-flex-col($spacing-s);
+  width: min(320px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: $spacing-s;
+}
+
+.atlas-profile-chooser__title {
+  margin: 0;
+  padding: $spacing-s;
+  font-size: $font-ui-medium;
+  font-weight: $font-weight-semibold;
+  color: var(--text-normal);
+}
+
+.atlas-profile-chooser__player {
+  @include atlas-panel-inset-radius($spacing-s);
+  @include atlas-flex-row($spacing-s);
+  justify-content: flex-start;
+  width: 100%;
+  height: $button-height-l;
+  padding: 0 $spacing-m;
+  font-size: $font-ui-small;
+  color: var(--text-normal);
+  background: var(--background-secondary);
+  box-shadow: none;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--background-modifier-hover);
+  }
+
+  &[aria-current="true"] {
+    background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+  }
+}
+
+.atlas-profile-notice {
+  position: fixed;
+  top: $spacing-l;
+  left: 50%;
+  transform: translateX(-50%);
+  @include atlas-elevated-surface;
+  padding: $spacing-s;
+  font-size: $font-ui-small;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+// "Playing as …" in the player page's settings menu
+.atlas-player-menu-label {
+  display: flex;
+  align-items: center;
+  gap: $spacing-s;
+}
+
+// The colour button of a player in the collection settings' Players tab
+.atlas-csm-player-colour {
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+
+  .atlas-player-dot {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// Who is connected, on the dashboard's Online Session tile
+.atlas-online-connections {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-xs $spacing-s;
+}
+
+.atlas-online-connections__player {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+}

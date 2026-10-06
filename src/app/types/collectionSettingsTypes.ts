@@ -107,4 +107,18 @@ export interface CollectionSettings {
   lootBases?: string[];
   /** Named after plain-number item prices, e.g. "gold" or "thorns". */
   lootCurrency?: string | undefined;
+  /** The people at the table, whom online players choose to be. Read with `collectionPlayers`. */
+  players?: PlayerProfile[] | undefined;
+}
+
+/**
+ * Someone at the table: an online player picks one on joining and acts on the tokens it
+ * is given (`BaseToken.controlledBy`). No password: the link already lets anyone in.
+ */
+export interface PlayerProfile {
+  /** Never changes: tokens name the profile by it, so a renamed player keeps their tokens. */
+  id: string;
+  name: string;
+  /** `#rrggbb`, one of `RESOURCE_COLORS`, by which players tell each other apart. */
+  color: string;
 }

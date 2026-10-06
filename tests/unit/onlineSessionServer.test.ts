@@ -47,6 +47,7 @@ describe('OnlineSessionServer', () => {
       onJoin: vi.fn(),
       onLeave: vi.fn(),
       onCommand: vi.fn((body: unknown) => (body as { ok?: boolean }).ok === true),
+      onProfile: vi.fn(() => true),
       onImage: vi.fn((path: string) => Promise.resolve(path === 'tokens/hero.png' ? { data: new Uint8Array([7]), contentType: 'image/png' } : null)),
       pageTheme: vi.fn(() => ({ css: 'body { color: red; }', bodyClass: 'theme-dark atlas-player-window' })),
     };
@@ -120,5 +121,17 @@ describe('OnlineSessionServer', () => {
     expect((await fetch(`${base}/command?k=secret`, { method: 'POST', body: '{}' })).status).toBe(409);
     expect((await fetch(`${base}/command?k=secret`, { method: 'POST', body: 'not json' })).status).toBe(409);
     expect((await fetch(`${base}/command?k=wrong`, { method: 'POST', body: '{"ok":true}' })).status).toBe(403);
+  });
+
+  test('passes on the profile a connected player chose, and refuses a page that is not connected', async () => {
+    const events = openEvents();
+    const playerId = playerIdIn(await events.waitFor('event: hello'));
+    const chosen = await fetch(`${base}/profile?k=secret&id=${playerId}`, { method: 'POST', body: '{"profile":"alice"}' });
+    expect(chosen.status).toBe(204);
+    expect(handlers.onProfile).toHaveBeenCalledWith({ profile: 'alice' }, playerId);
+    expect((await fetch(`${base}/profile?k=secret&id=stranger`, { method: 'POST', body: '{"profile":"alice"}' })).status).toBe(409);
+    expect((await fetch(`${base}/profile?k=secret`, { method: 'POST', body: '{"profile":"alice"}' })).status).toBe(409);
+    expect(handlers.onProfile).toHaveBeenCalledTimes(1);
+    events.close();
   });
 });

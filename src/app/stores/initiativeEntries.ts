@@ -1,4 +1,5 @@
 import type { TokenEntity } from '../types';
+import { controllersOf } from '../players/playerProfiles';
 import type { InitiativeEntry } from '../types/initiativeTypes';
 
 /** An entry before the store gives it an id and a place in the order. */
@@ -13,7 +14,7 @@ export function initiativeEntryForToken(token: TokenEntity): NewInitiativeEntry 
     initiative: 0,
     initiativeModifier: 0,
     imagePath: token.imagePath,
-    isNPC: !character?.playerLinked,
+    isNPC: controllersOf(token).length === 0,
     ...(character?.statblockPath ? { statblockPath: character.statblockPath } : {}),
   };
 }

@@ -2,6 +2,8 @@ import React, { useId } from 'react';
 import { ToggleSwitch } from '../../packages/components/primitives/Toggle';
 import type { ResourceDefinition, ResourceValue } from '../../resources/resourceTypes';
 import { NumberOverrideField } from './NumberOverrideField';
+import type { PlayerProfile } from '../../types/collectionSettingsTypes';
+import { PlayerDot } from '../../players/PlayerDot';
 
 interface EditTokenSectionProps {
   title: string;
@@ -25,16 +27,21 @@ interface SwitchRowProps {
   hint?: string;
   value: boolean;
   onChange: (value: boolean) => void;
+  /** Drawn before the label, e.g. a player's colour. */
+  leading?: React.ReactNode;
 }
 
 /** A switch at the end of the row that names it. */
-export function SwitchRow({ label, hint, value, onChange }: SwitchRowProps): React.ReactElement {
+export function SwitchRow({ label, hint, value, onChange, leading }: SwitchRowProps): React.ReactElement {
   const labelId = useId();
   const hintId = useId();
   return (
     <div className="atlas-edit-token__switch-row">
       <div className="atlas-edit-token__field">
-        <span id={labelId} className="atlas-edit-token__label">{label}</span>
+        <span className="atlas-edit-token__label-row">
+          {leading}
+          <span id={labelId} className="atlas-edit-token__label">{label}</span>
+        </span>
         {hint && <span id={hintId} className="atlas-edit-token__hint">{hint}</span>}
       </div>
       <ToggleSwitch labelledBy={labelId} {...(hint && { 'aria-describedby': hintId })} value={value} onChange={() => onChange(!value)} />
@@ -49,11 +56,9 @@ interface TokenIdentitySectionProps {
   onShowNameplateChange: (show: boolean) => void;
   /** The name field, which takes the focus when the dialog opens. */
   nameRef: React.Ref<HTMLInputElement>;
-  /** Players in an online session may move the token and change its resources; only characters offer it. */
-  playerLinked?: { value: boolean; onChange: (linked: boolean) => void } | undefined;
 }
 
-export function TokenIdentitySection({ name, onNameChange, showNameplate, onShowNameplateChange, nameRef, playerLinked }: TokenIdentitySectionProps): React.ReactElement {
+export function TokenIdentitySection({ name, onNameChange, showNameplate, onShowNameplateChange, nameRef }: TokenIdentitySectionProps): React.ReactElement {
   const nameId = useId();
   return (
     <EditTokenSection title="Token">
@@ -70,7 +75,33 @@ export function TokenIdentitySection({ name, onNameChange, showNameplate, onShow
         />
       </div>
       <SwitchRow label="Show nameplate" value={showNameplate} onChange={onShowNameplateChange} />
-      {playerLinked && <SwitchRow label="Controlled by players" value={playerLinked.value} onChange={playerLinked.onChange} />}
+    </EditTokenSection>
+  );
+}
+
+interface TokenPlayersSectionProps {
+  /** The player profiles of the map's collection. */
+  players: readonly PlayerProfile[];
+  /** The profiles the token is given to. */
+  controlledBy: readonly string[];
+  onChange: (controlledBy: string[]) => void;
+}
+
+/** Which players move the token and change it from the online player page: one switch each. */
+export function TokenPlayersSection({ players, controlledBy, onChange }: TokenPlayersSectionProps): React.ReactElement {
+  return (
+    <EditTokenSection title="Players">
+      {players.map((player) => (
+        <SwitchRow
+          key={player.id}
+          leading={<PlayerDot player={player} />}
+          label={player.name || 'Unnamed player'}
+          value={controlledBy.includes(player.id)}
+          onChange={(controls) => onChange(controls
+            ? [...controlledBy, player.id]
+            : controlledBy.filter((id) => id !== player.id))}
+        />
+      ))}
     </EditTokenSection>
   );
 }

@@ -19,6 +19,7 @@ import {
 import { useStore } from 'zustand';
 import { runInBackground } from './utils/backgroundTask';
 import { OnlineSession, onlineSessionStore } from './online/OnlineSession';
+import { OnlineConnections } from './online/OnlineConnections';
 import { mapThumbnailPath } from './utils/dataFileMigration';
 
 export const DASHBOARD_VIEW_TYPE = "atlas-vtt-dashboard";
@@ -115,8 +116,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const heroScene = recentScenes[0] ?? null;
   const online = useStore(onlineSessionStore);
-  const onlineDesc = online.isRunning
-    ? `${online.playerCount} player${online.playerCount === 1 ? '' : 's'} connected · copy link`
+  const onlineDesc: React.ReactNode = online.isRunning
+    ? <OnlineConnections playerCount={online.playerCount} players={online.players} />
     : 'Start & copy the player link';
 
   const actionTiles = [

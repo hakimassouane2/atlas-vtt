@@ -1,11 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Mouse, Settings, Touchpad } from 'lucide-react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { Mouse, Settings, Touchpad, UserRound } from 'lucide-react';
 import { cn } from 'src/utils/cn';
 import type { NavigationInputMode } from '../../services/SettingsService';
 import { ToolButton } from '../../packages/components/primitives/ToolButton';
 import { DropdownMenuItem } from '../../packages/components/primitives/DropdownMenuItem';
 import { useKeepInView } from '../../packages/components/primitives/useKeepInView';
 import { INPUT_MODE_LABELS } from '../../settings/navigationSettingsSection';
+import { PlayerDot } from '../../players/PlayerDot';
+import type { ProfileChoice } from './profileChoice';
 
 const MENU_LABEL = 'Settings';
 const DEVICE_ICONS: Record<NavigationInputMode, React.ComponentType<{ className?: string }>> = {
@@ -14,13 +16,16 @@ const DEVICE_ICONS: Record<NavigationInputMode, React.ComponentType<{ className?
 };
 
 interface PlayerSettingsMenuProps {
+  /** Who the player is, which they may change here. */
+  choice: ProfileChoice;
   inputDevice: NavigationInputMode;
   onInputDeviceChange: (mode: NavigationInputMode) => void;
 }
 
 /** The player's own settings, in a menu hanging from the toolbar like the GM's tool menus. */
-export function PlayerSettingsMenu({ inputDevice, onInputDeviceChange }: PlayerSettingsMenuProps): React.ReactElement {
+export function PlayerSettingsMenu({ choice, inputDevice, onInputDeviceChange }: PlayerSettingsMenuProps): React.ReactElement {
   const [open, setOpen] = useState(false);
+  const { players, chosen } = useSyncExternalStore(choice.subscribe, choice.getState);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const keepInView = useKeepInView(menuRef, open, 'top');
@@ -57,6 +62,23 @@ export function PlayerSettingsMenu({ inputDevice, onInputDeviceChange }: PlayerS
           )}
           style={keepInView.style}
         >
+          {!!players?.length && (
+            <div className="atlas-dropdown-section">
+              <span className="atlas-dropdown-label atlas-player-menu-label">
+                {chosen && <PlayerDot player={chosen} />}
+                {chosen ? `Playing as ${chosen.name || 'Unnamed player'}` : 'No player chosen'}
+              </span>
+              <DropdownMenuItem
+                role="menuitem"
+                icon={UserRound}
+                label="Change player"
+                onClick={() => {
+                  setOpen(false);
+                  choice.chooseAgain();
+                }}
+              />
+            </div>
+          )}
           <div className="atlas-dropdown-section">
             <span className="atlas-dropdown-label">Input device</span>
             {(Object.keys(INPUT_MODE_LABELS) as NavigationInputMode[]).map((mode) => (

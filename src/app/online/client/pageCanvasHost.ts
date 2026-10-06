@@ -62,12 +62,15 @@ const defaultSettings: CanvasSettings = {
   getLaserPointerSettings: () => DEFAULT_LASER_POINTER_SETTINGS,
 };
 
-/** The player at the page: they act on the tokens the DM gave players, and see names as the DM shows them. */
+/** The player at the page: they act on the tokens the DM gave their profile, and see names as the DM shows them. */
 export class PagePlayer implements CanvasPlayer {
   private shown: PlayerTokenUISettings = { showTokenNameplates: false };
 
+  /** `profileId` gives the profile the player chose, null before they chose one. */
+  constructor(private readonly profileId: () => string | null) {}
+
   controls(token: TokenEntity): boolean {
-    return isPlayerControlled(token);
+    return isPlayerControlled(token, this.profileId());
   }
 
   tokenUI(): PlayerTokenUISettings {

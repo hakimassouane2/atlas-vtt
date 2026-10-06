@@ -66,14 +66,16 @@ export function isSafeDiceFormula(formula: string): boolean {
   return dice.length > 0 && count <= MAX_DICE && dice.every(([, , sides]) => Number(sides) >= 1 && Number(sides) <= MAX_SIDES);
 }
 
-/** What the scene's collection lets players change on their tokens. */
+/** Who sends the command, and what the scene's collection lets players change on their tokens. */
 export interface PlayerRules {
+  /** The profile the player chose, which the scene's collection has; null acts on no token. */
+  profileId: string | null;
   conditions: readonly ConditionDefinition[];
   resources: readonly ResourceDefinition[];
 }
 
 /**
- * Applies `command` to the presented scene when the token is one players control and
+ * Applies `command` to the presented scene when the token is one the player's profile controls and
  * the scene's collection defines the condition, or shows the resource to players.
  * Drops snap like a DM drag does. What players change is no step of the DM's undo history,
  * so the DM never undoes it by undoing their own edit. Returns whether anything was applied.
@@ -91,11 +93,11 @@ function applyToToken(
   store: StoreApi<ViewAtlasState>,
   grid: GridSystem | null,
   command: Exclude<PlayerCommand, { type: 'roll' }>,
-  { conditions, resources }: PlayerRules,
+  { profileId, conditions, resources }: PlayerRules,
 ): boolean {
   const state = store.getState();
   const token = state.objects.tokens[command.id];
-  if (!isPlayerControlled(token)) return false;
+  if (!isPlayerControlled(token, profileId)) return false;
 
   if (command.type === 'drag') {
     state.setTokenPositions([{ id: token.id, x: command.x, y: command.y }]);

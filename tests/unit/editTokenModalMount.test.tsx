@@ -163,6 +163,28 @@ describe('openEditTokenModal in a collection with senses of its own', () => {
   });
 });
 
+describe('openEditTokenModal in a collection with players', () => {
+  it('gives the token to the players switched on, and keeps a deleted player\'s id it cannot show', () => {
+    const app = createInMemoryApp().app;
+    const assets = AssetService.getInstance(app);
+    vi.spyOn(assets, 'getCollectionForMap').mockReturnValue('coven');
+    vi.spyOn(assets, 'getCollectionSettings').mockReturnValue({
+      conditions: [],
+      players: [{ id: 'alice', name: 'Alice', color: '#3b82f6' }, { id: 'bob', name: 'Bob', color: '#f59e0b' }],
+    } as never);
+    const store = createViewAtlasStore(app, `edit-token-players-${Math.random()}`);
+    const token: TokenEntity = { id: 't', kind: 'token', imagePath: 't.png', x: 0, y: 0, controlledBy: ['gone', 'alice'] };
+    store.setState({ persistenceEnabled: false, mapPath: 'atlas-vtt/collections/coven/scenes/Hut.atlasmap', objects: { ...store.getState().objects, tokens: { t: token } } });
+    act(() => openEditTokenModal(token, store, app, []));
+    expect(screen.getByRole('switch', { name: 'Alice' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByRole('switch', { name: 'Bob' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Alice' }));
+    save();
+    expect(store.getState().objects.tokens.t!.controlledBy).toEqual(['gone', 'bob']);
+    vi.restoreAllMocks();
+  });
+});
+
 describe('openEditTokenModal: the carried light', () => {
   // The generic lights as a map on the default 5-foot grid offers them.
   const onMap = lightPresetsOnMap(GENERIC_LIGHT_PRESETS, { unitType: 'feet', unitDistance: 5 }, Infinity);

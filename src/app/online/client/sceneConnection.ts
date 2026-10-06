@@ -6,6 +6,8 @@ import { sessionUrl, setPlayerId } from './session';
 
 /** What the canvas page does with the messages of the DM's Atlas. */
 export interface SceneListener {
+  /** The DM's Atlas named the page's connection, on every connect: the page says who the player is. */
+  hello(): void;
   context(context: PlayerCanvasContext): void;
   scene(scene: ReplicatedScene): void;
   changes(changes: SceneChange[]): void;
@@ -20,7 +22,10 @@ export function connectToScene(listener: SceneListener): EventSource {
     stream.addEventListener(event, (message) => handle(JSON.parse((message as MessageEvent<string>).data) as M['data']));
   };
   // The DM's Atlas names the page's connection; commands carry the name (`post`)
-  stream.addEventListener('hello', (message) => setPlayerId((JSON.parse((message as MessageEvent<string>).data) as { id: string }).id));
+  stream.addEventListener('hello', (message) => {
+    setPlayerId((JSON.parse((message as MessageEvent<string>).data) as { id: string }).id);
+    listener.hello();
+  });
   on<Extract<PlayerSceneMessage, { event: 'context' }>>('context', (data) => listener.context(data));
   on<Extract<PlayerSceneMessage, { event: 'scene' }>>('scene', (data) => {
     document.body.classList.add('online-live');

@@ -1,7 +1,7 @@
 import type { SettingsService } from '../services/SettingsService';
 import type { DiceRollResult, DiceTool } from '../tools/DiceTool';
 import { diceRollForPlayers } from '../tools/diceRollForPlayers';
-import type { Character, TokenEntity } from '../types';
+import type { TokenEntity } from '../types';
 
 /**
  * Sends dice rolls to players: every roll a player makes, and the DM's rolls while
@@ -35,8 +35,8 @@ export class PlayerDiceFeed {
   }
 
   /** Rolls a player's `formula` with the DM's `diceTool`, for `token` when given. */
-  rollForPlayer(diceTool: DiceTool, formula: string, token: Character | undefined): void {
-    const tokenName = token && (token.name || token.statblockName);
+  rollForPlayer(diceTool: DiceTool, formula: string, token: TokenEntity | undefined): void {
+    const tokenName = token?.kind === 'character' ? token.name || token.statblockName : undefined;
     this.isRollingForPlayer = true;
     try {
       // Atlas' toasts and dice log show who rolled (name and portrait) for statblock rolls

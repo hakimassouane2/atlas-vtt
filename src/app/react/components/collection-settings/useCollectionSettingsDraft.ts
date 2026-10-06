@@ -14,7 +14,9 @@ import type {
   CollectionGridDefaults,
   CollectionSettings,
   ConditionDefinition,
+  PlayerProfile,
 } from '../../../types/collectionSettingsTypes';
+import { collectionPlayers, savedPlayers } from '../../../players/playerProfiles';
 import type { CreatureFilterDefinition } from '../../../types/creatureFilterTypes';
 import type { DiceRules } from '../../../types/diceRulesTypes';
 import type { InitiativeRules } from '../../../types/initiativeRulesTypes';
@@ -59,6 +61,9 @@ export interface CollectionSettingsDraft {
   setLootBases: (lootBases: string[]) => void;
   lootCurrency: string;
   setLootCurrency: (lootCurrency: string) => void;
+  /** The people at the table; no game system sets them. */
+  players: PlayerProfile[];
+  setPlayers: (players: PlayerProfile[]) => void;
   applyPreset: (preset: SystemPreset) => void;
   /** Leaves the collection without a game system, as if it had never been set up. */
   clearSystem: () => void;
@@ -91,6 +96,7 @@ export function useCollectionSettingsDraft(
   const [systemPresetId, setSystemPresetId] = useState<string | undefined>(undefined);
   const [lootBases, setLootBases] = useState<string[]>([]);
   const [lootCurrency, setLootCurrency] = useState('');
+  const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [customCreatureFilters, setCustomCreatureFilters] = useState<CreatureFilterDefinition[]>([]);
   const [hiddenCreatureFilters, setHiddenCreatureFilters] = useState<string[]>([]);
 
@@ -113,6 +119,7 @@ export function useCollectionSettingsDraft(
     setSystemPresetId(settings.systemPresetId);
     setLootBases(settings.lootBases ?? []);
     setLootCurrency(settings.lootCurrency ?? '');
+    setPlayers(collectionPlayers(settings));
     setCustomCreatureFilters(parseCreatureFilters(settings.customCreatureFilters));
     setHiddenCreatureFilters(parseHiddenCreatureFilters(settings.hiddenCreatureFilters));
   }, [isOpen, collectionId, assetService]);
@@ -164,6 +171,7 @@ export function useCollectionSettingsDraft(
       systemPresetId,
       lootBases,
       lootCurrency: lootCurrency.trim() || undefined,
+      players: players.length > 0 ? savedPlayers(players) : undefined,
     };
   };
 
@@ -182,6 +190,7 @@ export function useCollectionSettingsDraft(
     systemPresetId, setSystemPresetId,
     lootBases, setLootBases,
     lootCurrency, setLootCurrency,
+    players, setPlayers,
     applyPreset, clearSystem, toSettings,
   };
 }

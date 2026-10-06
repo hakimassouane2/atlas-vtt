@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fieldFingerprint } from '../../src/app/services/collectionBundle/fingerprints';
-import { settingsFromBundle } from '../../src/app/services/collectionBundle/bundleSettings';
+import { settingsFromBundle, withoutPlayers } from '../../src/app/services/collectionBundle/bundleSettings';
 import type { CollectionMetadata } from '../../src/app/services/AssetService';
 import { HP, STR, STRESS } from '../mocks/resourceFixtures';
 
@@ -26,5 +26,14 @@ describe('a collection\'s settings in a bundle', () => {
     expect(settingsFromBundle({ ...daggerheart, lootCurrency: 'gp' }, mine)).toEqual({ ...daggerheart, lootCurrency: 'gp', resources: mine.resources });
     expect(settingsFromBundle({ ...daggerheart, resources: [HP] }, mine).resources).toEqual([HP]);
     expect(settingsFromBundle(daggerheart, undefined)).toEqual(daggerheart);
+  });
+
+  it('never carry the table\'s players: the vault keeps its own, and they are no edit', async () => {
+    const players = [{ id: 'alice', name: 'Alice', color: '#3b82f6' }];
+    expect(withoutPlayers({ ...daggerheart, players })).toEqual(daggerheart);
+    expect(await fieldFingerprint(collection({ ...daggerheart, players }), 'settings'))
+      .toBe(await fieldFingerprint(collection(daggerheart), 'settings'));
+    expect(settingsFromBundle({ ...daggerheart, players: [{ id: 'bob', name: 'Bob', color: '#dc2626' }] }, { ...daggerheart, players }).players).toEqual(players);
+    expect(settingsFromBundle({ ...daggerheart, players }, daggerheart).players).toBeUndefined();
   });
 });

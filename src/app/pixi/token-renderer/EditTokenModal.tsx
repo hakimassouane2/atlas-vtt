@@ -17,7 +17,9 @@ import { buildResourceEdits } from '../../resources/resourceEdits';
 import type { ResourceDefinition, ResourceValue } from '../../resources/resourceTypes';
 import { startingResources } from '../../resources/statblockResourceValues';
 import { handledByAnotherControl } from '../../keyboard/tooltipEscape';
-import { TokenIdentitySection, TokenResourcesSection } from './EditTokenSections';
+import { TokenIdentitySection, TokenPlayersSection, TokenResourcesSection } from './EditTokenSections';
+import type { PlayerProfile } from '../../types/collectionSettingsTypes';
+import { controllersOf, mapPlayers } from '../../players/playerProfiles';
 import { TokenLightSection, TokenVisionSection, type TokenLightingContext } from './TokenLightingFields';
 import { dynamicLightingOn } from '../../experimental/experimentalFeatures';
 import { unitLabelFor } from '../../grid/measurementFormat';
@@ -33,14 +35,14 @@ interface EditTokenValues {
   maxima: Record<string, number | undefined>;
   vision: VisionForm;
   light: LightForm;
-  /** Players in an online session may move the token and change its resources. */
-  playerLinked: boolean;
+  /** The profiles whose online players move the token and change its resources. */
+  controlledBy: string[];
 }
 
 interface EditTokenModalProps {
   initial: EditTokenValues;
-  /** Only characters can belong to a player. */
-  isCharacter: boolean;
+  /** The player profiles of the map's collection. */
+  players: readonly PlayerProfile[];
   /** The resources of the map's collection, in the order they show. */
   definitions: readonly ResourceDefinition[];
   /** What the linked statblock gives each resource. */
@@ -59,11 +61,11 @@ interface EditTokenModalProps {
  * vision) and the light it carries on the right, so the fields are read and tabbed through
  * column by column. A dialog too narrow for two columns stacks them in the same order.
  */
-function EditTokenModalInner({ initial, isCharacter, definitions, resourceDefaults, lighting, showLighting, statblock, onSave, onClose }: EditTokenModalProps): React.ReactElement {
+function EditTokenModalInner({ initial, players, definitions, resourceDefaults, lighting, showLighting, statblock, onSave, onClose }: EditTokenModalProps): React.ReactElement {
   const inherited = useStatblockSenses(statblock);
   const [name, setName] = useState(initial.name);
   const [showNameplate, setShowNameplate] = useState(initial.showNameplate);
-  const [playerLinked, setPlayerLinked] = useState(initial.playerLinked);
+  const [controlledBy, setControlledBy] = useState(initial.controlledBy);
   const [maxInputs, setMaxInputs] = useState<Record<string, string>>(
     () => Object.fromEntries(definitions.map(({ key }) => [key, numberText(initial.maxima[key])])),
   );
@@ -86,7 +88,7 @@ function EditTokenModalInner({ initial, isCharacter, definitions, resourceDefaul
       maxima: Object.fromEntries(definitions.map(({ key }) => [key, parseNumberInput(maxInputs[key] ?? '')])),
       vision,
       light,
-      playerLinked,
+      controlledBy,
     });
   };
 
@@ -123,8 +125,8 @@ function EditTokenModalInner({ initial, isCharacter, definitions, resourceDefaul
               showNameplate={showNameplate}
               onShowNameplateChange={setShowNameplate}
               nameRef={inputRef}
-              playerLinked={isCharacter ? { value: playerLinked, onChange: setPlayerLinked } : undefined}
             />
+            {players.length > 0 && <TokenPlayersSection players={players} controlledBy={controlledBy} onChange={setControlledBy} />}
             {definitions.length > 0 && (
               <TokenResourcesSection
                 definitions={definitions}
@@ -207,8 +209,10 @@ export function openEditTokenModal(
     maxima: Object.fromEntries(definitions.map(({ key }) => [key, character?.resources?.[key]?.max])),
     vision: visionForm(token.vision, lighting.senses),
     light: lightForm(token.light, lighting.lightPresets),
-    playerLinked: character?.playerLinked ?? false,
+    // Profiles the collection no longer has stay on the token, unseen and unchanged
+    controlledBy: controllersOf(token),
   };
+  const players = mapPlayers(AssetService.getInstance(app), store.getState().mapPath);
 
   /**
    * Saves what the form changed onto the token as the store has it now: the map goes on while
@@ -224,7 +228,7 @@ export function openEditTokenModal(
       ...(changed('showNameplate') && { showNameplate: values.showNameplate }),
       ...(changed('vision') && { vision: visionFromForm(values.vision) }),
       ...(changed('light') && { light: lightFromForm(values.light) }),
-      ...(changed('playerLinked') && { playerLinked: values.playerLinked }),
+      ...(changed('controlledBy') && { controlledBy: values.controlledBy.length > 0 ? values.controlledBy : undefined }),
       ...(maxima.length > 0 && current && buildResourceEdits(
         current.kind === 'character' ? current : {},
         maxima.map((definition) => ({ definition, max: values.maxima[definition.key] })),
@@ -240,7 +244,7 @@ export function openEditTokenModal(
     <TooltipProvider delayDuration={300}>
       <EditTokenModalInner
         initial={initial}
-        isCharacter={character !== undefined}
+        players={players}
         lighting={lighting}
         showLighting={dynamicLightingOn(app)}
         statblock={statblock}

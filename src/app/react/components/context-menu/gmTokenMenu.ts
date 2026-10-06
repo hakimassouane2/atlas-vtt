@@ -6,6 +6,9 @@ import type { ContextMenuEntry } from './AtlasContextMenu';
 import { openContextMenuGlobal, closeContextMenuGlobal } from '../../../ui/contextMenus';
 import { conditionsSubmenu } from './conditionsMenu';
 import { tokenSizeSubmenu } from './tokenSizeMenu';
+import { playersSubmenu } from './playersMenu';
+import { mapPlayers } from '../../../players/playerProfiles';
+import { AssetService } from '../../../services/AssetService';
 import { tokenLightingEntries } from './tokenLightingMenu';
 import { isKillable, resetLabel } from '../../../resources/resourceValues';
 import { visibleResources } from '../../../resources/visibleResources';
@@ -91,6 +94,10 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
       onClick: () => openEditTokenModal(token, store, app, canvas.resources()),
     },
   );
+
+  // Which online players move the selection
+  const players = mapPlayers(AssetService.getInstance(app), store.getState().mapPath);
+  if (players.length > 0) entries.push(playersSubmenu(store, players, targets));
 
   // Initiative, for the selection the token belongs to; the clicked token decides which way
   const isInInitiative = (store.getState().initiative?.entries || []).some((entry) => entry.tokenId === token.id);

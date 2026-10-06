@@ -45,6 +45,8 @@ export interface BaseToken {
   conditions?: string[];
   /** Numbers of active valued conditions, by condition id; a valued condition without one has 1. */
   conditionValues?: Record<string, number>;
+  /** Ids of the player profiles (`CollectionSettings.players`) whose online players act on the token; read with `controllersOf`. */
+  controlledBy?: string[];
   /** Whether the token is hidden (visible to DM but not players) */
   isHidden?: boolean;
   /** The side the token fights on where initiative runs by sides. Read with `sideOf`: unset, a token that sees is the players'. */
@@ -83,10 +85,6 @@ export interface Character extends BaseToken {
   statblockPath?: string; // Path to linked statblock note
   /** Name read from the linked statblock; the nameplate falls back to it when `name` is empty. */
   statblockName?: string | null;
-  // Player-linked token properties
-  playerLinked?: boolean; // Whether this token is linked to a player character
-  playerId?: string; // The player ID who owns this character
-  playerCharacterId?: string; // The character ID in the player's character sheet
 }
 
 /**

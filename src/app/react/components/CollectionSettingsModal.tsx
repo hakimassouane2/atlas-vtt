@@ -2,7 +2,7 @@
  * CollectionSettingsModal
  *
  * Vertical-tabbed modal for configuring per-collection settings:
- *   Game System | Dice | Grid & Measurement | Vision | Default Widgets | Conditions | Resources | Creature Filters | Loot
+ *   Game System | Dice | Grid & Measurement | Vision | Default Widgets | Conditions | Resources | Players | Creature Filters | Loot
  *
  * Opens after collection creation and via a gear button in the sidebar.
  */
@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { Dice5, Dices, Eye, Gauge, Grid3X3, LayoutGrid, ListFilter, ShieldAlert } from 'lucide-react';
+import { Dice5, Dices, Eye, Gauge, Grid3X3, LayoutGrid, ListFilter, ShieldAlert, Users } from 'lucide-react';
 import { CoinIcon } from './CoinIcon';
 import { Button } from '../../packages/components/primitives/button';
 import { useAtlasUI } from '../root/AtlasUIContext';
@@ -31,6 +31,7 @@ import { ConditionsTab } from './collection-settings/ConditionsTab';
 import { ResourcesTab } from './collection-settings/ResourcesTab';
 import { discoverResourceFields } from '../../resources/resourceFields';
 import { LootTab } from './collection-settings/LootTab';
+import { PlayersTab } from './collection-settings/PlayersTab';
 import { SystemTab } from './collection-settings/SystemTab';
 import { DiceTab } from './collection-settings/DiceTab';
 import { collectionDiceRules, isValidDiceRules } from '../../gameSystems/diceRules';
@@ -57,7 +58,7 @@ interface CollectionSettingsModalProps {
   initialTab?: CollectionSettingsTab;
 }
 
-export type CollectionSettingsTab = 'system' | 'dice' | 'grid' | 'vision' | 'widgets' | 'conditions' | 'resources' | 'creatureFilters' | 'loot';
+export type CollectionSettingsTab = 'system' | 'dice' | 'grid' | 'vision' | 'widgets' | 'conditions' | 'resources' | 'players' | 'creatureFilters' | 'loot';
 
 interface TabDef {
   id: CollectionSettingsTab;
@@ -73,6 +74,7 @@ const TABS: TabDef[] = [
   { id: 'widgets', label: 'Default Widgets', icon: <LayoutGrid size={16} /> },
   { id: 'conditions', label: 'Conditions', icon: <ShieldAlert size={16} /> },
   { id: 'resources', label: 'Resources', icon: <Gauge size={16} /> },
+  { id: 'players', label: 'Players', icon: <Users size={16} /> },
   { id: 'creatureFilters', label: 'Creature Filters', icon: <ListFilter size={16} /> },
   { id: 'loot', label: 'Loot', icon: <CoinIcon size={16} /> },
 ];
@@ -145,7 +147,9 @@ export function CollectionSettingsModal({
     && sensesAreValid(senses)
     && draft.customCreatureFilters.every(isCompleteCreatureFilter)
     // A resource without a name or a statblock field could never show
-    && draft.resources.every((resource) => resource.name.trim() !== '' && resource.field.trim() !== '');
+    && draft.resources.every((resource) => resource.name.trim() !== '' && resource.field.trim() !== '')
+    // A player without a name could not be told apart on the player page
+    && draft.players.every((player) => player.name.trim() !== '');
 
   const handleSave = async (): Promise<void> => {
     if (!app || !assetService || !canSave) return;
@@ -275,6 +279,9 @@ export function CollectionSettingsModal({
                 onChange={draft.setResources}
                 fieldSuggestions={discoverResourceFields(collectionCreatures.creatures.map((creature) => creature.fields))}
               />
+            )}
+            {activeTab === 'players' && (
+              <PlayersTab players={draft.players} onChange={draft.setPlayers} />
             )}
             {activeTab === 'creatureFilters' && (
               <CreatureFiltersTab

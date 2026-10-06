@@ -11,9 +11,12 @@ import { BottomToolbarRow } from '../../react/components/BottomToolbarRow';
 import { DiceDropdownMenu } from '../../react/components/dice/DiceDropdownMenu';
 import { PlayerSettingsMenu } from './PlayerSettingsMenu';
 import { storeInputDevice, storedInputDevice } from './inputDevice';
+import type { ProfileChoice } from './profileChoice';
 
 interface PlayerHudProps {
   store: ViewAtlasStore;
+  /** Who the player is; the settings menu lets them choose again. */
+  choice: ProfileChoice;
   controls: (token: TokenEntity) => boolean;
   /** Rolls `formula` with the DM's dice engine, for the token `tokenId` when given. */
   roll: (formula: string, tokenId: string | undefined) => void;
@@ -22,7 +25,7 @@ interface PlayerHudProps {
 }
 
 /** The player's toolbar over the canvas page, in the shape of the GM's: the dice tray and their settings. */
-export function PlayerHud({ store, controls, roll, setInputDevice }: PlayerHudProps): React.ReactElement {
+export function PlayerHud({ store, choice, controls, roll, setInputDevice }: PlayerHudProps): React.ReactElement {
   const [diceOpen, setDiceOpen] = useState(false);
   const [inputDevice, setInputDeviceState] = useState(storedInputDevice);
   const diceButtonRef = useRef<HTMLDivElement>(null);
@@ -58,7 +61,7 @@ export function PlayerHud({ store, controls, roll, setInputDevice }: PlayerHudPr
   return (
     <TooltipProvider delayDuration={300}>
       <BottomToolbarRow>
-        <ResponsiveToolbar items={items} end={<PlayerSettingsMenu inputDevice={inputDevice} onInputDeviceChange={changeInputDevice} />} />
+        <ResponsiveToolbar items={items} end={<PlayerSettingsMenu choice={choice} inputDevice={inputDevice} onInputDeviceChange={changeInputDevice} />} />
       </BottomToolbarRow>
     </TooltipProvider>
   );

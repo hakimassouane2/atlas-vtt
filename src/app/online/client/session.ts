@@ -22,6 +22,13 @@ export function sceneImageUrl(path: string): string {
   return sessionUrl(`/image/${path.split('/').map(encodeURIComponent).join('/')}`);
 }
 
+/** Tells the DM's Atlas which profile the player chose, once the event stream named the page. */
+export function announceProfile(profileId: string | null): void {
+  if (!playerId) return;
+  void window.fetch(sessionUrl('/profile', { id: playerId }), { method: 'POST', body: JSON.stringify({ profile: profileId }) })
+    .catch(() => undefined);
+}
+
 /**
  * Sends `body` to the DM's Atlas; resolves with whether it was accepted. A refused command
  * usually means the DM is on another scene tab, where players cannot act.

@@ -1,6 +1,10 @@
-import type { Character, TokenEntity } from '../types';
+import type { TokenEntity } from '../types';
+import { controllersOf } from '../players/playerProfiles';
 
-/** Players control tokens the DM marked "Controlled by players", while they are visible. */
-export function isPlayerControlled(token: TokenEntity | undefined): token is Character {
-  return !!token && token.kind === 'character' && token.playerLinked === true && !token.isHidden;
+/**
+ * Whether the online player who chose `profileId` acts on `token`: the DM gave the token to that
+ * profile, and it is visible. A page that chose no profile acts on none.
+ */
+export function isPlayerControlled(token: TokenEntity | undefined, profileId: string | null): token is TokenEntity {
+  return !!token && !!profileId && !token.isHidden && controllersOf(token).includes(profileId);
 }

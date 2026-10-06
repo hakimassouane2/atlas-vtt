@@ -85,6 +85,10 @@ $clear-button: $button-height-s;
   }
 }
 
+.atlas-edit-token__label-row {
+  @include atlas-flex-row($spacing-s);
+}
+
 .atlas-edit-token__label {
   font-size: var(--font-ui-small);
   color: var(--text-normal);
