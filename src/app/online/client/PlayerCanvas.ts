@@ -84,6 +84,11 @@ export class PlayerCanvas {
     this.bridge.applyRemote(() => this.store.setState({ grid, tokenSettings: { ...tokenSettings } }));
   }
 
+  /** Redraws every token's UI: the player became another profile, which may see other tokens' resources. */
+  refreshTokenUI(): void {
+    if (this.playerView) this.setPlayerView(this.playerView);
+  }
+
   /** Shows `scene` whole: a scene presented or loaded anew. */
   async showScene(scene: ReplicatedScene): Promise<void> {
     const isNewMap = scene.mapPath !== this.scene?.mapPath;

@@ -24,6 +24,14 @@ _Avoid_: account, user, login
 A token the GM has given to one or more player profiles (Edit Token, or the token menu's Players). Only a player client that chose one of those profiles can act on it; a token given to nobody is the GM's alone.
 _Avoid_: owned token, player token
 
+**Character**:
+A token of a collection's library, and every placement of it on any map (recognised by its artwork). Its settings (players, nameplate, ring, size, vision, light, side, maxima set by hand, linked, who sees its bars) are the same on every map: changing them on one placement changes them on all.
+_Avoid_: actor, prototype
+
+**Linked character**:
+A character whose resources and conditions are also the same on every map (player characters, important NPCs). An unlinked character's (a goblin's) belong to each placement.
+_Avoid_: unique token, PC token
+
 **Held token**:
 A token someone is dragging. While a player holds it, nobody else can take it, and everyone sees it move.
 _Avoid_: locked token, grabbed token

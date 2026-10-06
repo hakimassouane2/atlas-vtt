@@ -4,6 +4,7 @@ import { SettingsService } from './SettingsService';
 import { App, Notice, TFile, TFolder } from 'obsidian';
 import { ensureAdapterFolder } from '../plugin/vaultFolders';
 import type { TokenStateSnapshot } from '../types';
+import type { CharacterRecord } from '../characters/characterRecord';
 import type { CellCoord, EncounterFormation } from '../encounters/encounterFormation';
 import { getDataFilePath } from '../utils/dataFileMigration';
 import { SerialLock } from '../utils/serialLock';
@@ -43,6 +44,8 @@ export interface TokenAsset extends BaseAsset {
   /** Small preview written by AssetThumbnailService; regenerated when missing. */
   thumbnailPath?: string;
   statblockPath?: string; // Optional link to statblock note
+  /** What its placements on maps say of the character: settings, and state while linked. Kept up by `CharacterSync`. */
+  character?: CharacterRecord;
 }
 
 export interface MapAsset extends BaseAsset {
@@ -222,6 +225,9 @@ const LEGACY_ASSETS_METADATA_PATH = `${ATLAS_VTT_DIR}/assets-metadata.json`;
 /** A sync tool may be rewriting the index; a few more reads ride that out. */
 const METADATA_READ_OPTIONS = { retries: 3, retryDelayMs: 200 };
 
+/** How long character edits settle before the index is written (`setCharacter`). */
+const CHARACTER_SAVE_DELAY_MS = 500;
+
 /** Tags are keyed by their lower-case, hyphenated name. */
 const tagIdOf = (name: string): string => name.trim().toLowerCase().replace(/\s+/g, '-');
 
@@ -235,6 +241,8 @@ export class AssetService {
   /** Metadata writes, in the order they were requested. */
   private readonly writes = new SerialLock();
   private saveCount = 0;
+  /** A save of the index waiting for character edits to settle (`setCharacter`). */
+  private characterSave: number | null = null;
   /** Collections whose folder is being renamed to their name, so no check starts it twice. */
   private readonly folderRenames = new Set<string>();
   private readonly reconciledListeners = new Set<(result: VaultReconciliation) => void>();
@@ -1254,7 +1262,12 @@ export class AssetService {
     const current = this.metadata!;
     const assets = { ...current.assets };
     for (const id of remove) delete assets[id];
-    for (const asset of upsert) assets[asset.id] = { ...asset, collection: collectionId };
+    for (const asset of upsert) {
+      // What the table's maps made of a character stays with the vault (bundles never carry it)
+      const kept = assets[asset.id];
+      const character = kept?.type === 'token' && asset.type === 'token' ? kept.character : undefined;
+      assets[asset.id] = { ...asset, collection: collectionId, ...(character && { character }) };
+    }
     const collectionAssets = Object.values(assets).filter((asset) => asset.collection === collectionId);
     const recorded: CollectionMetadata = {
       ...collection,
@@ -1511,6 +1524,29 @@ export class AssetService {
   }
 
   /** The library token drawn with this artwork, read from the loaded index. */
+  /**
+   * Records what a placement says of the library character `assetId` and tells open maps
+   * (`atlas-vtt:character-changed`). The index takes it at once; the disk shortly after the
+   * edits settle, since each save writes the whole index and a fight changes hit points often.
+   */
+  setCharacter(assetId: string, character: CharacterRecord, size: number): void {
+    const asset = this.metadata?.assets[assetId];
+    if (asset?.type !== 'token') return;
+    const { size: _size, ...rest } = asset;
+    this.metadata!.assets[assetId] = { ...rest, character, ...(size !== 1 && { size }) };
+    this.app.workspace.trigger('atlas-vtt:character-changed', asset.imagePath);
+    if (this.characterSave !== null) window.clearTimeout(this.characterSave);
+    this.characterSave = window.setTimeout(() => this.flushCharacters(), CHARACTER_SAVE_DELAY_MS);
+  }
+
+  /** Writes character edits still waiting, as the plugin unloads. */
+  flushCharacters(): void {
+    if (this.characterSave === null) return;
+    window.clearTimeout(this.characterSave);
+    this.characterSave = null;
+    void this.saveMetadata();
+  }
+
   findTokenAssetByImagePath(imagePath: string): TokenAsset | null {
     if (!this.metadata) return null;
     return Object.values(this.metadata.assets).find(

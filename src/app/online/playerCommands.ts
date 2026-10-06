@@ -128,7 +128,8 @@ function applyToToken(
     return true;
   }
 
-  const shown = visibleResources(token, resources, 'player').find(({ definition }) => definition.key === command.key);
+  // The token is the player's: they see what the token shows its own players
+  const shown = visibleResources(token, resources, 'controller').find(({ definition }) => definition.key === command.key);
   if (!shown) return false;
   state.updateToken(token.id, resourceUpdate(token, command.key, withCurrent(shown.value, command.current), false));
   return true;

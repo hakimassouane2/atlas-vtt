@@ -34,7 +34,11 @@ export interface ResourceValue {
   max: number;
 }
 
-export type ResourceViewer = 'dm' | 'player';
+/** Who looks at a token: the GM, a player, or a player the token is given to (`controlledBy`). */
+export type ResourceViewer = 'dm' | 'player' | 'controller';
+
+/** Which players see a token's resources: all, only those it is given to, or none. Unset is everyone. */
+export type BarsAudience = 'everyone' | 'controllers' | 'nobody';
 
 /** Supplies the resource definitions of the collection a map belongs to. */
 export type ResourceDefsProvider = () => readonly ResourceDefinition[];
@@ -58,4 +62,6 @@ export interface ResourceHolder {
   resources?: Record<string, ResourceValue> | undefined;
   /** Keys whose maximum was set by hand and no longer follows the statblock. */
   overriddenMax?: string[] | undefined;
+  /** Which players see the resources; the collection decides which resources players may see at all. */
+  barsShownTo?: BarsAudience | undefined;
 }

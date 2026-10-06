@@ -9,5 +9,7 @@ declare module 'obsidian' {
     on(name: 'atlas-vtt:scene-thumbnail-updated', callback: (mapPath: string) => unknown, ctx?: unknown): EventRef;
     /** Triggered by Atlas VTT when a collection's settings (conditions, grid defaults, widgets…) changed. */
     on(name: 'atlas-vtt:collection-settings-changed', callback: (collectionId: string) => unknown, ctx?: unknown): EventRef;
+    /** Triggered by Atlas VTT when a library character's record changed (`AssetService.setCharacter`); maps bring its placements in line. */
+    on(name: 'atlas-vtt:character-changed', callback: (imagePath: string) => unknown, ctx?: unknown): EventRef;
   }
 }

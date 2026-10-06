@@ -10,5 +10,7 @@ export function mapInitiativeCollection(app: App): InitiativeCollection {
     // Players see HP where the map's collection shows it to them
     showsHp: (mapPath) => mapResources(AssetService.getInstance(app), mapPath).some((definition) => definition.key === 'hp' && definition.visibleToPlayers),
     rules: (mapPath) => mapInitiativeRules(app, mapPath),
+    // The local player window is shared by the table: nobody in particular looks at it
+    viewerOf: () => 'player',
   };
 }

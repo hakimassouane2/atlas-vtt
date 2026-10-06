@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fieldFingerprint } from '../../src/app/services/collectionBundle/fingerprints';
-import { settingsFromBundle, withoutPlayers } from '../../src/app/services/collectionBundle/bundleSettings';
+import { assetFingerprint, fieldFingerprint } from '../../src/app/services/collectionBundle/fingerprints';
+import { settingsFromBundle, withoutPlayers, withoutTableState } from '../../src/app/services/collectionBundle/bundleSettings';
 import type { CollectionMetadata } from '../../src/app/services/AssetService';
 import { HP, STR, STRESS } from '../mocks/resourceFixtures';
 
@@ -35,5 +35,12 @@ describe('a collection\'s settings in a bundle', () => {
       .toBe(await fieldFingerprint(collection(daggerheart), 'settings'));
     expect(settingsFromBundle({ ...daggerheart, players: [{ id: 'bob', name: 'Bob', color: '#dc2626' }] }, { ...daggerheart, players }).players).toEqual(players);
     expect(settingsFromBundle({ ...daggerheart, players }, daggerheart).players).toBeUndefined();
+  });
+
+  it('never carry what the table\'s maps made of a character, and count it as no edit', async () => {
+    const hero = { id: 'hero', type: 'token', name: 'Hero', tags: [], collection: 'Own', imagePath: 'hero.png', createdAt: 0, modifiedAt: 0 } as const;
+    const played = { ...hero, character: { config: { controlledBy: ['alice'], linked: true }, state: { conditions: ['prone'] } } };
+    expect(withoutTableState(played)).toEqual(hero);
+    expect(await assetFingerprint(played)).toBe(await assetFingerprint(hero));
   });
 });

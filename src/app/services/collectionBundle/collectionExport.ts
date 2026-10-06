@@ -3,7 +3,7 @@ import { COLLECTIONS_DIR, type Asset, type AssetService, type CollectionMetadata
 import { BUNDLE_FORMAT, BUNDLE_MANIFEST, zipPathFor, type BundleFile, type CollectionBundleManifest } from './bundleFormat';
 import { rewriteContent } from './bundleContent';
 import { selectContent } from './bundleContents';
-import { withLootBases, withoutPlayers } from './bundleSettings';
+import { withLootBases, withoutPlayers, withoutTableState } from './bundleSettings';
 import { reportFileStep, type BundleProgressListener } from './bundleProgress';
 import { coverCandidates, coverFileFor, currentCover, storeCover, type CoverCandidate, type CoverChoice, type CoverFile, type CurrentCover } from './collectionCover';
 import { CollectionReferenceCollector, type MissingReference } from './collectionReferences';
@@ -196,7 +196,7 @@ export async function exportCollectionBundle(
     exportedAt,
     collection,
     release: { kind: choice.kind === 'share' ? 'share' : 'release', ...(notes ? { notes } : {}) },
-    assets: selected.assets.map((asset) => remapPaths(asset, origin.names)),
+    assets: selected.assets.map((asset) => remapPaths(withoutTableState(asset), origin.names)),
     files,
   };
   zip.file(BUNDLE_MANIFEST, JSON.stringify(manifest, null, 2));

@@ -148,6 +148,7 @@ export default class AtlasVTTPlugin extends Plugin {
   onunload(): void {
     this.changelogService?.destroy();
     void this.settingsService?.saveSettingsNow();
+    AssetService.getInstance(this.app).flushCharacters();
     this.widgetSyncService?.destroy();
     this.widgetSyncService = undefined;
 

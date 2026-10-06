@@ -127,6 +127,16 @@ vocabulaire : `CONTEXT.md`.
   connexion ; le MJ retient le profil de chaque connexion (`connectedPlayers.ts`) et le passe aux
   commandes. `isPlayerControlled(token, profileId)` décide des deux côtés. Les bundles ne portent
   jamais les profils (`withoutPlayers`).
+- **Personnages** (`src/app/characters/`) : la config d'un personnage (joueurs, nameplate, anneau,
+  taille, vision, lumière, camp, max saisis à la main, `linked`, `barsShownTo`) et, s'il est lié, ses
+  ressources et conditions sont dans `TokenAsset.character` (index de la bibliothèque, écrit 0,5 s
+  après la dernière modification). `CharacterSync` (un par vue) : une carte qui se charge et un token
+  qui apparaît prennent la fiche ; un exemplaire modifié écrit la fiche (`AssetService.setCharacter`),
+  que toutes les cartes ouvertes suivent (`atlas-vtt:character-changed`, hors annulation). Les cartes
+  fermées se mettent à jour à leur ouverture. Un personnage sans fiche n'est touché qu'au premier
+  réglage modifié. Les bundles ne portent pas la fiche (`withoutTableState`).
+- **Barres par personnage** : `barsShownTo` (`everyone`, `controllers`, `nobody`) dans
+  `visibleResources`, par le spectateur `controller` (joueur à qui le token est donné).
 - `PlayerDiceFeed` envoie les jets des joueurs et ceux du MJ si `showDiceRolls`, masqués pour un
   token caché. Les dés lisent leur environnement par un contexte React (`diceEnvironment.ts`).
 - Quand le MJ passe sur un autre onglet, les joueurs gardent leur scène et leurs commandes sont
@@ -183,6 +193,8 @@ doit rester vert.
   brouillard compris ; un joueur qui ouvre la console peut les lire (dette acceptée, ADR 0001).
 - Pas d'éclairage dynamique en ligne.
 - Profils sans mot de passe : n'importe qui avec le lien peut choisir n'importe quel profil.
+- Les réglages d'un personnage ne suivent que les tokens de la bibliothèque (reconnus par leur
+  image) ; un token sans personnage dans la bibliothèque garde ses réglages pour lui.
 - Pas d'undo côté joueur ; pas de ping ni de règle de mesure partagée ; les pins restent cachés.
 - Les jets s'affichent sans son chez les joueurs (les sons restent dans le plugin).
 - Lien en `http` (pas de chiffrement) : suffisant entre amis, la clé du lien protège l'accès.

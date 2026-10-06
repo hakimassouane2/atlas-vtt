@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
 import { ToggleSwitch } from '../../packages/components/primitives/Toggle';
-import type { ResourceDefinition, ResourceValue } from '../../resources/resourceTypes';
+import type { BarsAudience, ResourceDefinition, ResourceValue } from '../../resources/resourceTypes';
+import { Select, type SelectOption } from '../../packages/components/primitives/Select';
 import { NumberOverrideField } from './NumberOverrideField';
 import type { PlayerProfile } from '../../types/collectionSettingsTypes';
 import { PlayerDot } from '../../players/PlayerDot';
@@ -56,9 +57,12 @@ interface TokenIdentitySectionProps {
   onShowNameplateChange: (show: boolean) => void;
   /** The name field, which takes the focus when the dialog opens. */
   nameRef: React.Ref<HTMLInputElement>;
+  /** Whether the character's resources and conditions are the same on every map. */
+  linked: boolean;
+  onLinkedChange: (linked: boolean) => void;
 }
 
-export function TokenIdentitySection({ name, onNameChange, showNameplate, onShowNameplateChange, nameRef }: TokenIdentitySectionProps): React.ReactElement {
+export function TokenIdentitySection({ name, onNameChange, showNameplate, onShowNameplateChange, nameRef, linked, onLinkedChange }: TokenIdentitySectionProps): React.ReactElement {
   const nameId = useId();
   return (
     <EditTokenSection title="Token">
@@ -75,6 +79,12 @@ export function TokenIdentitySection({ name, onNameChange, showNameplate, onShow
         />
       </div>
       <SwitchRow label="Show nameplate" value={showNameplate} onChange={onShowNameplateChange} />
+      <SwitchRow
+        label="Linked character"
+        hint="Same resources and conditions on every map, like a player character"
+        value={linked}
+        onChange={onLinkedChange}
+      />
     </EditTokenSection>
   );
 }
@@ -119,12 +129,26 @@ interface TokenResourcesSectionProps {
   onChange: (key: string, value: string) => void;
   /** What the linked statblock gives each resource. */
   defaults: Record<string, ResourceValue>;
+  /** Which players see the token's resources. */
+  barsShownTo: BarsAudience;
+  onBarsShownToChange: (audience: BarsAudience) => void;
 }
 
-/** The maximum of each resource, two to a row; a static resource's field is its value. */
-export function TokenResourcesSection({ definitions, values, onChange, defaults }: TokenResourcesSectionProps): React.ReactElement {
+const BARS_AUDIENCES: SelectOption<BarsAudience>[] = [
+  { value: 'everyone', label: 'Everyone' },
+  { value: 'controllers', label: 'Its players only' },
+  { value: 'nobody', label: 'Nobody' },
+];
+
+/** Who among the players sees the resources, then the maximum of each, two to a row; a static resource's field is its value. */
+export function TokenResourcesSection({ definitions, values, onChange, defaults, barsShownTo, onBarsShownToChange }: TokenResourcesSectionProps): React.ReactElement {
+  const audienceId = useId();
   return (
     <EditTokenSection title="Resources">
+      <div className="atlas-edit-token__switch-row">
+        <span id={audienceId} className="atlas-edit-token__label">Players see its bars</span>
+        <Select value={barsShownTo} options={BARS_AUDIENCES} labelledBy={audienceId} onChange={onBarsShownToChange} />
+      </div>
       <div className="atlas-edit-token__fields">
         {definitions.map(({ key, name, direction }) => (
           <NumberOverrideField

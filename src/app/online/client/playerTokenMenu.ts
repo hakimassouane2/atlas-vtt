@@ -31,7 +31,7 @@ function playerTokenMenuEntries(canvas: TokenMenuCanvas, tokenId: string): Conte
   const current = (): TokenEntity | undefined => store.getState().objects.tokens[tokenId];
 
   const token = current();
-  if (token && visibleResources(token, canvas.resources(), 'player').some(({ definition }) => definition.direction !== 'static')) {
+  if (token && visibleResources(token, canvas.resources(), 'controller').some(({ definition }) => definition.direction !== 'static')) {
     entries.push({ type: 'submenu', label: 'Resources', icon: 'heart', children: () => resourceEntries(canvas, current()), subscribe });
   }
   const conditions = canvas.conditions();
@@ -56,7 +56,7 @@ function playerTokenMenuEntries(canvas: TokenMenuCanvas, tokenId: string): Conte
 /** One row per resource the player sees and spends, with − value + to step it. */
 function resourceEntries({ store, resources }: TokenMenuCanvas, token: TokenEntity | undefined): ContextMenuEntry[] {
   if (!token) return [];
-  return visibleResources(token, resources(), 'player')
+  return visibleResources(token, resources(), 'controller')
     .filter(({ definition }) => definition.direction !== 'static')
     .map(({ definition, value }) => {
       const step = (delta: number): void => {

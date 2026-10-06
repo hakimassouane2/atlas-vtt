@@ -3,8 +3,11 @@ import { comparableSettings } from './bundleSettings';
 import { hashJson } from './hashing';
 import type { CollectionField } from './installRecord';
 
-/** Bookkeeping Atlas changes on its own; a change there is not an edit. */
-const VOLATILE_ASSET_FIELDS: ReadonlySet<string> = new Set(['createdAt', 'modifiedAt', 'collection', 'thumbnailPath']);
+/**
+ * Bookkeeping Atlas changes on its own; a change there is not an edit. A character's record
+ * follows its placements on the table's maps (`CharacterSync`).
+ */
+const VOLATILE_ASSET_FIELDS: ReadonlySet<string> = new Set(['createdAt', 'modifiedAt', 'collection', 'thumbnailPath', 'character']);
 
 /** Fingerprint of an asset record by what the user or the author can change. */
 export function assetFingerprint(asset: Asset): Promise<string> {

@@ -34,7 +34,7 @@ async function start(): Promise<void> {
   const player = new PagePlayer(() => choice.profileId());
   const canvas = new PlayerCanvas(pageCanvasHost(collection, player), (command) => post('/command', command));
   await canvas.mount(content, storedInputDevice());
-  const initiative = new InitiativeOverlay(content, canvas.store, collection);
+  const initiative = new InitiativeOverlay(content, canvas.store, collection, (token) => player.controls(token));
   const showRoll = installPageDice(content, canvas.store);
 
   // Another profile acts on other tokens: what was selected for the last one goes
@@ -44,6 +44,7 @@ async function start(): Promise<void> {
     if (profileId === announced) return;
     announced = profileId;
     canvas.store.getState().clearSelection();
+    canvas.refreshTokenUI();
     announceProfile(profileId);
   });
 

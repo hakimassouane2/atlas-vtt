@@ -14,7 +14,7 @@ import { mapSenseRules } from '../../services/mapSenseRules';
 import { useStatblockSenses, type StatblockLink } from './useStatblockSenses';
 import { parseNumberInput } from './NumberOverrideField';
 import { buildResourceEdits } from '../../resources/resourceEdits';
-import type { ResourceDefinition, ResourceValue } from '../../resources/resourceTypes';
+import type { BarsAudience, ResourceDefinition, ResourceValue } from '../../resources/resourceTypes';
 import { startingResources } from '../../resources/statblockResourceValues';
 import { handledByAnotherControl } from '../../keyboard/tooltipEscape';
 import { TokenIdentitySection, TokenPlayersSection, TokenResourcesSection } from './EditTokenSections';
@@ -37,6 +37,10 @@ interface EditTokenValues {
   light: LightForm;
   /** The profiles whose online players move the token and change its resources. */
   controlledBy: string[];
+  /** Whether its resources and conditions are the same on every map. */
+  linked: boolean;
+  /** Which players see its resources. */
+  barsShownTo: BarsAudience;
 }
 
 interface EditTokenModalProps {
@@ -66,6 +70,8 @@ function EditTokenModalInner({ initial, players, definitions, resourceDefaults, 
   const [name, setName] = useState(initial.name);
   const [showNameplate, setShowNameplate] = useState(initial.showNameplate);
   const [controlledBy, setControlledBy] = useState(initial.controlledBy);
+  const [linked, setLinked] = useState(initial.linked);
+  const [barsShownTo, setBarsShownTo] = useState(initial.barsShownTo);
   const [maxInputs, setMaxInputs] = useState<Record<string, string>>(
     () => Object.fromEntries(definitions.map(({ key }) => [key, numberText(initial.maxima[key])])),
   );
@@ -89,6 +95,8 @@ function EditTokenModalInner({ initial, players, definitions, resourceDefaults, 
       vision,
       light,
       controlledBy,
+      linked,
+      barsShownTo,
     });
   };
 
@@ -125,6 +133,8 @@ function EditTokenModalInner({ initial, players, definitions, resourceDefaults, 
               showNameplate={showNameplate}
               onShowNameplateChange={setShowNameplate}
               nameRef={inputRef}
+              linked={linked}
+              onLinkedChange={setLinked}
             />
             {players.length > 0 && <TokenPlayersSection players={players} controlledBy={controlledBy} onChange={setControlledBy} />}
             {definitions.length > 0 && (
@@ -133,6 +143,8 @@ function EditTokenModalInner({ initial, players, definitions, resourceDefaults, 
                 values={maxInputs}
                 onChange={(key, value) => setMaxInputs((current) => ({ ...current, [key]: value }))}
                 defaults={resourceDefaults}
+                barsShownTo={barsShownTo}
+                onBarsShownToChange={setBarsShownTo}
               />
             )}
             {showLighting && <TokenVisionSection vision={vision} onChange={setVision} context={context} />}
@@ -211,6 +223,8 @@ export function openEditTokenModal(
     light: lightForm(token.light, lighting.lightPresets),
     // Profiles the collection no longer has stay on the token, unseen and unchanged
     controlledBy: controllersOf(token),
+    linked: token.linked === true,
+    barsShownTo: token.barsShownTo ?? 'everyone',
   };
   const players = mapPlayers(AssetService.getInstance(app), store.getState().mapPath);
 
@@ -229,6 +243,8 @@ export function openEditTokenModal(
       ...(changed('vision') && { vision: visionFromForm(values.vision) }),
       ...(changed('light') && { light: lightFromForm(values.light) }),
       ...(changed('controlledBy') && { controlledBy: values.controlledBy.length > 0 ? values.controlledBy : undefined }),
+      ...(changed('linked') && { linked: values.linked || undefined }),
+      ...(changed('barsShownTo') && { barsShownTo: values.barsShownTo === 'everyone' ? undefined : values.barsShownTo }),
       ...(maxima.length > 0 && current && buildResourceEdits(
         current.kind === 'character' ? current : {},
         maxima.map((definition) => ({ definition, max: values.maxima[definition.key] })),

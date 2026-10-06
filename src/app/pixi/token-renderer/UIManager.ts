@@ -140,7 +140,10 @@ export class UIManager implements ITokenUIManager {
     ui.zoomProvider = () => this.viewport.scale.x;
     ui.onScaleChange = (scale) => this.tokenControlsUI?.setScaleFor(tokenId, scale);
     const player = this.player;
-    if (player) ui.playerSettingsFor = (shown) => playerTokenUISettings(shown as TokenEntity, player.tokenUI());
+    if (player) {
+      ui.playerSettingsFor = (shown) => playerTokenUISettings(shown as TokenEntity, player.tokenUI());
+      ui.playerControls = (shown) => player.controls(shown as TokenEntity);
+    }
     this.tokenUIs[tokenId] = ui;
     
     const uiElement = ui.getContainer();

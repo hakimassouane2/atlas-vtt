@@ -3,6 +3,7 @@
 
 import type { InitiativeSide } from './types/initiativeRulesTypes';
 import type { LightEmission, TokenVision } from './types/lightingTypes';
+import type { BarsAudience } from './resources/resourceTypes';
 
 /**
  * Note pin object that links to an Obsidian note
@@ -47,6 +48,14 @@ export interface BaseToken {
   conditionValues?: Record<string, number>;
   /** Ids of the player profiles (`CollectionSettings.players`) whose online players act on the token; read with `controllersOf`. */
   controlledBy?: string[];
+  /**
+   * A linked character's resources and conditions are the same on every map (a player character);
+   * an unlinked one's belong to each placement (a goblin). Its settings follow it everywhere either way
+   * (`src/app/characters/`).
+   */
+  linked?: boolean;
+  /** Which players see the token's resources; unset is everyone. */
+  barsShownTo?: BarsAudience;
   /** Whether the token is hidden (visible to DM but not players) */
   isHidden?: boolean;
   /** The side the token fights on where initiative runs by sides. Read with `sideOf`: unset, a token that sees is the players'. */

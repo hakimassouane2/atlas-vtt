@@ -67,6 +67,8 @@ export class TokenUIRenderer {
    * draw that is not given player settings. Unset, the UI is the GM's.
    */
   public playerSettingsFor: ((token: BaseToken & Partial<Character>) => Pick<AtlasSettings['localPlayerView'], 'showTokenNameplates'>) | null = null;
+  /** On a canvas that shows the scene to players: whether the player at it is one the token is given to. */
+  public playerControls: ((token: BaseToken & Partial<Character>) => boolean) | null = null;
   private currentToken: (BaseToken & Partial<Character>) | null = null;
   private currentTokenSize: number = 0;
   private isHovered: boolean = false;
@@ -314,7 +316,7 @@ export class TokenUIRenderer {
     const playerSettings = shownToPlayers ?? this.playerSettingsFor?.(token);
     const tokenSettings = this.store?.getState().tokenSettings;
     // Players see the resources their definitions allow, whatever the DM hides on this map.
-    const viewer: ResourceViewer = playerSettings ? 'player' : 'dm';
+    const viewer: ResourceViewer = !playerSettings ? 'dm' : this.playerControls?.(token) ? 'controller' : 'player';
     const definitions = this.resourceDefsProvider();
     // The map's own switches hide resources from the GM; the player view never reads them
     const hidden = playerSettings ? [] : tokenSettings?.hiddenResources ?? [];

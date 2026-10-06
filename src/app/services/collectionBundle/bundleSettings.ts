@@ -2,6 +2,7 @@ import { BUILT_IN_SYSTEM_PRESETS } from '../../gameSystems/builtInPresets';
 import { legacyCollectionResources } from '../../resources/collectionResources';
 import { sameResourceDefinitions } from '../../resources/resourceDefinitions';
 import type { CollectionSettings } from '../../types/collectionSettingsTypes';
+import type { Asset } from '../AssetService';
 
 /**
  * A collection's settings as bundles compare them. Resources that only restate what the
@@ -15,6 +16,13 @@ export function comparableSettings(settings: CollectionSettings | undefined): Om
   if (!shared.resources) return shared;
   const { resources, ...rest } = shared;
   return sameResourceDefinitions(resources, legacyCollectionResources(rest, BUILT_IN_SYSTEM_PRESETS)) ? rest : shared;
+}
+
+/** `asset` without what the table's maps made of it (a character's record), which a bundle never carries. */
+export function withoutTableState(asset: Asset): Asset {
+  if (asset.type !== 'token' || !asset.character) return asset;
+  const { character: _character, ...shared } = asset;
+  return shared;
 }
 
 /** `settings` without the table's players, which a bundle never carries. */

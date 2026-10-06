@@ -1,4 +1,6 @@
-import type { ResourceValue } from '../resources/resourceTypes';
+import type { ResourceValue, ResourceViewer } from '../resources/resourceTypes';
+import type { TokenEntity } from '../types';
+import { seesResourcesOf } from '../resources/visibleResources';
 import type { App } from 'obsidian';
 import type { ViewAtlasState } from '../storeFactory';
 import type { InitiativeEntry } from '../types/initiativeTypes';
@@ -15,6 +17,8 @@ import { shownInstanceNumber } from '../stores/tokenInstanceNumbers';
 export interface InitiativeCollection {
   /** Whether players see the combatants' HP. */
   showsHp(mapPath: string | null): boolean;
+  /** Who the list is shown to, for `token`: a player, or one of the players it is given to. */
+  viewerOf(token: TokenEntity): ResourceViewer;
   rules(mapPath: string | null): InitiativeRules;
 }
 
@@ -67,7 +71,8 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
     const entryTokens = JSON.stringify(entries.map((entry): EntryToken => {
       const token = tokens?.[entry.tokenId];
       return {
-        hp: token?.resources?.hp ?? null,
+        // A token that hides its resources from these players hides its HP here too
+        hp: token && seesResourcesOf(token.barsShownTo, this.collection.viewerOf(token)) ? token.resources?.hp ?? null : null,
         showRing: token?.showRing !== false,
         ringColor: token?.ringColor,
         side: sideOf(token),
