@@ -11,3 +11,8 @@ const status = (): HTMLElement => byId('status');
 export function setStatus(text: string): void {
   status().textContent = text;
 }
+
+/** Covers the page while the connection to the DM's Atlas is lost: nothing the player does could reach it. */
+export function setDisconnected(lost: boolean): void {
+  document.body.classList.toggle('online-offline', lost);
+}

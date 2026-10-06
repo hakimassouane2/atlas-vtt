@@ -25,7 +25,9 @@ export interface SceneSink {
 /**
  * Keeps the canvases in players' browsers in step with the presented scene. A player who
  * joins, a scene that finished loading and a scene presented anew are sent whole (`scene`);
- * after that only what changed is sent (`changes`), at most once per animation frame. What
+ * after that only what changed is sent (`changes`), once per task however many writes it made
+ * (a drag, a player's command). Not per animation frame: frames stop while the DM's window is
+ * hidden or behind another, and players would see nothing a player changed until the DM looked. What
  * the canvas reads besides the scene, the collection's rules and the player view settings,
  * travels as `context`. While the DM works on another tab nothing is sent: players keep the
  * scene they had.
@@ -34,13 +36,14 @@ export class SceneReplicator {
   private source: ReplicatedSource | null = null;
   private sent: ReplicatedScene | null = null;
   private stopWatching: Array<() => void> = [];
-  private frame: number | null = null;
+  /** Whether a send waits for the current task to end. */
+  private pending = false;
 
   constructor(private readonly settingsService: SettingsService, private readonly sink: SceneSink) {}
 
   setSource(source: ReplicatedSource | null): void {
     this.stopWatching.splice(0).forEach((stop) => stop());
-    this.cancelFrame();
+    this.pending = false;
     this.source = source;
     this.sent = null;
     if (!source) return;
@@ -76,16 +79,15 @@ export class SceneReplicator {
   }
 
   private scheduleSend(): void {
-    if (this.frame !== null) return;
-    this.frame = window.requestAnimationFrame(() => {
-      this.frame = null;
+    if (this.pending) return;
+    this.pending = true;
+    const source = this.source;
+    queueMicrotask(() => {
+      // Another scene presented meanwhile was sent whole
+      if (!this.pending || this.source !== source) return;
+      this.pending = false;
       this.sendChanges();
     });
-  }
-
-  private cancelFrame(): void {
-    if (this.frame !== null) window.cancelAnimationFrame(this.frame);
-    this.frame = null;
   }
 
   private sendChanges(): void {

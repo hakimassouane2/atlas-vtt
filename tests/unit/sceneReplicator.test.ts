@@ -53,8 +53,8 @@ function setup(): {
   };
 }
 
-/** Runs the animation frame the replicator waits for. */
-const nextFrame = async (): Promise<void> => { vi.advanceTimersToNextFrame(); };
+/** Ends the task, which runs the send the replicator waits for. */
+const endOfTask = async (): Promise<void> => { await Promise.resolve(); };
 
 describe('SceneReplicator', () => {
   beforeEach(() => vi.useFakeTimers());
@@ -68,15 +68,17 @@ describe('SceneReplicator', () => {
     expect(sent[1]!.data).toMatchObject({ mapPath: 'maps/cave.atlasmap' });
   });
 
-  it('sends what changed once per frame, however many edits it held', async () => {
+  it('sends what changed once per task, however many edits it held, and whether or not frames run', async () => {
     const { replicator, source, sent, store } = setup();
     replicator.setSource(source);
     sent.length = 0;
     const [a, b] = store.getState().addTokens([{ kind: 'token', imagePath: 'a.png', x: 0, y: 0 }, { kind: 'token', imagePath: 'b.png', x: 70, y: 0 }] as never);
     store.getState().moveToken(a!, 140, 0);
     expect(sent).toEqual([]);
+    // The DM's window behind another draws no frames
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0);
 
-    await nextFrame();
+    await endOfTask();
 
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({ to: 'all', event: 'changes' });
@@ -89,11 +91,11 @@ describe('SceneReplicator', () => {
     sent.length = 0;
     store.getState().setMapLoading(true);
     store.getState().clearMapState();
-    await nextFrame();
+    await endOfTask();
     expect(sent).toEqual([]);
 
     store.getState().setMapLoading(false);
-    await nextFrame();
+    await endOfTask();
 
     expect(sent.map(({ event }) => event)).toEqual(['context', 'scene']);
   });
@@ -121,7 +123,7 @@ describe('SceneReplicator', () => {
     replicator.setSource(null);
     sent.length = 0;
     store.getState().addTokens([{ kind: 'token', imagePath: 'a.png', x: 0, y: 0 }] as never);
-    await nextFrame();
+    await endOfTask();
     replicator.sendTo('player-1');
     expect(sent).toEqual([]);
     expect(replicator.sentImages().size).toBe(0);

@@ -16,6 +16,13 @@ export function playerPageHtml(key: string, bodyClass: string): string {
 <body class="${escapeAttribute(`${bodyClass} atlas-vtt-plugin`)}">
 <div id="content" class="atlas-local-player-content"></div>
 <div id="status" class="online-hud">Joining the game…</div>
+<div id="disconnected" class="online-disconnected" role="alertdialog" aria-modal="true" aria-labelledby="disconnected-title">
+<div class="online-disconnected__panel">
+<div class="online-disconnected__spinner" aria-hidden="true"></div>
+<div id="disconnected-title" class="online-disconnected__title">Connection lost</div>
+<div class="online-disconnected__hint">Trying again… Wait here; the game comes back as soon as the GM's Atlas answers.</div>
+</div>
+</div>
 <script src="/client.js${query}"></script>
 </body>
 </html>

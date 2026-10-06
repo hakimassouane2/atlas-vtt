@@ -1,7 +1,7 @@
 import type { PlayerCanvasContext, PlayerSceneMessage } from '../scene/sceneProtocol';
 import type { ReplicatedScene, SceneChange } from '../scene/sceneReplica';
 import type { DiceRollResult } from '../../tools/DiceTool';
-import { setStatus } from './dom';
+import { setDisconnected, setStatus } from './dom';
 import { sessionUrl, setPlayerId } from './session';
 
 /** What the canvas page does with the messages of the DM's Atlas. */
@@ -36,8 +36,12 @@ export function connectToScene(listener: SceneListener): EventSource {
   const json = <T>(message: Event): T => JSON.parse((message as MessageEvent<string>).data) as T;
   stream.addEventListener('roll', (message) => listener.roll(json<DiceRollResult>(message)));
   stream.onopen = (): void => {
+    setDisconnected(false);
     setStatus(document.body.classList.contains('online-live') ? '' : "Waiting for the GM's scene…");
   };
-  stream.onerror = (): void => setStatus('Connection lost, trying again…');
+  stream.onerror = (): void => {
+    setStatus('');
+    setDisconnected(true);
+  };
   return stream;
 }

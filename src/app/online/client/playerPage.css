@@ -23,3 +23,60 @@ body { overflow: hidden; -webkit-app-region: no-drag; user-select: none; }
 body:not(.online-live) #status { bottom: 50%; font-size: var(--font-ui-medium); }
 #content { position: absolute; inset: 0; }
 #content canvas { display: block; }
+
+/* The connection to the DM's Atlas is lost: the page is covered until it comes back. */
+.online-disconnected {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: color-mix(in oklch, var(--background-primary) 55%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+body.online-offline .online-disconnected { display: flex; }
+
+.online-disconnected__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 360px;
+  padding: 16px;
+  border-radius: var(--radius-xl, 24px);
+  background: var(--background-primary);
+  border: 1.5px solid var(--background-modifier-border);
+  box-shadow: var(--shadow-l);
+  font-family: var(--font-interface);
+  color: var(--text-normal);
+  text-align: center;
+}
+
+.online-disconnected__title {
+  font-size: var(--font-ui-large, 20px);
+  font-weight: var(--font-semibold, 600);
+}
+
+.online-disconnected__hint {
+  font-size: var(--font-ui-small, 13px);
+  color: var(--text-muted);
+}
+
+/* Turned by transform alone, so it keeps turning while the page's thread is busy */
+.online-disconnected__spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid var(--background-modifier-border);
+  border-top-color: var(--interactive-accent);
+  animation: online-disconnected-spin 0.9s linear infinite;
+}
+
+@keyframes online-disconnected-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .online-disconnected__spinner { animation-duration: 2.4s; }
+}

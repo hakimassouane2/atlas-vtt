@@ -113,7 +113,7 @@ vocabulaire : `CONTEXT.md`.
   `POST /command` les commandes, `/image/<chemin>` les images de la scène et des jets.
 - **Réplication** (`online/scene/`) : `SceneReplicator` envoie la scène entière à l'arrivée d'un
   joueur et à chaque chargement (`scene`), puis seulement les objets et champs changés (`changes`),
-  au plus une fois par frame ; `context` porte les règles de la collection et les réglages de la vue
+  une fois par tâche (pas par frame : Obsidian en arrière-plan n'en dessine plus) ; `context` porte les règles de la collection et les réglages de la vue
   joueur. Le MJ fait seul autorité.
 - **Commandes** : le joueur édite le store de sa page comme le MJ le sien ; `client/commandBridge.ts`
   traduit ses changements en commandes (`drag`, `move`, `rotate`, `resource`, `condition`,
