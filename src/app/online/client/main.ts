@@ -12,6 +12,7 @@ import { installPageDice, pageDiceSettings } from './pageDice';
 import { PageDiceLog, installPageDiceLog } from './pageDiceLog';
 import { storedInputDevice } from './inputDevice';
 import { guardPageZoom } from './pageZoomGuard';
+import { guardNativeContextMenu } from './pageContextMenuGuard';
 import { PlayerHud } from './PlayerHud';
 import { ProfileChoice } from './profileChoice';
 import { ProfileChooser } from './ProfileChooser';
@@ -28,6 +29,7 @@ import './playerPage.css';
 async function start(): Promise<void> {
   installObsidianDom();
   guardPageZoom();
+  guardNativeContextMenu();
   installPageMenus();
   const content = byId('content');
   const collection = new SentCollection();

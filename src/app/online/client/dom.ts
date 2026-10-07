@@ -17,8 +17,8 @@ export function setDisconnected(lost: boolean): void {
   document.body.classList.toggle('online-offline', lost);
 }
 
-/** Whether `event` is typed into a field, where the page's shortcuts stay out of the way. */
-export function isTyping(event: KeyboardEvent): boolean {
+/** Whether `event` happens in a field, where the page's shortcuts and menus stay out of the way. */
+export function isTyping(event: Event): boolean {
   const target = event.target as HTMLElement | null;
   return !!target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }

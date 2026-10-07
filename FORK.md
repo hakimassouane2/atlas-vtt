@@ -99,6 +99,8 @@ vocabulaire : `CONTEXT.md`.
      verrouillé pour les autres), poignée de rotation, +/- de ses ressources sur le token ;
    - clic droit relâché sur place sur son token : menu Ressources / Conditions / Rotation ;
      clic droit glissé : déplacer la carte ; molette : zoomer (même caméra que le MJ) ;
+     le menu natif du navigateur n'apparaît jamais, sauf dans les champs de texte
+     (`client/pageContextMenuGuard.ts`) ;
    - barre en bas : laser (aussi V, ou clic du milieu maintenu ; une fois son personnage choisi),
      plateau de dés, historique des jets (aussi Entrée) et réglages, un menu
      contextuel d'Atlas avec un sous-menu par réglage : Playing as (profil), My colour (grille des
