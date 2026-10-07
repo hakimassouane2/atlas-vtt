@@ -33,14 +33,4 @@ describe('the player page\'s profile', () => {
     choice.setCollection('campaign', [bob]);
     expect(choice.profileId()).toBeNull();
   });
-
-  it('opens the choice again from the menu and keeps the profile when closed', () => {
-    const choice = new ProfileChoice();
-    choice.setCollection('campaign', [alice, bob]);
-    choice.choose('alice');
-    choice.chooseAgain();
-    expect(choice.getState().choosing).toBe(true);
-    choice.keep();
-    expect(choice.getState()).toMatchObject({ choosing: false, chosen: alice });
-  });
 });

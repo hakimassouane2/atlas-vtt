@@ -8,8 +8,6 @@ export interface ProfileChoiceState {
   players: readonly PlayerProfile[] | null;
   /** The profile the player is; null until they chose one of `players`. */
   chosen: PlayerProfile | null;
-  /** The player asked to choose again; they may still go back to `chosen`. */
-  choosing: boolean;
 }
 
 /**
@@ -20,7 +18,7 @@ export interface ProfileChoiceState {
  */
 export class ProfileChoice {
   private collectionId: string | null = null;
-  private state: ProfileChoiceState = { players: null, chosen: null, choosing: false };
+  private state: ProfileChoiceState = { players: null, chosen: null };
   private readonly listeners = new Set<() => void>();
 
   /** The presented scene's collection and its profiles, as the DM's Atlas sends them. */
@@ -29,25 +27,15 @@ export class ProfileChoice {
     this.collectionId = collectionId;
     const keptId = sameCollection ? this.state.chosen?.id : storedProfile(collectionId);
     const chosen = players.find(({ id }) => id === keptId) ?? null;
-    this.update({ players, chosen, choosing: this.state.choosing && chosen !== null && players.length > 0 });
+    this.update({ players, chosen });
   }
 
-  /** The player picked `profileId`, one of the collection's profiles. */
+  /** The player picked `profileId`, one of the collection's profiles, on joining or from the settings menu. */
   choose(profileId: string): void {
     const chosen = this.state.players?.find(({ id }) => id === profileId);
     if (!chosen) return;
     storeProfile(this.collectionId, chosen.id);
-    this.update({ ...this.state, chosen, choosing: false });
-  }
-
-  /** Shows the profiles again, from the settings menu. */
-  chooseAgain(): void {
-    if (this.state.players?.length) this.update({ ...this.state, choosing: true });
-  }
-
-  /** Closes the choice opened from the settings menu, keeping the profile. */
-  keep(): void {
-    if (this.state.chosen) this.update({ ...this.state, choosing: false });
+    this.update({ ...this.state, chosen });
   }
 
   /** The id of the profile the player is, for the DM's Atlas and the canvas. */

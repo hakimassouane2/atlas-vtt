@@ -36,7 +36,6 @@ interface PlayerHudProps {
 export function PlayerHud({ store, choice, controls, roll, diceLog, setDiceLook, setColor, setInputDevice }: PlayerHudProps): React.ReactElement {
   const [diceOpen, setDiceOpen] = useState(false);
   const logOpen = useSyncExternalStore(diceLog.subscribe, () => diceLog.getState().open);
-  const [inputDevice, setInputDeviceState] = useState(storedInputDevice);
   const diceButtonRef = useRef<HTMLDivElement>(null);
 
   /** A roll is the selected token's when the player selected one of theirs. */
@@ -47,7 +46,6 @@ export function PlayerHud({ store, choice, controls, roll, diceLog, setDiceLook,
   const toggleDice = (): void => setDiceOpen((open) => !open);
   const changeInputDevice = (mode: NavigationInputMode): void => {
     storeInputDevice(mode);
-    setInputDeviceState(mode);
     setInputDevice(mode);
   };
 
@@ -79,7 +77,7 @@ export function PlayerHud({ store, choice, controls, roll, diceLog, setDiceLook,
   return (
     <TooltipProvider delayDuration={300}>
       <BottomToolbarRow>
-        <ResponsiveToolbar items={items} end={<PlayerSettingsMenu choice={choice} inputDevice={inputDevice} onInputDeviceChange={changeInputDevice} onDiceLookChange={setDiceLook} onColorChange={setColor} />} />
+        <ResponsiveToolbar items={items} end={<PlayerSettingsMenu choice={choice} inputDevice={storedInputDevice} onInputDeviceChange={changeInputDevice} onDiceLookChange={setDiceLook} onColorChange={setColor} />} />
       </BottomToolbarRow>
     </TooltipProvider>
   );

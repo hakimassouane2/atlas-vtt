@@ -89,14 +89,15 @@ vocabulaire : `CONTEXT.md`.
    plusieurs profils ; un token sans profil n'est à personne. Les ressources que les joueurs voient et
    modifient sont celles de la collection marquées **Players see it** (onglet **Resources**).
 5. Le joueur colle le lien dans son navigateur, choisit son profil (retenu par le navigateur pour
-   cette collection ; Réglages > Change player pour en changer) et a la carte comme le MJ :
+   cette collection ; Réglages > Playing as … pour en changer) et a la carte comme le MJ :
    - glisser ses tokens, ceux de son profil seulement (les autres le voient bouger en direct ; un token tenu par un joueur est
      verrouillé pour les autres), poignée de rotation, +/- de ses ressources sur le token ;
    - clic droit relâché sur place sur son token : menu Ressources / Conditions / Rotation ;
      clic droit glissé : déplacer la carte ; molette : zoomer (même caméra que le MJ) ;
-   - barre en bas : plateau de dés, historique des jets (aussi Entrée) et réglages (souris ou
-     trackpad, retenu par le navigateur ; « My colour » : sa couleur, parmi celles qu'aucun autre
-     joueur n'a ; « My dice » : couleur et chiffres de ses dés ; les deux gardés dans son profil) ;
+   - barre en bas : plateau de dés, historique des jets (aussi Entrée) et réglages, un menu
+     contextuel d'Atlas avec un sous-menu par réglage : Playing as (profil), My colour (parmi les
+     couleurs qu'aucun autre joueur n'a), My dice (couleur et chiffres), les deux gardés dans son
+     profil, et Input device (souris ou trackpad, retenu par le navigateur) ;
    - initiative à droite (avec les numéros d'instance, "Gobelin 2"), dés en 3D.
    Chaque jet dit qui l'a lancé : le personnage s'il y en a un, sinon le joueur (dans la couleur de
    son profil) ou « GM ». Les dés de chacun gardent son habillage partout ; la vitesse et le choix
