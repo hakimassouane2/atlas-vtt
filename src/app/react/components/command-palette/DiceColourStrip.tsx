@@ -7,13 +7,15 @@ interface DiceColourStripProps {
   /** Rendered d20s per colour; a colour without one shows an empty well while it renders. */
   previews: Partial<Record<DiceColour, string>>;
   onChange: (colour: DiceColour) => void;
+  /** The colours and their labels; Atlas' own by default. */
+  options?: readonly { value: DiceColour; label: string }[];
 }
 
 /** The dice colours side by side, each as the d20 it gives, to click. */
-export function DiceColourStrip({ value, previews, onChange }: DiceColourStripProps): React.ReactElement {
+export function DiceColourStrip({ value, previews, onChange, options = DICE_COLOUR_OPTIONS }: DiceColourStripProps): React.ReactElement {
   return (
     <div className="atlas-dice-colour-strip" role="radiogroup" aria-label="Dice colour">
-      {DICE_COLOUR_OPTIONS.map((option) => {
+      {options.map((option) => {
         const preview = previews[option.value];
         const active = option.value === value;
         return (

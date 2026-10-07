@@ -82,3 +82,14 @@ body.online-offline .online-disconnected { display: flex; }
 @media (prefers-reduced-motion: reduce) {
   .online-disconnected__spinner { animation-duration: 2.4s; }
 }
+
+/* The colour and the dice in their submenus of the player's settings: the controls the GM's
+   settings choose them with, sized to the menu. */
+.atlas-player-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2, 8px);
+  width: 248px;
+  padding: var(--size-4-1, 4px);
+}
+.atlas-player-settings-panel .atlas-dice-colour-strip__die { width: 56px; height: 56px; }

@@ -4,15 +4,13 @@ import type { NavigationInputMode } from '../../services/SettingsService';
 import { ToolButton } from '../../packages/components/primitives/ToolButton';
 import { INPUT_MODE_LABELS } from '../../settings/navigationSettingsSection';
 import { PlayerDot } from '../../players/PlayerDot';
-import { RESOURCE_COLORS } from '../../resources/resourceColors';
-import { DICE_COLOUR_OPTIONS, DICE_FONT_OPTIONS, readDiceLook, type DiceLook } from '../../dice3d/diceLook';
+import type { DiceLook } from '../../dice3d/diceLook';
 import { openContextMenuGlobal, type ContextMenuEntry } from '../../ui/contextMenus';
 import type { ProfileChoice } from './profileChoice';
+import { PlayerColourPanel, PlayerDicePanel } from './playerSettingsPanels';
 
 const MENU_LABEL = 'Settings';
 const DEVICE_ICONS: Record<NavigationInputMode, string> = { mouse: 'mouse', trackpad: 'touchpad' };
-/** A player's accent dice take their profile's colour (`playerRollStamp`). */
-const DICE_COLOURS = DICE_COLOUR_OPTIONS.map((option) => (option.value === 'accent' ? { ...option, label: 'My colour' } : option));
 
 interface PlayerSettingsMenuProps {
   /** Who the player is, which they may change here. */
@@ -27,7 +25,8 @@ interface PlayerSettingsMenuProps {
 
 /**
  * The player's own settings, as Atlas' menus are built on the DM's side: one submenu per setting
- * (who they play, their colour, their dice, their input device), so the menu stays a short list.
+ * (who they play, their colour, their dice, their input device), so the menu stays a short list;
+ * the colour and the dice open the controls they are chosen with (`playerSettingsPanels.tsx`).
  */
 export function PlayerSettingsMenu(props: PlayerSettingsMenuProps): React.ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -67,51 +66,10 @@ function settingsEntries({ choice, inputDevice, onInputDeviceChange, onDiceLookC
   }
 
   if (chosen) {
-    entries.push({
-      type: 'submenu',
-      label: 'My colour',
-      icon: 'palette',
-      subscribe,
-      // The colours no other player has: players tell each other apart by them
-      children: () => {
-        const { players: all, chosen: me } = choice.getState();
-        return RESOURCE_COLORS
-          .filter(({ value }) => !all?.some(({ id, color }) => id !== me?.id && color.toLowerCase() === value.toLowerCase()))
-          .map(({ value, label }) => ({
-            type: 'item' as const,
-            label,
-            checked: value.toLowerCase() === me?.color.toLowerCase(),
-            leading: createElement(PlayerDot, { player: { color: value } }),
-            onClick: () => onColorChange(value),
-          }));
-      },
-    });
-    entries.push({
-      type: 'submenu',
-      label: 'My dice',
-      icon: 'dices',
-      subscribe,
-      children: () => {
-        const look = readDiceLook(choice.getState().chosen?.diceLook);
-        return [
-          ...DICE_COLOURS.map(({ value, label }) => ({
-            type: 'item' as const,
-            label,
-            checked: look.colour === value,
-            keepOpen: true,
-            onClick: () => onDiceLookChange({ ...look, colour: value }),
-          })),
-          { type: 'separator' as const },
-          ...DICE_FONT_OPTIONS.map(({ value, label }) => ({
-            type: 'item' as const,
-            label: `${label} numbers`,
-            checked: look.font === value,
-            keepOpen: true,
-            onClick: () => onDiceLookChange({ ...look, font: value }),
-          })),
-        ];
-      },
-    });
+    entries.push(
+      { type: 'submenu', label: 'My colour', icon: 'palette', children: [{ type: 'custom', render: () => createElement(PlayerColourPanel, { choice, onChange: onColorChange }) }] },
+      { type: 'submenu', label: 'My dice', icon: 'dices', children: [{ type: 'custom', render: () => createElement(PlayerDicePanel, { choice, onChange: onDiceLookChange }) }] },
+    );
   }
 
   entries.push({ type: 'separator' }, {

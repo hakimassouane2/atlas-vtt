@@ -40,11 +40,12 @@ const PREVIEW_PX = 144;
 /**
  * A d20 with its 20 up in each colour and the given font, as image URLs. One
  * pooled stage renders all three; the look is swapped and restored within one
- * task, so no panel ever draws a frame in the wrong colour.
+ * task, so no panel ever draws a frame in the wrong colour. The accent die takes
+ * `accent` when given (a player's colour), else Obsidian's accent.
  */
-export async function renderDicePreviews(font: DiceFont, doc: Document = activeDocument): Promise<Partial<Record<DiceColour, string>>> {
+export async function renderDicePreviews(font: DiceFont, doc: Document = activeDocument, accentColour?: Rgb | null): Promise<Partial<Record<DiceColour, string>>> {
   await loadDiceArtwork(font);
-  const accent = readAccent(doc);
+  const accent = accentColour === undefined ? readAccent(doc) : accentColour;
   const previews: Partial<Record<DiceColour, string>> = {};
   const lease = borrowStage(doc);
   const previous = activeLook();

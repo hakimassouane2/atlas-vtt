@@ -95,9 +95,10 @@ vocabulaire : `CONTEXT.md`.
    - clic droit relâché sur place sur son token : menu Ressources / Conditions / Rotation ;
      clic droit glissé : déplacer la carte ; molette : zoomer (même caméra que le MJ) ;
    - barre en bas : plateau de dés, historique des jets (aussi Entrée) et réglages, un menu
-     contextuel d'Atlas avec un sous-menu par réglage : Playing as (profil), My colour (parmi les
-     couleurs qu'aucun autre joueur n'a), My dice (couleur et chiffres), les deux gardés dans son
-     profil, et Input device (souris ou trackpad, retenu par le navigateur) ;
+     contextuel d'Atlas avec un sous-menu par réglage : Playing as (profil), My colour (grille des
+     couleurs qu'aucun autre joueur n'a), My dice (un d20 par couleur, comme les réglages des dés du
+     MJ, et les chiffres), les deux gardés dans son profil, et Input device (souris ou trackpad,
+     retenu par le navigateur) ;
    - initiative à droite (avec les numéros d'instance, "Gobelin 2"), dés en 3D.
    Chaque jet dit qui l'a lancé : le personnage s'il y en a un, sinon le joueur (dans la couleur de
    son profil) ou « GM ». Les dés de chacun gardent son habillage partout ; la vitesse et le choix
@@ -145,7 +146,8 @@ vocabulaire : `CONTEXT.md`.
 - **Barres par personnage** : `barsShownTo` (`everyone`, `controllers`, `nobody`) dans
   `visibleResources`, par le spectateur `controller` (joueur à qui le token est donné).
 - **Jets** : chaque jet porte qui l'a fait (`DiceRollResult.roller`, copie du profil), son habillage
-  (`look`, `RollLook` avec la couleur d'accent résolue) et `shownToPlayers`, posés au lancer
+  (`look`, `RollLook` avec la couleur d'accent résolue ; `renderDicePreviews` et `DiceColourStrip`
+  prennent une couleur d'accent et des libellés pour les aperçus du joueur) et `shownToPlayers`, posés au lancer
   (`online/rollStamps.ts` : `dmRollStamp` pour le MJ, `playerRollStamp` pour un joueur, dont l'accent
   est la couleur du profil). `PlayerDiceFeed` envoie les jets `shownToPlayers`, masqués pour un
   token caché ; `rollAuthor` décide du nom affiché (panneau 3D, carte, historique). L'habillage d'un
@@ -185,7 +187,7 @@ vocabulaire : `CONTEXT.md`.
   `PlayerHud.tsx`, `playerTokenMenu.ts`, `pageDice.tsx`,
   `pageMenus.tsx`, `pageIcons.ts`, `initiativeOverlay.ts`, `pageStandIns.ts`, `session.ts`,
   `dom.ts`, `obsidianDom.ts`, `events.ts`, `playerPage.css`, `PlayerSettingsMenu.tsx`, `inputDevice.ts`, `pageZoomGuard.ts`,
-  `profileChoice.ts`, `ProfileChooser.tsx`, `pageDiceLog.tsx`.
+  `profileChoice.ts`, `ProfileChooser.tsx`, `pageDiceLog.tsx`, `playerSettingsPanels.tsx`.
 - `src/app/tools/rollAuthor.ts`, `react/components/dice-log/DiceRollLogPanel.tsx` (le panneau de
   l'historique, sorti de `DiceRollLog`).
 - `src/app/services/followedScene.ts` : la scène que les écrans joueurs suivent.
