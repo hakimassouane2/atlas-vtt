@@ -95,8 +95,8 @@ vocabulaire : `CONTEXT.md`.
    - clic droit relâché sur place sur son token : menu Ressources / Conditions / Rotation ;
      clic droit glissé : déplacer la carte ; molette : zoomer (même caméra que le MJ) ;
    - barre en bas : plateau de dés, historique des jets (aussi Entrée) et réglages (souris ou
-     trackpad, retenu par le navigateur ; « My dice » : couleur et chiffres de ses dés, gardés dans
-     son profil) ;
+     trackpad, retenu par le navigateur ; « My colour » : sa couleur, parmi celles qu'aucun autre
+     joueur n'a ; « My dice » : couleur et chiffres de ses dés ; les deux gardés dans son profil) ;
    - initiative à droite (avec les numéros d'instance, "Gobelin 2"), dés en 3D.
    Chaque jet dit qui l'a lancé : le personnage s'il y en a un, sinon le joueur (dans la couleur de
    son profil) ou « GM ». Les dés de chacun gardent son habillage partout ; la vitesse et le choix
@@ -148,7 +148,9 @@ vocabulaire : `CONTEXT.md`.
   (`online/rollStamps.ts` : `dmRollStamp` pour le MJ, `playerRollStamp` pour un joueur, dont l'accent
   est la couleur du profil). `PlayerDiceFeed` envoie les jets `shownToPlayers`, masqués pour un
   token caché ; `rollAuthor` décide du nom affiché (panneau 3D, carte, historique). L'habillage d'un
-  joueur est dans `PlayerProfile.diceLook` (commande `diceLook`). Un jet est dessiné dans son
+  joueur est dans `PlayerProfile.diceLook` (commande `diceLook`) ; sa couleur se change aussi depuis
+  la page (commande `color`, une couleur de `RESOURCE_COLORS` qu'aucun autre profil n'a), par
+  `CommandSource.updateProfile`. Un jet est dessiné dans son
   propre habillage (`dieAssets(sides, look)`, cache par habillage dans `dieMesh.ts`), la police des
   chiffres par `rollFontClass`. `context` porte `diceDisplay` du MJ. Les dés lisent leur
   environnement par un contexte React (`diceEnvironment.ts`).

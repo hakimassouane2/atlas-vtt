@@ -9,6 +9,8 @@ import { INPUT_MODE_LABELS } from '../../settings/navigationSettingsSection';
 import { PlayerDot } from '../../players/PlayerDot';
 import { SegmentedControl } from '../../packages/components/primitives/SegmentedControl';
 import { DICE_COLOUR_OPTIONS, DICE_FONT_OPTIONS, readDiceLook, type DiceLook } from '../../dice3d/diceLook';
+import { DropdownSwatchGrid } from '../../packages/components/primitives/DropdownSwatchGrid';
+import { RESOURCE_COLORS } from '../../resources/resourceColors';
 import type { ProfileChoice } from './profileChoice';
 
 const MENU_LABEL = 'Settings';
@@ -26,16 +28,21 @@ interface PlayerSettingsMenuProps {
   onInputDeviceChange: (mode: NavigationInputMode) => void;
   /** Keeps the dice the player chose in their profile, which every roll of theirs is thrown in. */
   onDiceLookChange: (look: DiceLook) => void;
+  /** Keeps the colour the player chose in their profile. */
+  onColorChange: (color: string) => void;
 }
 
 /** The player's own settings, in a menu hanging from the toolbar like the GM's tool menus. */
-export function PlayerSettingsMenu({ choice, inputDevice, onInputDeviceChange, onDiceLookChange }: PlayerSettingsMenuProps): React.ReactElement {
+export function PlayerSettingsMenu({ choice, inputDevice, onInputDeviceChange, onDiceLookChange, onColorChange }: PlayerSettingsMenuProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const { players, chosen } = useSyncExternalStore(choice.subscribe, choice.getState);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const keepInView = useKeepInView(menuRef, open, 'top');
   const diceLook = readDiceLook(chosen?.diceLook);
+  // The colours no other player has: players tell each other apart by them
+  const freeColors = RESOURCE_COLORS.filter(({ value }) =>
+    !players?.some(({ id, color }) => id !== chosen?.id && color.toLowerCase() === value.toLowerCase()));
 
   // A press anywhere else or Escape closes the menu
   useEffect(() => {
@@ -88,6 +95,7 @@ export function PlayerSettingsMenu({ choice, inputDevice, onInputDeviceChange, o
           )}
           {chosen && (
             <div className="atlas-dropdown-section">
+              <DropdownSwatchGrid label="My colour" swatches={freeColors} value={chosen.color} onChange={onColorChange} />
               <span className="atlas-dropdown-label">My dice</span>
               <SegmentedControl
                 ariaLabel="Dice colour"

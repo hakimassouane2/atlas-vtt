@@ -67,6 +67,7 @@ async function start(): Promise<void> {
     roll,
     diceLog,
     setDiceLook: (look) => void post('/command', { type: 'diceLook', look }),
+    setColor: (color) => void post('/command', { type: 'color', color }),
     setInputDevice: (mode) => canvas.setInputDevice(mode),
   }));
 

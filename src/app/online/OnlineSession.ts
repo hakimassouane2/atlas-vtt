@@ -149,12 +149,12 @@ export class OnlineSession {
       conditions: () => mapConditions(assets, store.getState().mapPath),
       resources: () => mapResources(assets, store.getState().mapPath),
       players: () => mapPlayers(assets, store.getState().mapPath),
-      saveDiceLook: (profileId, look) => {
+      updateProfile: (profileId, changes) => {
         const mapPath = store.getState().mapPath;
         const collectionId = mapPath ? assets.getCollectionForMap(mapPath) : null;
         if (!collectionId) return;
-        const players = mapPlayers(assets, mapPath).map((player) => (player.id === profileId ? { ...player, diceLook: look } : player));
-        void assets.updateCollectionSettings(collectionId, { players }).catch((error) => console.error('[OnlineSession] Could not save the dice a player chose:', error));
+        const players = mapPlayers(assets, mapPath).map((player) => (player.id === profileId ? { ...player, ...changes } : player));
+        void assets.updateCollectionSettings(collectionId, { players }).catch((error) => console.error('[OnlineSession] Could not save what a player changed of their profile:', error));
       },
     };
   }

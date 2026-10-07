@@ -26,12 +26,14 @@ interface PlayerHudProps {
   diceLog: PageDiceLog;
   /** Keeps the dice the player chose in their profile. */
   setDiceLook: (look: DiceLook) => void;
+  /** Keeps the colour the player chose in their profile. */
+  setColor: (color: string) => void;
   /** Makes the map's zoom and pan follow `mode`. */
   setInputDevice: (mode: NavigationInputMode) => void;
 }
 
 /** The player's toolbar over the canvas page, in the shape of the GM's: the dice tray, the dice log and their settings. */
-export function PlayerHud({ store, choice, controls, roll, diceLog, setDiceLook, setInputDevice }: PlayerHudProps): React.ReactElement {
+export function PlayerHud({ store, choice, controls, roll, diceLog, setDiceLook, setColor, setInputDevice }: PlayerHudProps): React.ReactElement {
   const [diceOpen, setDiceOpen] = useState(false);
   const logOpen = useSyncExternalStore(diceLog.subscribe, () => diceLog.getState().open);
   const [inputDevice, setInputDeviceState] = useState(storedInputDevice);
@@ -77,7 +79,7 @@ export function PlayerHud({ store, choice, controls, roll, diceLog, setDiceLook,
   return (
     <TooltipProvider delayDuration={300}>
       <BottomToolbarRow>
-        <ResponsiveToolbar items={items} end={<PlayerSettingsMenu choice={choice} inputDevice={inputDevice} onInputDeviceChange={changeInputDevice} onDiceLookChange={setDiceLook} />} />
+        <ResponsiveToolbar items={items} end={<PlayerSettingsMenu choice={choice} inputDevice={inputDevice} onInputDeviceChange={changeInputDevice} onDiceLookChange={setDiceLook} onColorChange={setColor} />} />
       </BottomToolbarRow>
     </TooltipProvider>
   );

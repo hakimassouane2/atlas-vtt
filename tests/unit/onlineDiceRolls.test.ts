@@ -9,8 +9,10 @@ import { parsePlayerCommand } from '../../src/app/online/playerCommands';
 import { PlayerDiceLog } from '../../src/app/online/PlayerDiceLog';
 import { PlayerControls, type CommandSource } from '../../src/app/online/PlayerControls';
 import type { PlayerProfile } from '../../src/app/types/collectionSettingsTypes';
+import { RESOURCE_COLORS } from '../../src/app/resources/resourceColors';
 
 const alice: PlayerProfile = { id: 'alice', name: 'Alice', color: '#3b82f6', diceLook: { colour: 'accent', font: 'scifi' } };
+const bob: PlayerProfile = { id: 'bob', name: 'Bob', color: RESOURCE_COLORS[0]!.value };
 
 function roll(fields: Partial<DiceRollResult>): DiceRollResult {
   return { id: 'r', timestamp: 0, formula: '1d20', rolls: [], modifiers: 0, total: 1, ...fields };
@@ -52,14 +54,14 @@ describe('dice the player chooses', () => {
     expect(parsePlayerCommand({ type: 'diceLook' })).toBeNull();
   });
 
-  function source(saveDiceLook = vi.fn()): CommandSource {
+  function source(updateProfile = vi.fn()): CommandSource {
     return {
       store: createStore(() => ({ isMapLoading: false, objects: { tokens: {} } })) as unknown as StoreApi<ViewAtlasState>,
       grid: () => null,
       conditions: () => [],
       resources: () => [],
-      players: () => [alice],
-      saveDiceLook,
+      players: () => [alice, bob],
+      updateProfile,
     };
   }
 
@@ -70,7 +72,18 @@ describe('dice the player chooses', () => {
     const command = { type: 'diceLook', look: { colour: 'dark', font: 'medieval' } };
     expect(controls.apply(command, 'page', null)).toBe(false);
     expect(controls.apply(command, 'page', 'alice')).toBe(true);
-    expect(save).toHaveBeenCalledWith('alice', { colour: 'dark', font: 'medieval' });
+    expect(save).toHaveBeenCalledWith('alice', { diceLook: { colour: 'dark', font: 'medieval' } });
+  });
+
+  test("a player takes a colour of the palette that no other player has", () => {
+    const save = vi.fn();
+    const controls = new PlayerControls(() => true);
+    controls.setSource(source(save));
+    expect(parsePlayerCommand({ type: 'color', color: '#123456' })).toBeNull();
+    expect(controls.apply({ type: 'color', color: bob.color }, 'page', 'alice')).toBe(false);
+    const free = RESOURCE_COLORS.find(({ value }) => value !== bob.color && value !== alice.color)!.value;
+    expect(controls.apply({ type: 'color', color: free }, 'page', 'alice')).toBe(true);
+    expect(save).toHaveBeenCalledWith('alice', { color: free });
   });
 
   test('a roll reaches the engine with the profile of the player who made it', () => {

@@ -7,7 +7,6 @@ import type { ConditionDefinition, PlayerProfile } from '../types/collectionSett
 import { applyPlayerCommand, parsePlayerCommand } from './playerCommands';
 import { isPlayerControlled } from './playerTokens';
 import { PlayerHolds } from './playerHolds';
-import type { DiceLook } from '../dice3d/diceLook';
 
 /** Rolls `formula` with the DM's dice engine for the player of `profile`, for `token` when given; returns whether it rolled. */
 export type RollDice = (formula: string, token: TokenEntity | undefined, profile: PlayerProfile | null) => boolean;
@@ -22,9 +21,12 @@ export interface CommandSource {
   resources(): ResourceDefinition[];
   /** The player profiles of the scene's collection. */
   players(): PlayerProfile[];
-  /** Keeps the dice the player of `profileId` chose in their profile. */
-  saveDiceLook(profileId: string, look: DiceLook): void;
+  /** Keeps what the player of `profileId` changed of their profile (their dice, their colour). */
+  updateProfile(profileId: string, changes: ProfileChanges): void;
 }
+
+/** What a player may change of their own profile from their page. */
+export type ProfileChanges = Partial<Pick<PlayerProfile, 'diceLook' | 'color'>>;
 
 /**
  * Applies players' commands to the presented scene. Only while the scene is live: while the DM
@@ -59,7 +61,14 @@ export class PlayerControls {
     }
     if (command.type === 'diceLook') {
       if (!profile) return false;
-      source.saveDiceLook(profile, command.look);
+      source.updateProfile(profile, { diceLook: command.look });
+      return true;
+    }
+    if (command.type === 'color') {
+      // Players tell each other apart by colour: one another player has is not to be had
+      const taken = source.players().some(({ id, color }) => id !== profile && color.toLowerCase() === command.color.toLowerCase());
+      if (!profile || taken) return false;
+      source.updateProfile(profile, { color: command.color });
       return true;
     }
     const isDrag = command.type === 'drag' || command.type === 'move';
