@@ -51,7 +51,7 @@ describe('the player canvas', () => {
     container = document.createElement('div');
     container.style.cssText = 'position:fixed;inset:0';
     document.body.appendChild(container);
-    canvas = new PlayerCanvas(pageCanvasHost(new SentCollection(), new PagePlayer()), async () => true);
+    canvas = new PlayerCanvas(pageCanvasHost(new SentCollection(), new PagePlayer(() => null), () => null), async () => true);
     await canvas.mount(container);
     canvas.setPlayerView(PLAYER_VIEW);
     [red, blue] = await Promise.all([solidImage('#ff0000'), solidImage('#0000ff')]);

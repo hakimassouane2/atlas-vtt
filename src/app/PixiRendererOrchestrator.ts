@@ -23,6 +23,7 @@ import { SelectionManager } from "./pixi/SelectionManager"; // Import SelectionM
 import { FogOfWarRenderer } from "./pixi/fog/FogOfWarRenderer";
 import { MeasureRenderer } from "./pixi/MeasureRenderer"; // Import MeasureRenderer
 import { LaserPointerRenderer } from "./pixi/LaserPointerRenderer"; // Import LaserPointerRenderer
+import { RemoteLasers } from "./pixi/laser/RemoteLasers";
 import { DrawingRenderer } from "./pixi/DrawingRenderer"; // Import DrawingRenderer
 import { DrawingInteraction } from "./pixi/DrawingInteraction";
 import { TextRenderer } from "./pixi/TextRenderer"; // Import TextRenderer
@@ -48,6 +49,8 @@ export class PixiRendererOrchestrator { // Renamed class
   private fogRenderer?: FogOfWarRenderer; // Add FogRenderer instance
   private measureRenderer?: MeasureRenderer; // Add MeasureRenderer instance
   private laserPointerRenderer?: LaserPointerRenderer; // Add LaserPointerRenderer instance
+  /** The lasers of the others at an online table. */
+  private remoteLasers?: RemoteLasers;
   private drawingRenderer?: DrawingRenderer; // Add DrawingRenderer instance
   private drawingInteraction?: DrawingInteraction;
   private textRenderer?: TextRenderer; // Add TextRenderer instance
@@ -391,6 +394,10 @@ export class PixiRendererOrchestrator { // Renamed class
     const laserPointerContainer = this.laserPointerRenderer.getContainer();
     viewport.addChild(laserPointerContainer);
     laserPointerContainer.zIndex = 2000;
+    this.remoteLasers = new RemoteLasers(viewport, this.app, this.store);
+    // Under this view's own laser, above everything else
+    this.remoteLasers.container.zIndex = 1999;
+    viewport.addChild(this.remoteLasers.container);
 
     // Initialize DrawingRenderer (ink strokes; self-manages activation via store subscription)
     this.drawingRenderer = new DrawingRenderer(viewport, this.eventBus, this.store);
@@ -902,6 +909,7 @@ export class PixiRendererOrchestrator { // Renamed class
     this.fogRenderer?.destroy(); // Destroy FogRenderer
     this.measureRenderer?.destroy(); // Destroy MeasureRenderer
     this.laserPointerRenderer?.destroy(); // Destroy LaserPointerRenderer
+    this.remoteLasers?.destroy();
     this.drawingRenderer?.destroy(); // Destroy DrawingRenderer
     this.drawingInteraction?.destroy();
     this.textRenderer?.destroy(); // Destroy TextRenderer

@@ -4,6 +4,7 @@ import type { DiceRollResult } from '../../tools/DiceTool';
 import { DiceRollLogPanel } from '../../react/components/dice-log/DiceRollLogPanel';
 import { DiceEnvironmentContext } from '../../react/components/dice/diceEnvironment';
 import { PAGE_DICE } from './pageDice';
+import { isTyping } from './dom';
 
 /** Longer than a press and its click, shorter than any second press. */
 const REOPEN_GUARD_MS = 300;
@@ -67,11 +68,6 @@ function PageDiceLogPanel({ log, repeatOf }: PageDiceLogPanelProps): React.React
 }
 
 /** Whether a key press is meant for a field the player types in. */
-function isTyping(event: KeyboardEvent): boolean {
-  const target = event.target as HTMLElement | null;
-  return !!target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
-}
-
 /** Mounts the log's panel in `parent`; Enter opens and closes it, as on the DM's map. */
 export function installPageDiceLog(parent: HTMLElement, log: PageDiceLog, repeatOf: PageDiceLogPanelProps['repeatOf']): void {
   createRoot(parent.createDiv()).render(createElement(PageDiceLogPanel, { log, repeatOf }));

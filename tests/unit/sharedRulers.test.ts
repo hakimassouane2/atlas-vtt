@@ -17,6 +17,7 @@ function sceneStore(): StoreApi<ViewAtlasState> {
     objects: { tokens: { hero: { id: 'hero', controlledBy: ['alice'] }, orc: { id: 'orc' } } },
     localRuler: null,
     sharedRulers: {},
+    sharedLasers: {},
     setSharedRulers: (sharedRulers: SharedRulers) => set({ sharedRulers }),
   })) as unknown as StoreApi<ViewAtlasState>;
 }

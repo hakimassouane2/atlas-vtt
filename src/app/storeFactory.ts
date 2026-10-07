@@ -345,6 +345,10 @@ export interface ViewAtlasState {
   setLocalRuler: UISlice['setLocalRuler'];
   sharedRulers: UISlice['sharedRulers'];
   setSharedRulers: UISlice['setSharedRulers'];
+  localLaser: UISlice['localLaser'];
+  setLocalLaser: UISlice['setLocalLaser'];
+  sharedLasers: UISlice['sharedLasers'];
+  setSharedLasers: UISlice['setSharedLasers'];
   exploredBrush: UISlice['exploredBrush'];
   setExploredBrush: UISlice['setExploredBrush'];
   isToolbarEditing: UISlice['isToolbarEditing'];

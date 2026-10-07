@@ -9,6 +9,7 @@
 import { DEFAULT_EXPLORED_BRUSH, type ExploredBrushOptions } from '../lighting/exploredEdits';
 import type { HeldTokens } from '../lighting/sightOnDrop';
 import type { RulerPath, SharedRulers } from '../canvas/sharedRulers';
+import type { LaserPiece, SharedLaserPieces, SharedLasers } from '../canvas/sharedLasers';
 
 /** State fields added to ViewAtlasState */
 export interface UISlice {
@@ -37,6 +38,10 @@ export interface UISlice {
   localRuler: RulerPath | null;
   /** The drag rulers of the others at an online table, drawn over the map (`SharedDragRulers`). */
   sharedRulers: SharedRulers;
+  /** The latest piece of this view's laser, shared with the other people at an online table. */
+  localLaser: LaserPiece | null;
+  /** The lasers of the others at an online table, drawn over the map (`RemoteLasers`). */
+  sharedLasers: SharedLasers;
 
   // Actions
   setGridSettingsOpen: (open: boolean) => void;
@@ -55,6 +60,9 @@ export interface UISlice {
   setHeldTokens: (held: HeldTokens) => void;
   setLocalRuler: (ruler: RulerPath | null) => void;
   setSharedRulers: (rulers: SharedRulers) => void;
+  setLocalLaser: (piece: LaserPiece | null) => void;
+  /** Takes in new pieces of others' lasers; null takes that laser away. */
+  setSharedLasers: (pieces: SharedLaserPieces) => void;
   setExploredBrush: (changes: Partial<ExploredBrushOptions>) => void;
   /** Starting the toolbar editor closes the dice tray, which hangs where the tray goes. */
   setToolbarEditing: (on: boolean) => void;
@@ -79,6 +87,8 @@ export function createInitialUIState(): Pick<
   | 'isToolbarEditing'
   | 'localRuler'
   | 'sharedRulers'
+  | 'localLaser'
+  | 'sharedLasers'
 > {
   return {
     isGridSettingsOpen: false,
@@ -97,6 +107,8 @@ export function createInitialUIState(): Pick<
     isToolbarEditing: false,
     localRuler: null,
     sharedRulers: {},
+    localLaser: null,
+    sharedLasers: {},
   };
 }
 
@@ -121,6 +133,8 @@ export function createUIActions(
   | 'setHeldTokens'
   | 'setLocalRuler'
   | 'setSharedRulers'
+  | 'setLocalLaser'
+  | 'setSharedLasers'
   | 'setExploredBrush'
   | 'setToolbarEditing'
 > {
@@ -161,6 +175,14 @@ export function createUIActions(
     setHeldTokens: (held) => set((draft) => { draft.heldTokens = held; }),
     setLocalRuler: (ruler) => set((draft) => { draft.localRuler = ruler; }),
     setSharedRulers: (rulers) => set((draft) => { draft.sharedRulers = rulers; }),
+    setLocalLaser: (piece) => set((draft) => { draft.localLaser = piece; }),
+    setSharedLasers: (pieces) => set((draft) => {
+      const lasers = draft.sharedLasers as Record<string, SharedLasers[string]>;
+      for (const [who, laser] of Object.entries(pieces)) {
+        if (laser) lasers[who] = laser;
+        else delete lasers[who];
+      }
+    }),
     setExploredBrush: (changes) => set((draft) => { draft.exploredBrush = { ...draft.exploredBrush, ...changes }; }),
     setToolbarEditing: (on) => set((draft) => {
       draft.isToolbarEditing = on;

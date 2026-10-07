@@ -35,7 +35,7 @@ export function commandsFor(before: TokenEntity, token: TokenEntity, held: boole
 /**
  * Turns the player's edits on their canvas into commands for the DM's Atlas. The canvas edits
  * its own store as Atlas does (drags, the +/- controls, the menu); the
- * bridge sends what changed on the tokens the player controls, and the ruler of their drags. The DM's Atlas decides: what it
+ * bridge sends what changed on the tokens the player controls, the ruler of their drags and their laser. The DM's Atlas decides: what it
  * accepts comes back with its changes, and a refused command puts the scene back as it sent it.
  */
 export class CommandBridge {
@@ -52,6 +52,9 @@ export class CommandBridge {
     this.unsubscribe = store.subscribe((state, previous) => {
       // The ruler of a drag, for everyone else to see it
       if (state.localRuler !== previous.localRuler) this.submit({ type: 'ruler', ruler: state.localRuler });
+      // The laser's pieces, which the DM's Atlas takes only from a player who chose who they are;
+      // a refused piece changes nothing on the page, so there is nothing to put back
+      if (state.localLaser && state.localLaser !== previous.localLaser) void this.send({ type: 'laser', piece: state.localLaser });
       if (this.applyingRemote || state.isMapLoading || state.objects.tokens === previous.objects.tokens) return;
       for (const [id, token] of Object.entries(state.objects.tokens)) {
         const before = previous.objects.tokens[id];

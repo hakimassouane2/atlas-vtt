@@ -10,4 +10,6 @@ export const laser = {
   'laser.color.pink': 'Pink',
   'laser.color.white': 'White',
   'laser.colorHint': 'Sky blue, blue and white stay clear for colour-blind players.',
+  /** Names the DM's laser by its tip at an online table. */
+  'laser.gmName': 'GM',
 } as const satisfies Record<string, Message>;

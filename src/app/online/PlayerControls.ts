@@ -8,6 +8,7 @@ import { applyPlayerCommand, parsePlayerCommand } from './playerCommands';
 import { isPlayerControlled } from './playerTokens';
 import { PlayerHolds } from './playerHolds';
 import type { SharedRuler } from '../canvas/sharedRulers';
+import { DEFAULT_LASER_POINTER_SETTINGS } from '../tools/laserPointerSettings';
 
 /** Shows `ruler` as the one of the player `playerId` on the DM's map, or takes theirs away. */
 function setSharedRuler(store: StoreApi<ViewAtlasState>, playerId: string, ruler: SharedRuler | null): void {
@@ -80,6 +81,13 @@ export class PlayerControls {
       setSharedRuler(source.store, playerId, ruler && { ...ruler, color: player.color });
       return true;
     }
+    if (command.type === 'laser') {
+      if (!playerId || !player) return false;
+      // Players point in their colour, at the laser's default size, named by their tip
+      const laser = { ...command.piece, color: player.color, size: DEFAULT_LASER_POINTER_SETTINGS.size, name: player.name };
+      source.store.getState().setSharedLasers({ [playerId]: laser });
+      return true;
+    }
     if (command.type === 'color') {
       // Players tell each other apart by colour: one another player has is not to be had
       const taken = source.players().some(({ id, color }) => id !== profile && color.toLowerCase() === command.color.toLowerCase());
@@ -99,9 +107,11 @@ export class PlayerControls {
     return applied;
   }
 
-  /** The player left: tokens they were dragging are free again, and their ruler goes. */
+  /** The player left: tokens they were dragging are free again, and their ruler and laser go. */
   playerLeft(playerId: string): void {
     this.holds.releasePlayer(playerId);
-    if (this.source) setSharedRuler(this.source.store, playerId, null);
+    if (!this.source) return;
+    setSharedRuler(this.source.store, playerId, null);
+    if (this.source.store.getState().sharedLasers[playerId]) this.source.store.getState().setSharedLasers({ [playerId]: null });
   }
 }

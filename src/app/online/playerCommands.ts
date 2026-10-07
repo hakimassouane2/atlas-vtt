@@ -10,6 +10,7 @@ import { runUntracked } from '../stores/history';
 import { isDiceColour, isDiceFont, type DiceLook } from '../dice3d/diceLook';
 import { RESOURCE_COLORS } from '../resources/resourceColors';
 import { readRulerPath, type RulerPath } from '../canvas/sharedRulers';
+import { readLaserPiece, type LaserPiece } from '../canvas/sharedLasers';
 
 /** Dice a player may roll at once, and the largest die: the dice engine rolls each die one by one. */
 const MAX_DICE = 100;
@@ -35,12 +36,14 @@ export type PlayerCommand =
   | { type: 'color'; color: string }
   /** The drag ruler the player draws now, for everyone else to see; null once they let go. */
   | { type: 'ruler'; ruler: RulerPath | null }
+  /** What the player's laser drew since its last piece, for everyone else to see. */
+  | { type: 'laser'; piece: LaserPiece }
   | { type: 'condition'; id: string; conditionId: string; active: boolean }
   /** Steps a valued condition by one; stepping below 1 removes it. */
   | { type: 'conditionValue'; id: string; conditionId: string; delta: 1 | -1 };
 
 /** The commands that change a token. */
-export type TokenCommand = Exclude<PlayerCommand, { type: 'roll' | 'diceLook' | 'color' | 'ruler' }>;
+export type TokenCommand = Exclude<PlayerCommand, { type: 'roll' | 'diceLook' | 'color' | 'ruler' | 'laser' }>;
 
 /** Accepts only well-formed commands: the body comes from the network. */
 export function parsePlayerCommand(value: unknown): PlayerCommand | null {
@@ -57,6 +60,10 @@ export function parsePlayerCommand(value: unknown): PlayerCommand | null {
   if (type === 'ruler') {
     const ruler = readRulerPath(command.ruler);
     return ruler === undefined ? null : { type, ruler };
+  }
+  if (type === 'laser') {
+    const piece = readLaserPiece(command.piece);
+    return piece ? { type, piece } : null;
   }
   if (type === 'color') {
     const color = RESOURCE_COLORS.find(({ value }) => value === command.color)?.value;

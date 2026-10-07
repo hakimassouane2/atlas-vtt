@@ -33,7 +33,9 @@ async function start(): Promise<void> {
   const collection = new SentCollection();
   const choice = new ProfileChoice();
   const player = new PagePlayer(() => choice.profileId());
-  const canvas = new PlayerCanvas(pageCanvasHost(collection, player), (command) => post('/command', command));
+  // The player points in their profile's colour
+  const laserColor = (): string | null => choice.getState().chosen?.color ?? null;
+  const canvas = new PlayerCanvas(pageCanvasHost(collection, player, laserColor), (command) => post('/command', command));
   await canvas.mount(content, storedInputDevice());
   const initiative = new InitiativeOverlay(content, canvas.store, collection, (token) => player.controls(token));
   const showRoll = installPageDice(content, canvas.store);
@@ -92,6 +94,12 @@ async function start(): Promise<void> {
     rulers: (rulers) => {
       const own = currentPlayerId();
       canvas.store.getState().setSharedRulers(Object.fromEntries(Object.entries(rulers).filter(([key]) => key !== own)));
+    },
+    // The page draws its own laser as it points
+    lasers: (pieces) => {
+      const own = currentPlayerId();
+      const others = Object.fromEntries(Object.entries(pieces).filter(([key]) => key !== own));
+      if (Object.keys(others).length > 0) canvas.store.getState().setSharedLasers(others);
     },
   });
   addEventListener('resize', () => canvas.resize(window.innerWidth, window.innerHeight));

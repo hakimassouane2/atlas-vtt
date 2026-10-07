@@ -2,6 +2,7 @@ import type { PlayerCanvasContext, PlayerSceneMessage } from '../scene/sceneProt
 import type { ReplicatedScene, SceneChange } from '../scene/sceneReplica';
 import type { DiceRollResult } from '../../tools/DiceTool';
 import type { SharedRulers } from '../../canvas/sharedRulers';
+import type { SharedLaserPieces } from '../../canvas/sharedLasers';
 import { setDisconnected, setStatus } from './dom';
 import { sessionUrl, setPlayerId } from './session';
 
@@ -22,6 +23,8 @@ export interface SceneListener {
   diceLog(entries: DiceRollResult[]): void;
   /** The drag rulers drawn now, the page's own included. */
   rulers(rulers: SharedRulers): void;
+  /** New pieces of the lasers pointed now, the page's own included. */
+  lasers(pieces: SharedLaserPieces): void;
 }
 
 /** Opens the event stream of the DM's scene; the browser reopens it after a lost connection. */
@@ -44,6 +47,7 @@ export function connectToScene(listener: SceneListener): EventSource {
   on<Extract<PlayerSceneMessage, { event: 'changes' }>>('changes', (data) => listener.changes(data));
   on<Extract<PlayerSceneMessage, { event: 'diceLog' }>>('diceLog', (data) => listener.diceLog(data));
   on<Extract<PlayerSceneMessage, { event: 'rulers' }>>('rulers', (data) => listener.rulers(data));
+  on<Extract<PlayerSceneMessage, { event: 'lasers' }>>('lasers', (data) => listener.lasers(data));
   on<Extract<PlayerSceneMessage, { event: 'noScene' }>>('noScene', () => {
     document.body.classList.remove('online-live');
     setStatus(WAITING);

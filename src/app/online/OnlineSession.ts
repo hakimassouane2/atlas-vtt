@@ -10,6 +10,7 @@ import { PlayerControls, type CommandSource } from './PlayerControls';
 import { PlayerDiceFeed } from './PlayerDiceFeed';
 import { PlayerDiceLog } from './PlayerDiceLog';
 import { PlayerRulers } from './PlayerRulers';
+import { PlayerLasers } from './PlayerLasers';
 import { tokenImage } from './tokenImage';
 import { pageTheme } from './pageTheme';
 import { lanAddress } from './lanAddress';
@@ -51,6 +52,7 @@ export class OnlineSession {
   private readonly diceFeed: PlayerDiceFeed;
   private readonly diceLog: PlayerDiceLog;
   private readonly rulers: PlayerRulers;
+  private readonly lasers: PlayerLasers;
   /** Keeps the players' scenes in step with the DM's. */
   private readonly replicator: SceneReplicator;
   /** The view whose scene players see; its dice engine rolls for them. */
@@ -80,6 +82,10 @@ export class OnlineSession {
       toAll: (event, data) => this.server?.broadcast(event, data),
       toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
     });
+    this.lasers = new PlayerLasers(
+      { toAll: (event, data) => this.server?.broadcast(event, data) },
+      () => settingsService.getLaserPointerSettings(),
+    );
     this.replicator = new SceneReplicator(settingsService, {
       toAll: (event, data) => this.server?.broadcast(event, data),
       toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
@@ -138,6 +144,7 @@ export class OnlineSession {
     // The log follows the scene while the DM browses other tabs, as the rolls do
     this.diceLog.setStore(store ?? null);
     this.rulers.setStore(store ?? null);
+    this.lasers.setStore(store ?? null);
     if (!presented || !store) {
       this.controls.setSource(null);
       this.replicator.setSource(null);

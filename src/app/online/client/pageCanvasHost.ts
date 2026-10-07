@@ -56,11 +56,13 @@ const sentArt: ArtSource = {
   onChanged: () => () => undefined,
 };
 
-/** Players have no settings of their own yet: Atlas' defaults. */
-const defaultSettings: CanvasSettings = {
-  getHotkeys: () => DEFAULT_MAP_HOTKEYS,
-  getLaserPointerSettings: () => DEFAULT_LASER_POINTER_SETTINGS,
-};
+/** Players have no settings of their own yet: Atlas' defaults, and their laser in `laserColor` when they have one. */
+function pageSettings(laserColor: () => string | null): CanvasSettings {
+  return {
+    getHotkeys: () => DEFAULT_MAP_HOTKEYS,
+    getLaserPointerSettings: () => ({ ...DEFAULT_LASER_POINTER_SETTINGS, color: laserColor() ?? DEFAULT_LASER_POINTER_SETTINGS.color }),
+  };
+}
 
 /** The player at the page: they act on the tokens the DM gave their profile, and see names as the DM shows them. */
 export class PagePlayer implements CanvasPlayer {
@@ -84,11 +86,12 @@ export class PagePlayer implements CanvasPlayer {
 }
 
 /** The canvas of a player's page: what it reads comes from the DM's Atlas; it has no lighting or audio. */
-export function pageCanvasHost(collection: SentCollection, player: PagePlayer): CanvasHost & { player: PagePlayer } {
+export function pageCanvasHost(collection: SentCollection, player: PagePlayer, laserColor: () => string | null): CanvasHost & { player: PagePlayer } {
+  const settings = pageSettings(laserColor);
   return {
     art: sentArt,
     collections: collection,
-    settings: () => defaultSettings,
+    settings: () => settings,
     prepareToken: async (token) => token,
     player,
     tokenMenu: playerTokenMenu(player),

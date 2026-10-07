@@ -1,19 +1,15 @@
 import { Application, Container, FederatedPointerEvent } from 'pixi.js';
 import type { Viewport } from 'pixi-viewport';
 import type { ViewAtlasState, ViewAtlasStore } from '../storeFactory';
-import { LASER_FADE_TIME, type LaserPointerSettings } from '../tools/laserPointerSettings';
+import type { LaserPointerSettings } from '../tools/laserPointerSettings';
 import { setCanvasCursor } from './utils/canvasCursor';
 import { destroyTree } from './utils/destroyTree';
-import { MAX_TRAIL_SAMPLES, type BeamPoint } from './laser/laserBeamGeometry';
+import { MAX_TRAIL_SAMPLES } from './laser/laserBeamGeometry';
 import { LaserBeam, beamWidth, type LaserBeamView } from './laser/LaserBeam';
 import { CanvasLaserBeam } from './laser/CanvasLaserBeam';
 import { usesCanvasRenderer } from './utils/rendererType';
-
-interface TrailPoint {
-  x: number;
-  y: number;
-  timestamp: number;
-}
+import { beamTrail, isLive, type TrailPoint } from './laser/laserTrail';
+import { LaserPublisher } from './laser/LaserPublisher';
 
 interface WorldPoint {
   x: number;
@@ -30,6 +26,7 @@ const MIN_POINT_SPACING_PER_WIDTH = 0.15;
  * fades, drawn by `LaserBeam`.
  * Self-manages activation via store subscription on `activeTool`.
  * Handles viewport input directly (left-click when active, middle-click always).
+ * What it draws is published in the store (`localLaser`), so an online table sees it too.
  */
 export class LaserPointerRenderer {
   private viewport: Viewport;
@@ -41,6 +38,7 @@ export class LaserPointerRenderer {
   private beam: LaserBeamView;
 
   private trailPoints: TrailPoint[] = [];
+  private readonly publisher: LaserPublisher;
   /** Where the pointer is on the map, or null while it is off the canvas. */
   private pointer: WorldPoint | null = null;
   private isToolActive: boolean = false;
@@ -83,6 +81,7 @@ export class LaserPointerRenderer {
 
     this.beam = usesCanvasRenderer(pixiApp.renderer) ? new CanvasLaserBeam() : new LaserBeam();
     this.container.addChild(this.beam.view);
+    this.publisher = new LaserPublisher((piece) => this.store.getState().setLocalLaser(piece));
 
     // Store subscription for tool activation (follows MeasureRenderer pattern)
     this.unsubscribeFromStore = this.store.subscribe(
@@ -96,7 +95,7 @@ export class LaserPointerRenderer {
           this.redraw();
         } else if (!this.isToolActive && wasActive) {
           setCanvasCursor(this.canvasEl, 'auto');
-          this.isPointing = false;
+          this.setPointing(false);
           this.redraw();
         }
       },
@@ -160,7 +159,7 @@ export class LaserPointerRenderer {
       this.isQuickMode = true;
       setCanvasCursor(this.canvasEl, 'none');
     }
-    this.isPointing = true;
+    this.setPointing(true);
     this.trackPointer(world);
     e.stopPropagation();
   }
@@ -208,7 +207,7 @@ export class LaserPointerRenderer {
     }
 
     if (button === 0 && this.isToolActive && this.isPointing) {
-      this.isPointing = false;
+      this.setPointing(false);
       this.redraw();
       e.stopPropagation();
     }
@@ -220,18 +219,23 @@ export class LaserPointerRenderer {
       return;
     }
     if (this.isPointing) {
-      this.isPointing = false;
+      this.setPointing(false);
       this.redraw();
     }
   }
 
   private endQuickMode(): void {
     this.isQuickMode = false;
-    this.isPointing = false;
+    this.setPointing(false);
     if (!this.isToolActive) {
       setCanvasCursor(this.canvasEl, 'auto');
     }
     this.redraw();
+  }
+
+  private setPointing(pointing: boolean): void {
+    this.isPointing = pointing;
+    this.publisher.setPressing(pointing, Date.now());
   }
 
   // ── Trail management ────────────────────────────────────────────────
@@ -246,7 +250,9 @@ export class LaserPointerRenderer {
       if (Math.hypot(x - last.x, y - last.y) < minGap) return;
     }
 
-    this.trailPoints.push({ x, y, timestamp: Date.now() });
+    const point = { x, y, timestamp: Date.now() };
+    this.trailPoints.push(point);
+    this.publisher.add(point);
     if (this.trailPoints.length > MAX_TRAIL_SAMPLES) {
       this.trailPoints.splice(0, this.trailPoints.length - MAX_TRAIL_SAMPLES);
     }
@@ -271,7 +277,8 @@ export class LaserPointerRenderer {
   private tick(): void {
     const now = Date.now();
     const hadTrail = this.trailPoints.length > 0;
-    this.trailPoints = this.trailPoints.filter((point) => now - point.timestamp < LASER_FADE_TIME);
+    this.trailPoints = this.trailPoints.filter((point) => isLive(point, now));
+    this.publisher.flush(now);
 
     if (hadTrail || this.needsRedraw) {
       this.needsRedraw = false;
@@ -284,18 +291,13 @@ export class LaserPointerRenderer {
 
   // ── Drawing ─────────────────────────────────────────────────────────
 
-
   private drawBeam(now: number): void {
     const zoom = this.viewport.scale.x || 1;
     const { color, size } = this.readSettings();
     const width = beamWidth(size, zoom);
     const pointer = this.isToolActive || this.isQuickMode || this.isPointing ? this.pointer : null;
 
-    const trail: BeamPoint[] = this.trailPoints.map((point) => ({
-      x: point.x,
-      y: point.y,
-      life: 1 - (now - point.timestamp) / LASER_FADE_TIME,
-    }));
+    const trail = beamTrail(this.trailPoints, now);
     // While drawing, the beam runs up to the pointer, which stays at full strength.
     if (this.isPointing && pointer) trail.push({ ...pointer, life: 1 });
     const dot = pointer && !this.isPointing ? { ...pointer, life: 1 } : null;

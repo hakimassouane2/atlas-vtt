@@ -99,7 +99,8 @@ vocabulaire : `CONTEXT.md`.
      verrouillé pour les autres), poignée de rotation, +/- de ses ressources sur le token ;
    - clic droit relâché sur place sur son token : menu Ressources / Conditions / Rotation ;
      clic droit glissé : déplacer la carte ; molette : zoomer (même caméra que le MJ) ;
-   - barre en bas : plateau de dés, historique des jets (aussi Entrée) et réglages, un menu
+   - barre en bas : laser (aussi V, ou clic du milieu maintenu ; une fois son personnage choisi),
+     plateau de dés, historique des jets (aussi Entrée) et réglages, un menu
      contextuel d'Atlas avec un sous-menu par réglage : Playing as (profil), My colour (grille des
      couleurs qu'aucun autre joueur n'a), My dice (un d20 par couleur, comme les réglages des dés du
      MJ, et les chiffres), les deux gardés dans son profil, et Input device (souris ou trackpad,
@@ -107,6 +108,8 @@ vocabulaire : `CONTEXT.md`.
    - initiative à droite (avec les numéros d'instance, "Gobelin 2"), dés en 3D.
    Pendant un drag, tout le monde voit la règle (trajet, étapes posées avec Espace, distance) de
    celui qui déplace, dans sa couleur (accent pour le MJ), sauf pour un token caché aux joueurs.
+   Le laser est partagé : tout le monde voit celui des autres, nommé à sa pointe (« GM » pour le
+   MJ), dans la couleur du joueur ou celle que le MJ a réglée pour le sien, même dans le brouillard.
    Chaque jet dit qui l'a lancé : le personnage s'il y en a un, sinon le joueur (dans la couleur de
    son profil) ou « GM ». Les dés de chacun gardent son habillage partout ; la vitesse et le choix
    3D ou carte sont ceux du MJ (réglages des dés), pour toute la table.
@@ -171,6 +174,15 @@ vocabulaire : `CONTEXT.md`.
   page retire la sienne. `SharedDragRulers` (dans `TokenRenderer`) dessine celles de
   `sharedRulers` avec `DragRulerView`, jusqu'à la case où le token atterrirait là où il est
   (sa position arrive avec la réplication), et ignore sur une page un token caché.
+- **Laser partagé** : `LaserPointerRenderer` publie ce qu'il dessine par morceaux (`LaserPublisher`,
+  `localLaser`, tranche UI) : un toutes les 33 ms au plus tant qu'il est enfoncé, un au relâcher ;
+  chaque point porte son âge, pas une heure, pour ne pas dépendre des horloges. Une page l'envoie
+  (commande `laser`, sans resync si refusée), le MJ le pose dans `sharedLasers` sous l'id de la
+  connexion avec la couleur, le nom du profil et la taille par défaut (`PlayerControls`, profil
+  requis), et `PlayerLasers` relaie aux pages (`lasers`) chaque nouveau morceau, celui du MJ (`dm`)
+  dans sa couleur et sa taille, et `null` pour un joueur parti. `RemoteLasers` (couche à côté du
+  laser local, donc aussi dans la fenêtre joueur) rejoue chaque laser 33 ms en retard pour que les
+  morceaux s'enchaînent, avec le nom à la pointe.
 - **Historique des joueurs** : `PlayerDiceLog` envoie (`diceLog`) le journal de la scène suivie
   (`diceLog` du store, 20 derniers), sans les jets que les joueurs n'ont pas vus, à chaque
   changement et à chaque arrivée. La page l'affiche avec `DiceRollLogPanel` (`client/pageDiceLog.tsx`) ;
@@ -190,6 +202,8 @@ vocabulaire : `CONTEXT.md`.
 
 - `src/app/canvas/canvasHost.ts` : ce que le canvas reçoit de son hôte.
 - `src/app/canvas/sharedRulers.ts`, `pixi/token-renderer/SharedDragRulers.ts` : les règles des autres.
+- `src/app/canvas/sharedLasers.ts`, `pixi/laser/RemoteLasers.ts`, `pixi/laser/LaserPublisher.ts`,
+  `pixi/laser/laserTrail.ts`, `online/PlayerLasers.ts` : les lasers des autres.
 - `src/app/online/` (côté MJ) : `OnlineSession.ts`, `OnlineSessionServer.ts`, `PlayerControls.ts`,
   `playerCommands.ts`, `playerHolds.ts`, `playerTokens.ts`, `PlayerDiceFeed.ts`, `playerPage.ts`,
   `pageTheme.ts`, `tokenImage.ts`, `onlineSessionSettingsSection.ts`, `playerClient.d.ts`,
@@ -231,6 +245,9 @@ doit rester vert.
 - Règles partagées : `uiSlice` et `storeFactory` (`localRuler`, `sharedRulers`), `DragRuler`
   (publie son trajet ; `snapRulerPoint` et `drawRuler` exportés), `DragRulerView.draw` (couleur
   facultative), `TokenRenderer` (crée `SharedDragRulers`).
+- Laser partagé : `uiSlice` et `storeFactory` (`localLaser`, `sharedLasers`), `LaserPointerRenderer`
+  (publie ses morceaux ; traînée dans `laserTrail.ts`), `PixiRendererOrchestrator` (crée
+  `RemoteLasers`), clé `laser.gmName`.
 - Auteur et habillage des jets : `DiceTool` (`roller`, `look`, `shownToPlayers`, tampon du MJ passé
   par `ToolController`), `DiceRollHeader`, `DiceToast`, `DiceRollEntry` (nom de l'auteur, bouton
   Relancer facultatif), `DiceRollLog` (réduit à l'historique du MJ autour de `DiceRollLogPanel`),
@@ -271,5 +288,7 @@ doit rester vert.
 - Les réglages d'un personnage ne suivent que les tokens de la bibliothèque (reconnus par leur
   image) ; un token sans personnage dans la bibliothèque garde ses réglages pour lui.
 - Pas d'undo côté joueur ; pas de ping ni de règle de mesure partagée ; les pins restent cachés.
+- Le MJ ne peut pas couper les lasers des joueurs ; un joueur sans personnage choisi qui pointe
+  au clic du milieu ne voit son laser que chez lui.
 - Les jets s'affichent sans son chez les joueurs (les sons restent dans le plugin).
 - Lien en `http` (pas de chiffrement) : suffisant entre amis, la clé du lien protège l'accès.

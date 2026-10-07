@@ -10,4 +10,6 @@ export const laser: Translation = {
   'laser.color.pink': 'Розовый',
   'laser.color.white': 'Белый',
   'laser.colorHint': 'Голубой, синий и белый хорошо различимы для игроков с нарушением цветовосприятия.',
+  /** Names the DM's laser by its tip at an online table. */
+  'laser.gmName': 'Мастер',
 };
