@@ -100,3 +100,5 @@ body.online-offline .online-disconnected { display: flex; }
 .atlas-player-settings-panel--dice { width: 312px; }
 /* Obsidian sizes every <button>; a swatch takes its grid cell and nothing more */
 .atlas-player-settings-panel .atlas-swatch { width: auto; height: auto; min-width: 0; padding: 0; }
+/* The submenu already says what the swatches are; the label still names them for screen readers */
+.atlas-player-settings-panel .atlas-dropdown-swatches__label { display: none; }
