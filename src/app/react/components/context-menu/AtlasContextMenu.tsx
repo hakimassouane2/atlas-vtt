@@ -123,9 +123,9 @@ function stepperKeys(stepper: MenuStepper | undefined): ((event: React.KeyboardE
 function ItemContent({ entry }: { entry: ContextMenuItemEntry }): React.ReactElement {
   return (
     <>
-      {entry.leading ? (
+      {entry.leading || entry.icon ? (
         <span className="atlas-ctx-item__leading">
-          {entry.leading}
+          {entry.leading ?? (entry.icon && <MenuIcon name={entry.icon} />)}
           <span className="atlas-ctx-item__label">{entry.label}</span>
         </span>
       ) : entry.label}
