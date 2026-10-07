@@ -458,6 +458,7 @@ export class InteractionController implements ITokenInteractionController {
       
       const tokenUpdates: Array<{id: string, x: number, y: number}> = [];
       const snapToGrid = this.store.getState().grid?.snapToGrid ?? true;
+      const tokens = this.store.getState().objects.tokens;
       
       for (const id of this.dragState.dragIds) {
         const initPos = this.dragState.initialPositions[id];
@@ -468,7 +469,7 @@ export class InteractionController implements ITokenInteractionController {
         
         // Snap to grid if enabled
         const finalPos = snapToGrid 
-          ? this.gridSystem.snapToCellCenter(newX, newY)
+          ? this.gridSystem.snapTokenCenter(newX, newY, tokens[id]?.size || 1)
           : { x: newX, y: newY };
         
         const sprite = this.getTokenSprite?.(id);

@@ -10,6 +10,7 @@ import { SpatialAudioEngine } from '../../audio/SpatialAudioEngine';
 import { runInBackground } from '../../utils/backgroundTask';
 import { AudioRenderer } from './AudioRenderer';
 import { openAudioConfigPanel } from './AudioConfigPanel';
+import { t } from '../../i18n';
 
 /** What the ambient audio of one map view draws on. */
 export interface AudioFeatureDeps {
@@ -95,6 +96,6 @@ export class AudioFeature {
   }
 
   private previewSound(soundId: string): void {
-    runInBackground(this.engine.previewSound(soundId), `Previewing sound ${soundId}`, 'Could not play the sound preview');
+    runInBackground(this.engine.previewSound(soundId), `Previewing sound ${soundId}`, t('light.previewFailed'));
   }
 }

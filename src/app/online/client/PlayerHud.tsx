@@ -45,9 +45,10 @@ export function PlayerHud({ store, choice, controls, roll, setInputDevice }: Pla
   const items: ResponsiveToolbarItem[] = [
     {
       id: 'dice',
-      priority: 100,
+      kind: 'button',
       // The dice tray hangs from this button
       pinned: diceOpen,
+      active: diceOpen,
       element: (
         <div ref={diceButtonRef} className="relative flex items-center">
           <ToolButton icon={Dices} label="Roll Dice" isActive={diceOpen} onClick={toggleDice} />

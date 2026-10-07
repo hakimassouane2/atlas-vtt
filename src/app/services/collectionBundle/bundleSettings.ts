@@ -3,6 +3,7 @@ import { legacyCollectionResources } from '../../resources/collectionResources';
 import { sameResourceDefinitions } from '../../resources/resourceDefinitions';
 import type { CollectionSettings } from '../../types/collectionSettingsTypes';
 import type { Asset } from '../AssetService';
+import type { CollectionMetadata } from '../AssetService';
 
 /**
  * A collection's settings as bundles compare them. Resources that only restate what the
@@ -44,4 +45,23 @@ export function withLootBases(settings: CollectionSettings, pathOf: (path: strin
 export function settingsFromBundle(theirs: CollectionSettings, mine: CollectionSettings | undefined): CollectionSettings {
   const settings = theirs.resources || !mine?.resources ? withoutPlayers(theirs) : { ...withoutPlayers(theirs), resources: mine.resources };
   return mine?.players ? { ...settings, players: mine.players } : settings;
+}
+
+/** Where an import puts what the bundle's settings point at. */
+export interface ImportedPlaces {
+  /** Bundle path → vault path. */
+  paths: ReadonlyMap<string, string>;
+  /** Bundle preset id → id here, where the vault's own preset differed and the bundle's came in as a copy. */
+  presetIds?: ReadonlyMap<string, string> | undefined;
+}
+
+/** Settings whose game system is the preset's id in this vault. */
+export function withPresetId<T extends { systemPresetId?: string | undefined }>(settings: T, ids: ReadonlyMap<string, string> | undefined): T {
+  const id = settings.systemPresetId && ids?.get(settings.systemPresetId);
+  return id ? { ...settings, systemPresetId: id } : settings;
+}
+
+/** The bundle's settings as the import stores them: its loot bases at the paths they get in this vault, its game system the preset's id here. */
+export function importedSettings(collection: CollectionMetadata, places: ImportedPlaces): CollectionSettings {
+  return withPresetId(withLootBases(collection.settings, (path) => places.paths.get(path) ?? path), places.presetIds);
 }

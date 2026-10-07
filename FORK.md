@@ -18,7 +18,7 @@ dev d'origine.
 - `main` : notre seule branche durable. Une grosse fonctionnalité se fait sur une branche
   temporaire, supprimée une fois fusionnée dans `main`.
 
-Dernière synchro avec l'original : **0.5.0** (3 octobre 2026, merge de `upstream/main`).
+Dernière synchro avec l'original : **0.6.0** (7 octobre 2026, merge de `upstream/main`).
 
 Sur un nouveau PC :
 
@@ -175,14 +175,18 @@ doit rester vert.
 - `storeFactory.ts` : `createSceneStore` ; `createViewAtlasStore` est dans `viewStore.ts`.
 - `scripts/worktree-targets.js` : `GAME_VAULTS`, nos vaults de jeu où le build se copie.
 - `MapController`, `MapLoader` : affichage de la carte dans `pixi/mapDisplay.ts`.
-- `ContextMenuContext.tsx`, `AtlasContextMenu.tsx` : registre et icônes dans `ui/`.
+- `ContextMenuContext.tsx`, `AtlasContextMenu.tsx` : registre et icônes dans `ui/` ;
+  `ContextMenuContext` réexporte `ContextMenuEntry` et `ContextMenuOptions` de `ui/contextMenus.ts`.
 - `DiceRollDisplay`, `useDiceAvatar`, `useDiceDisplay`, `useDiceLook`, `DiceDropdownMenu` :
   environnement des dés par contexte React.
 - `PlayerInitiativePanel`, `InitiativeCard` : badge d'instance partagé (`shownInstanceNumber`).
 - `main.ts` : session en ligne, registres (notices, icônes, plateforme). `PlayerView`
   (`atlas-vtt-player`, jamais ouverte) est supprimée.
-- `vite.config.mts`, `vitest.config.mts` (alias `events` pour les tests GPU), `SettingsService`
-  (`onlineSession`), `PlayerWindowPresenter`, `dashboard-view.tsx`, `CommandPalette.tsx`,
+- `i18n/index.ts` : la langue est lue dans le `localStorage` (là où `getLanguage()` la lit), pas
+  par l'import `obsidian`, que la page joueur n'a pas. Nos propres textes restent en anglais en dur.
+- `MainToolbar` : `isPlayerView` vient du store ; `toolbarControls.tsx` passe `roll` au plateau de dés.
+- `vite.config.mts`, `vitest.config.mts` (alias `events` pour les tests GPU), `atlasSettings.ts` et
+  `SettingsService` (`onlineSession`, synchronisé avec les réglages du plugin), `PlayerWindowPresenter`, `dashboard-view.tsx`, `CommandPalette.tsx`,
   `EditTokenModal` (section Players), `gmTokenMenu` (sous-menu Players), `CollectionSettingsModal`
   (onglet Players), `bundleSettings.ts` (profils hors bundles). `playerLinked`, `playerId` et
   `playerCharacterId` sont retirés de `Character`.

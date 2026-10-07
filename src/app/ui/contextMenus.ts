@@ -2,9 +2,18 @@ import type { ContextMenuEntry } from '../react/components/context-menu/AtlasCon
 
 export type { ContextMenuEntry };
 
+export interface ContextMenuOptions {
+  /**
+   * Where focus goes when the menu closes and nothing else took it (a menu
+   * opened from the keyboard, closed with Escape): the menu's own trigger is
+   * a point and cannot hold focus.
+   */
+  returnFocus?: HTMLElement | null;
+}
+
 /** What a mounted menu provider (`ContextMenuProvider`) answers to. */
 export interface ContextMenuController {
-  open: (entries: ContextMenuEntry[], position: { x: number; y: number }) => void;
+  open: (entries: ContextMenuEntry[], position: { x: number; y: number }, options?: ContextMenuOptions) => void;
   close: () => void;
 }
 
@@ -23,8 +32,8 @@ export function registerContextMenuController(controller: ContextMenuController)
 }
 
 /** Opens a menu of `entries` at a point of the window, in the newest mounted provider. */
-export function openContextMenuGlobal(entries: ContextMenuEntry[], position: { x: number; y: number }): void {
-  controllers[controllers.length - 1]?.open(entries, position);
+export function openContextMenuGlobal(entries: ContextMenuEntry[], position: { x: number; y: number }, options?: ContextMenuOptions): void {
+  controllers[controllers.length - 1]?.open(entries, position, options);
 }
 
 export function closeContextMenuGlobal(): void {

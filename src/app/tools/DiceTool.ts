@@ -3,6 +3,7 @@ import { DEFAULT_DICE_RULES } from '../gameSystems/diceRules';
 import type { DiceRules } from '../types/diceRulesTypes';
 import { getDiceCrit, type DiceCrit } from './diceCrit';
 import { hasDiceTerm, rollFormula, type RolledDie } from './diceFormula';
+import { t } from '../i18n';
 
 export interface DiceRollResult {
   id: string;
@@ -86,7 +87,7 @@ export class DiceTool {
       modifiers,
       total,
       crit: getDiceCrit(rolls, rules),
-      player: 'Player' // TODO: Get actual player name from session
+      player: t('dice.player') // TODO: Get actual player name from session
     };
   }
 

@@ -3,7 +3,7 @@ import type { PixiRendererOrchestrator } from '../PixiRendererOrchestrator';
 import type { GridOptions } from '../grid/GridSystem';
 import type { GridState } from '../services/MapPersistence';
 import { parseGridColor } from '../grid/gridContrastColor';
-import { hexNumberStyleOfGrid } from '../grid/hexNumbering';
+import { cellNumberStyleOfGrid } from '../grid/cellNumbering';
 
 /**
  * Puts the map image `texture` on the canvas and lays the scene's grid over it. The grid starts
@@ -25,7 +25,7 @@ export function showMapImage(renderer: PixiRendererOrchestrator, texture: Textur
     offsetY: currentGrid ? currentGrid.offsetY ?? 0 : grid?.offsetY ?? 0,
     color: parseGridColor(grid?.color),
     alpha: grid?.opacity ?? 0.7,
-    hexNumbers: hexNumberStyleOfGrid(grid),
+    cellNumbers: cellNumberStyleOfGrid(grid),
     enabled: true,
   };
   renderer.initGrid(gridOptions, sprite);

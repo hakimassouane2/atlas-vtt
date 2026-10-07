@@ -23,20 +23,22 @@ import { runInBackground } from '../../../utils/backgroundTask';
 import { openEditTokenModal } from '../../../pixi/token-renderer/EditTokenModal';
 import { STATBLOCK_UNLINK_UPDATES } from '../../../pixi/token-renderer/statblockFrontmatter';
 import { DestructiveActionRow } from '../../../pixi/token-renderer/DestructiveActionRow';
+import { resizedTokenCenter } from '../../../grid/gridPlacement';
+import { t } from '../../../i18n';
 
-const RING_COLORS: ReadonlyArray<{ name: string; value: string | null }> = [
-  { name: 'Default', value: null },
-  { name: 'Blue', value: '#086ddd' },
-  { name: 'Orange', value: '#ec7500' },
-  { name: 'Red', value: '#e93147' },
-  { name: 'Yellow', value: '#e0ac00' },
-  { name: 'Brown', value: '#a97142' },
-  { name: 'Purple', value: '#7852ee' },
-  { name: 'Green', value: '#08b94e' },
-  { name: 'Pink', value: '#d53984' },
-  { name: 'Cyan', value: '#00bfbc' },
-  { name: 'Gray', value: '#ababab' },
-  { name: 'White', value: '#ffffff' },
+const ringColors = (): ReadonlyArray<{ name: string; value: string | null }> => [
+  { name: t('color.default'), value: null },
+  { name: t('color.blue'), value: '#086ddd' },
+  { name: t('color.orange'), value: '#ec7500' },
+  { name: t('color.red'), value: '#e93147' },
+  { name: t('color.yellow'), value: '#e0ac00' },
+  { name: t('color.brown'), value: '#a97142' },
+  { name: t('color.purple'), value: '#7852ee' },
+  { name: t('color.green'), value: '#08b94e' },
+  { name: t('color.pink'), value: '#d53984' },
+  { name: t('color.cyan'), value: '#00bfbc' },
+  { name: t('color.gray'), value: '#ababab' },
+  { name: t('color.white'), value: '#ffffff' },
 ];
 
 /** The GM's token menu: everything Atlas can do to a token on the map. */
@@ -60,13 +62,19 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   const conditionDefs = canvas.conditions();
   if (conditionDefs.length > 0) entries.push(conditionsSubmenu(store, conditionDefs, targets));
 
-  entries.push(tokenSizeSubmenu(token.size, (size) => store.getState().updateToken(token.id, { size })));
+  entries.push(tokenSizeSubmenu(token.size, (size) => {
+    const { grid, objects, updateToken } = store.getState();
+    const current = objects.tokens[token.id];
+    if (!current) return;
+    const center = resizedTokenCenter(current, current.size || 1, size, grid);
+    updateToken(token.id, { size, x: center.x, y: center.y });
+  }));
 
   // Hide/Show the selection in one undo step; the clicked token decides which way
   const isHidden = store.getState().objects.tokens[token.id]?.isHidden || false;
   entries.push({
     type: 'item',
-    label: isHidden ? 'Show' : 'Hide',
+    label: isHidden ? t('token.show') : t('token.hide'),
     icon: isHidden ? 'eye' : 'eye-off',
     onClick: () => store.getState().updateTokens(targets.map((id) => ({ id, changes: { isHidden: !isHidden } }))),
   });
@@ -79,17 +87,17 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   const selectedIds = store.getState().selectedIds;
   const groupIds = selectedIds.includes(token.id) ? selectedIds : [token.id];
   entries.push(
-    { type: 'item', label: 'Duplicate', icon: 'files', onClick: () => store.getState().duplicateMapObjects(groupIds) },
-    { type: 'item', label: 'Copy', icon: 'copy', onClick: () => copyMapObjects(store, groupIds) },
+    { type: 'item', label: t('common.duplicate'), icon: 'files', onClick: () => store.getState().duplicateMapObjects(groupIds) },
+    { type: 'item', label: t('common.copy'), icon: 'copy', onClick: () => copyMapObjects(store, groupIds) },
     {
       type: 'item',
-      label: 'Save as Encounter',
+      label: t('token.saveEncounter'),
       icon: 'swords',
       onClick: () => { void saveMapTokensAsEncounter(app, store, gridSystem, groupIds); },
     },
     {
       type: 'item',
-      label: 'Edit Token',
+      label: t('editToken.title'),
       icon: 'edit',
       onClick: () => openEditTokenModal(token, store, app, canvas.resources()),
     },
@@ -103,7 +111,7 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   const isInInitiative = (store.getState().initiative?.entries || []).some((entry) => entry.tokenId === token.id);
   entries.push({
     type: 'item',
-    label: isInInitiative ? 'Remove from Initiative' : 'Add to Initiative',
+    label: isInInitiative ? t('initiative.remove') : t('token.addInitiative'),
     icon: 'swords',
     onClick: () => toggleInitiative(canvas, targets, isInInitiative),
   });
@@ -112,9 +120,9 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
 
   entries.push({
     type: 'submenu',
-    label: 'Ring Color',
+    label: t('token.ringColor'),
     icon: 'circle',
-    children: RING_COLORS.map((color) => ({
+    children: ringColors().map((color) => ({
       type: 'item' as const,
       label: color.name,
       checked: color.value === token.ringColor || (color.value === null && !token.ringColor),
@@ -153,7 +161,7 @@ function statblockEntries(app: App, { store }: TokenMenuCanvas, token: TokenEnti
     return [
       {
         type: 'item',
-        label: 'Edit Statblock',
+        label: t('token.editStatblock'),
         icon: 'file-text',
         onClick: async () => {
           const file = app.vault.getAbstractFileByPath(statblockPath);
@@ -162,7 +170,7 @@ function statblockEntries(app: App, { store }: TokenMenuCanvas, token: TokenEnti
       },
       {
         type: 'item',
-        label: 'Unlink Statblock',
+        label: t('am.menu.unlinkStatblock'),
         icon: 'unlink',
         onClick: async () => {
           if (!token.imagePath) return;
@@ -174,7 +182,7 @@ function statblockEntries(app: App, { store }: TokenMenuCanvas, token: TokenEnti
   }
   return [{
     type: 'item',
-    label: 'Link Statblock',
+    label: t('am.menu.linkStatblock'),
     icon: 'link',
     onClick: () => {
       if (!token.imagePath) return;
@@ -188,10 +196,10 @@ function statblockEntries(app: App, { store }: TokenMenuCanvas, token: TokenEnti
               store.getState().updateToken(token.id, { statblockPath: path });
             }),
             `Linking statblock ${path}`,
-            'Could not link the statblock',
+            t('token.linkFailed'),
           );
         },
-        character?.name || 'Token',
+        character?.name || t('initiative.token'),
         { imagePath: token.imagePath, showRing: token.showRing },
       );
     },

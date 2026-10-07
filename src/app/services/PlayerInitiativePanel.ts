@@ -21,6 +21,7 @@ export interface InitiativeCollection {
   viewerOf(token: TokenEntity): ResourceViewer;
   rules(mapPath: string | null): InitiativeRules;
 }
+import { t } from '../i18n';
 
 /** Separates token ids in `InitiativeScene.visibleTokenIds`. */
 const TOKEN_ID_SEPARATOR = '\n';
@@ -99,7 +100,7 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
 
     const panel = container.createDiv({
       cls: 'atlas-player-initiative',
-      attr: { role: 'region', 'aria-label': 'Initiative order' },
+      attr: { role: 'region', 'aria-label': t('playerInit.order') },
     });
     const rules = this.collection.rules(scene.mapPath);
     if (listedBySides(initiative, rules)) {
@@ -109,7 +110,7 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
       for (const combatant of combatants) this.renderEntry(list, combatant, settings, initiative.isActive);
     }
     if (initiative.isActive) {
-      panel.createDiv({ cls: 'atlas-player-initiative__round', text: `Round ${initiative.round}` });
+      panel.createDiv({ cls: 'atlas-player-initiative__round', text: t('playerInit.round', { round: initiative.round }) });
       // The list is drawn anew on every change, scrolled to its top: bring the turn back into view
       const list = panel.querySelector<HTMLElement>('.atlas-player-initiative__list');
       const side = panel.querySelector('.atlas-player-initiative__side--active');

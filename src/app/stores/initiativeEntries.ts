@@ -1,6 +1,7 @@
 import type { TokenEntity } from '../types';
 import { controllersOf } from '../players/playerProfiles';
 import type { InitiativeEntry } from '../types/initiativeTypes';
+import { t } from '../i18n';
 
 /** An entry before the store gives it an id and a place in the order. */
 export type NewInitiativeEntry = Omit<InitiativeEntry, 'id' | 'order' | 'isActive'>;
@@ -10,7 +11,7 @@ export function initiativeEntryForToken(token: TokenEntity): NewInitiativeEntry 
   const character = token.kind === 'character' ? token : null;
   return {
     tokenId: token.id,
-    name: character ? character.name : 'Token',
+    name: character ? character.name : t('initiative.token'),
     initiative: 0,
     initiativeModifier: 0,
     imagePath: token.imagePath,

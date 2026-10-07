@@ -26,6 +26,7 @@ import { isHandled } from '../utils/handledEvents';
 import { openContextMenuGlobal } from '../../ui/contextMenus';
 import { STROKE_COLORS, ShapeStroke, type StrokeMode } from '../../tools/shapeStroke';
 import { drawStrokeArea } from '../utils/strokePreview';
+import { t } from '../../i18n';
 
 const DEFAULT_BOUNDS: FogBounds = { x: -2000, y: -2000, width: 4000, height: 4000 };
 const BOUNDS_PADDING = 200;
@@ -120,7 +121,7 @@ export class FogOfWarRenderer {
     this.container.addChild(this.rectPreviewGraphics);
 
     // ── Cursor preview ──────────────────────────────────────────────
-    this.cursorPreview = new FogCursorPreview();
+    this.cursorPreview = new FogCursorPreview(this.viewport);
     const cursorObj = this.cursorPreview.getDisplayObject();
     cursorObj.zIndex = 1002;
     this.container.addChild(cursorObj);
@@ -586,7 +587,7 @@ export class FogOfWarRenderer {
     const worldPos = this.viewport.toWorld(e.global);
     openContextMenuGlobal([{
       type: 'item',
-      label: 'Delete',
+      label: t('common.delete'),
       icon: 'trash',
       destructive: true,
       onClick: () => {
