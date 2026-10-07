@@ -5,6 +5,7 @@ import { PixiRendererOrchestrator } from '../../PixiRendererOrchestrator';
 import { applyNavigationMode } from '../../pixi/viewportNavigation';
 import { backgroundTextureCache } from '../../pixi/backgroundTextureCache';
 import { centerAndFitMap, mapPlaceholderTexture, showMapImage } from '../../pixi/mapDisplay';
+import { captureSceneTransition, type SceneTransition } from '../../pixi/sceneTransition';
 import { createSceneStore, type ViewAtlasStore } from '../../storeFactory';
 import { getHistoryStore } from '../../stores/history';
 import type { AtlasSettings, NavigationInputMode } from '../../services/SettingsService';
@@ -37,6 +38,10 @@ export class PlayerCanvas {
   private backgroundUrl: string | null = null;
   /** Bumped by every scene shown: a map image that arrives for an older one is let go. */
   private loads = 0;
+  /** The previous map's last frame, held over the canvas while the next map loads. */
+  private pendingTransition: SceneTransition | null = null;
+  /** The previous map's frame, still fading out over the next one. */
+  private fadingTransition: SceneTransition | null = null;
   /** The grid last shown, kept while the scene's grid and the player view are the same: renderers redraw on a new one. */
   private shownGrid: { source: ReplicatedScene['grid']; showGrid: boolean; grid: ReplicatedScene['grid'] } | null = null;
 
@@ -89,9 +94,14 @@ export class PlayerCanvas {
     if (this.playerView) this.setPlayerView(this.playerView);
   }
 
-  /** Shows `scene` whole: a scene presented or loaded anew. */
+  /** Shows `scene` whole: a scene the DM opened, or loaded anew. */
   async showScene(scene: ReplicatedScene): Promise<void> {
     const isNewMap = scene.mapPath !== this.scene?.mapPath;
+    // Another map: players keep seeing the one they had until it is drawn, then it fades into it
+    if (isNewMap && !this.pendingTransition && this.store.getState().mapLoaded) {
+      this.pendingTransition = captureSceneTransition(this.app, this.fadingTransition);
+      this.fadingTransition = null;
+    }
     this.scene = scene;
     const load = ++this.loads;
     this.bridge.applyRemote(() => {
@@ -120,6 +130,26 @@ export class PlayerCanvas {
       this.store.getState().setMapLoading(false);
       this.store.getState().setMapLoaded(true);
     });
+    this.pendingTransition?.play();
+    this.fadingTransition = this.pendingTransition;
+    this.pendingTransition = null;
+  }
+
+  /** The DM has no scene open: the canvas shows none until they open one. */
+  clearScene(): void {
+    this.loads++;
+    this.scene = null;
+    this.pendingTransition?.cancel();
+    this.fadingTransition?.cancel();
+    this.pendingTransition = null;
+    this.fadingTransition = null;
+    this.bridge.applyRemote(() => {
+      const state = this.store.getState();
+      state.clearSelection();
+      state.clearMapState();
+      state.setMapLoading(false);
+      state.setMapLoaded(false);
+    });
   }
 
   /** Applies what changed in the scene since it was sent. */
@@ -131,6 +161,8 @@ export class PlayerCanvas {
   }
 
   destroy(): void {
+    this.pendingTransition?.cancel();
+    this.fadingTransition?.cancel();
     this.bridge.destroy();
     this.renderer.destroy();
     if (this.backgroundUrl) backgroundTextureCache.release(this.backgroundUrl);

@@ -90,24 +90,21 @@ describe('live player settings', () => {
     service.destroy();
   });
 
-  it('keeps the presented map\'s widgets while the DM browses another map and follows a newly presented one', () => {
+  it('follows the scene the DM opens in the view, and a newly followed view only', () => {
     vi.useFakeTimers();
     const settings = new SettingsService(app);
-    const store = createStore(() => counterScene('Presented', 3));
+    const store = createStore(() => counterScene('First', 3));
     const source = sourceFor(store);
     const service = new PlayerWindowService(app, source.store!, settings);
     const doc = attachFakePlayerWindow(service, source);
     const widgets = doc.getElementById('atlas-player-widgets')!;
     store.setState({ widgetValues: { counter: 4 } });
-    expect(widgets.textContent).toBe('4Presented');
-    service.holdCurrentFrame();
-    // Switching tabs loads the other map, with the same default widget ids, into the same store.
-    store.setState({ ...counterScene('Browsed', 9), widgetValues: { counter: 9 } });
-    expect(widgets.textContent).toBe('4Presented');
-    store.setState({ widgetSettings: { ...store.getState().widgetSettings, globalVisible: false } });
-    expect(widgets.textContent).toBe('4Presented');
+    expect(widgets.textContent).toBe('4First');
+    // Opening another scene loads it into the same store
+    store.setState({ ...counterScene('Second', 9), widgetValues: { counter: 9 } });
+    expect(widgets.textContent).toBe('9Second');
     const otherView = createStore(() => counterScene('Other view', 7));
-    service.presentCanvas(sourceFor(otherView), 'scene-b');
+    service.follow(sourceFor(otherView));
     expect(widgets.textContent).toBe('7Other view');
     otherView.setState({ widgetValues: { counter: 8 } });
     expect(widgets.textContent).toBe('8Other view');
@@ -115,10 +112,10 @@ describe('live player settings', () => {
     expect(widgets.textContent).toBe('8Other view');
   });
 
-  it('keeps the presented map when the DM switches tabs before the popout has loaded', () => {
+  it('shows the scene the DM has open once the popout has loaded', () => {
     vi.useFakeTimers();
     const settings = new SettingsService(app);
-    const store = createStore(() => counterScene('Presented', 3));
+    const store = createStore(() => counterScene('First', 3));
     const source = sourceFor(store);
     const service = new PlayerWindowService(app, source.store!, settings);
     const doc = document.implementation.createHTMLDocument();
@@ -127,13 +124,12 @@ describe('live player settings', () => {
     Object.defineProperty(doc.body, 'win', { value: {
       document: doc, closed: false, addEventListener, removeEventListener: vi.fn(), close: vi.fn(),
     } });
-    service.attachToView({ contentEl: doc.body, updateSession: vi.fn() } as never, source, 'scene-a');
-    service.holdCurrentFrame();
-    store.setState(counterScene('Browsed', 9));
+    service.attachToView({ contentEl: doc.body, updateSession: vi.fn() } as never, source);
+    store.setState(counterScene('Second', 9));
     Object.defineProperty(doc, 'readyState', { value: 'complete' });
     const onLoad = addEventListener.mock.calls.find(([type]) => type === 'load')![1] as () => void;
     onLoad();
-    expect(doc.getElementById('atlas-player-widgets')?.textContent).toBe('3Presented');
+    expect(doc.getElementById('atlas-player-widgets')?.textContent).toBe('9Second');
   });
 
   it('passes the latest settings to every live frame capture', () => {

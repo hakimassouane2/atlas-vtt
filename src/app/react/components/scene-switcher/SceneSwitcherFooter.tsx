@@ -16,7 +16,6 @@ interface KeyHint {
 const HINTS: readonly KeyHint[] = [
   { keys: '↑↓', label: t('switcher.navigate') },
   { keys: '↵', label: t('switcher.open') },
-  { keys: 'shift ↵', label: t('switcher.openBoth') },
   { keys: `1–${MAX_NUMBER_KEY}`, label: t('switcher.jump') },
   { keys: 'esc', label: t('common.close') },
 ];

@@ -6,7 +6,7 @@ import type { InitiativeRules } from '../../types/initiativeRulesTypes';
 import type { PlayerCanvasContext, PlayerSceneMessage } from './sceneProtocol';
 import { replicatedImagePaths, sceneChanges, sceneOf, type ReplicatedScene } from './sceneReplica';
 
-/** The presented scene: its store, and the collection whose rules it follows. */
+/** The DM's scene: its store, and the collection whose rules it follows. */
 export interface ReplicatedSource {
   store: StoreApi<ViewAtlasState>;
   /** The id and settings of the scene's collection; null for a map outside every collection. */
@@ -23,14 +23,13 @@ export interface SceneSink {
 }
 
 /**
- * Keeps the canvases in players' browsers in step with the presented scene. A player who
- * joins, a scene that finished loading and a scene presented anew are sent whole (`scene`);
+ * Keeps the canvases in players' browsers in step with the DM's scene. A player who
+ * joins, a scene that finished loading (another scene the DM opened, too) are sent whole (`scene`);
  * after that only what changed is sent (`changes`), once per task however many writes it made
  * (a drag, a player's command). Not per animation frame: frames stop while the DM's window is
  * hidden or behind another, and players would see nothing a player changed until the DM looked. What
  * the canvas reads besides the scene, the collection's rules and the player view settings,
- * travels as `context`. While the DM works on another tab nothing is sent: players keep the
- * scene they had.
+ * travels as `context`. While a scene loads nothing is sent: players keep the scene they had.
  */
 export class SceneReplicator {
   private source: ReplicatedSource | null = null;
@@ -55,10 +54,6 @@ export class SceneReplicator {
     this.sendWhole();
   }
 
-  /** The map view owning `store` is closing. */
-  releaseSource(store: StoreApi<ViewAtlasState>): void {
-    if (this.source?.store === store) this.setSource(null);
-  }
 
   /** Gives a player who just joined the scene as it is now. */
   sendTo(playerId: string): void {
@@ -83,7 +78,7 @@ export class SceneReplicator {
     this.pending = true;
     const source = this.source;
     queueMicrotask(() => {
-      // Another scene presented meanwhile was sent whole
+      // A source set meanwhile was sent whole
       if (!this.pending || this.source !== source) return;
       this.pending = false;
       this.sendChanges();

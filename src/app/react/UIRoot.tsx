@@ -23,7 +23,6 @@ import { LootRoller } from './components/loot/LootRollerPanel';
 import { MapLoadingOverlay } from './components/MapLoadingOverlay';
 import { SceneTabBar } from './components/SceneTabBar';
 import { SceneSwitcher } from './components/scene-switcher/SceneSwitcher';
-import { presentTabInPlayerWindow } from '../services/PlayerWindowPresenter';
 import { canRunMapHotkeys, matchesMapHotkey } from '../keyboard/mapHotkeys';
 import { SettingsService } from '../services/SettingsService';
 import { HotkeyHelp } from '../keyboard/HotkeyHelp';
@@ -71,9 +70,6 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
 
   const switchTab = (tabId: string): void => {
     if (view) runInBackground(view.switchToTab(tabId), 'Switching scene tab');
-  };
-  const presentTab = (tabId: string): void => {
-    if (view) void presentTabInPlayerWindow(app, view, tabId);
   };
 
   // Context value with all required objects
@@ -171,7 +167,6 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
                   onSwitchTab={switchTab}
                   onCloseTab={(tabId) => { if (view) runInBackground(view.closeTab(tabId), 'Closing scene tab'); }}
                   onAddTab={() => view?.openSceneBrowser()}
-                  onPresentTab={presentTab}
                   onShowAllTabs={() => setSceneSwitcherOpen(true)}
                 />
               </PanelBoundary>
@@ -195,7 +190,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
 
           {!isPlayerView && !isMapLoading && (
             <PanelBoundary name="the scene switcher">
-              <SceneSwitcher isOpen={isSceneSwitcherOpen} onOpenChange={setSceneSwitcherOpen} onSwitchTab={switchTab} onPresentTab={presentTab} />
+              <SceneSwitcher isOpen={isSceneSwitcherOpen} onOpenChange={setSceneSwitcherOpen} onSwitchTab={switchTab} />
             </PanelBoundary>
           )}
           

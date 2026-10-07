@@ -108,10 +108,8 @@ describe('player window mirroring', () => {
     const renders = scheduledRenders();
     const { nextFrame, service } = mirror(renders);
     renders.render();
-    const source = (service as any).streamSource;
-    source.store = createStore(() => ({}));
 
-    service.releaseSource(source.store);
+    service.follow(null);
     // At once: a hidden window has no next frame, and the closing view must not stay referenced
     expect(renders.stopListening).toHaveBeenCalledTimes(1);
     nextFrame();
@@ -122,7 +120,7 @@ describe('player window mirroring', () => {
     expect(renders.capture).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['presentCanvas', 'releaseHeldFrame'] as const)('lets go of the previous canvas at once on %s', (swap) => {
+  it('lets go of the previous canvas at once when another view opens', () => {
     const previous = scheduledRenders();
     const next = scheduledRenders();
     const { service } = mirror(previous);
@@ -131,8 +129,7 @@ describe('player window mirroring', () => {
 
     vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 100);
     // No frame of the player window in between: it may be hidden
-    if (swap === 'presentCanvas') service.presentCanvas(source, 'scene-b');
-    else service.releaseHeldFrame(source);
+    service.follow(source);
 
     expect(previous.stopListening).toHaveBeenCalledTimes(1);
     next.render();

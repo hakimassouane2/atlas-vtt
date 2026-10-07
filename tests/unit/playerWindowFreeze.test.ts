@@ -9,11 +9,16 @@ import { playerWindowStore } from '../../src/app/stores/playerWindowStore';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
 vi.mock('../../src/app/atlas-view', () => ({ AtlasView: class {}, ATLAS_VIEW_TYPE: 'atlas-vtt' }));
+// jsdom cannot animate the crossfade into another scene
+vi.mock('../../src/app/pixi/sceneTransition', () => ({
+  freezeCanvasFrame: () => ({ play: vi.fn(), cancel: vi.fn(), paintInto: vi.fn() }),
+}));
 afterEach(() => { PlayerWindowService.getInstance()?.destroy(); vi.restoreAllMocks(); });
 
 interface Harness {
   service: PlayerWindowService;
   source: PlayerFrameSource & { withPlayerSafeFrame: ReturnType<typeof vi.fn> };
+  store: StoreApi<ViewAtlasState>;
   session: LocalPlayerSession;
   drawImage: ReturnType<typeof vi.fn>;
   setDmCamera(camera: PlayerCameraState): void;
@@ -26,7 +31,7 @@ function setup(): Harness {
   const drawImage = vi.fn();
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn(), drawImage } as never);
   const { app } = createInMemoryApp();
-  const store = createStore(() => ({})) as StoreApi<ViewAtlasState>;
+  const store = createStore(() => ({ mapLoaded: true, isMapLoading: false, mapPath: 'a.atlasmap' })) as unknown as StoreApi<ViewAtlasState>;
   const service = new PlayerWindowService(app, store, new SettingsService(app));
   const doc = document.implementation.createHTMLDocument();
   Object.defineProperty(doc, 'readyState', { value: 'complete' });
@@ -41,15 +46,15 @@ function setup(): Harness {
     getCamera: (): PlayerCameraState => dmCamera,
     store,
   };
-  const session: LocalPlayerSession = { tabId: 'scene-a', filePath: '', frozen: false };
+  const session: LocalPlayerSession = { frozen: false };
   const view = {
     contentEl: doc.body,
     getState: (): LocalPlayerSession => ({ ...session }),
     updateSession: (state: Partial<LocalPlayerSession>): void => { Object.assign(session, state); },
   };
-  service.attachToView(view as unknown as LocalPlayerView, source, 'scene-a');
+  service.attachToView(view as unknown as LocalPlayerView, source);
   return {
-    service, source, session, drawImage,
+    service, source, store, session, drawImage,
     setDmCamera: (camera) => { dmCamera = camera; },
     nextFrame: () => frame?.(0),
   };
@@ -82,34 +87,33 @@ describe('player camera freeze', () => {
     expect(session).toMatchObject({ frozen: false, camera: { centerX: 900, centerY: 900, scale: 3 } });
   });
 
-  it('holds a still frame while the DM is on another tab and returns to the frozen camera', () => {
-    const { service, source, drawImage, setDmCamera, nextFrame } = setup();
-    setDmCamera({ centerX: 10, centerY: 20, scale: 1 });
+  it('holds a still frame while no scene is open and goes live with the next one', () => {
+    const { service, source, drawImage, nextFrame } = setup();
     nextFrame();
-    service.toggleCameraFreeze();
 
-    service.holdCurrentFrame();
     source.withPlayerSafeFrame.mockClear();
     drawImage.mockClear();
+    service.follow(null);
     nextFrame();
     nextFrame();
     expect(source.withPlayerSafeFrame).not.toHaveBeenCalled();
-    expect(drawImage).toHaveBeenCalledTimes(1);
+    // The copy of what players saw, then that copy once into the window
+    expect(drawImage).toHaveBeenCalledTimes(2);
 
-    setDmCamera({ centerX: 500, centerY: 500, scale: 2 });
-    service.releaseHeldFrame(source);
+    // At once, then on every frame
+    service.follow(source);
+    expect(source.withPlayerSafeFrame).toHaveBeenCalledTimes(1);
     nextFrame();
-    expect(service.isFrozen()).toBe(true);
-    expect(source.withPlayerSafeFrame).toHaveBeenLastCalledWith(
-      expect.any(Function), expect.anything(), { centerX: 10, centerY: 20, scale: 1 },
-    );
+    expect(source.withPlayerSafeFrame).toHaveBeenCalledTimes(2);
   });
 
-  it('presenting a scene lifts the freeze', () => {
-    const { service, source, nextFrame } = setup();
+  it('another map lifts the freeze', () => {
+    const { service, store, nextFrame } = setup();
     nextFrame();
     service.toggleCameraFreeze();
-    service.presentCanvas(source, 'scene-b');
+    store.setState({ isMapLoading: true });
+    expect(service.isFrozen()).toBe(true);
+    store.setState({ isMapLoading: false, mapPath: 'b.atlasmap' });
     expect(service.isFrozen()).toBe(false);
     expect(playerWindowStore.getState().isFrozen).toBe(false);
   });

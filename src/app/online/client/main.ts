@@ -70,6 +70,7 @@ async function start(): Promise<void> {
     },
     scene: (scene) => void canvas.showScene(scene),
     changes: (changes) => canvas.applyChanges(changes),
+    noScene: () => canvas.clearScene(),
     roll: showRoll,
   });
   addEventListener('resize', () => canvas.resize(window.innerWidth, window.innerHeight));

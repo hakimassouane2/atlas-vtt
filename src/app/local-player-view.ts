@@ -19,15 +19,13 @@ function isPlayerCamera(value: unknown): value is PlayerCameraState {
 }
 
 export interface LocalPlayerSession extends Record<string, unknown> {
-  tabId: string;
-  filePath: string;
   frozen: boolean;
   camera?: PlayerCameraState;
 }
 
-/** A real workspace leaf lets Obsidian restore the presentation and window geometry. */
+/** A real workspace leaf lets Obsidian restore the player window, its camera and its geometry. */
 export class LocalPlayerView extends ItemView {
-  private session: LocalPlayerSession = { tabId: '', filePath: '', frozen: false };
+  private session: LocalPlayerSession = { frozen: false };
   public isClosed = false;
   private restoreTimer: number | null = null;
 
@@ -47,9 +45,8 @@ export class LocalPlayerView extends ItemView {
 
   async setState(state: unknown, _result: ViewStateResult): Promise<void> {
     if (typeof state !== 'object' || state === null) return;
-    if (!('tabId' in state) || typeof state.tabId !== 'string') return;
-    if (!('filePath' in state) || typeof state.filePath !== 'string') return;
-    this.session = { tabId: state.tabId, filePath: state.filePath, frozen: 'frozen' in state && state.frozen === true };
+    // Windows saved before players followed the DM also name a scene tab, which no longer matters
+    this.session = { frozen: 'frozen' in state && state.frozen === true };
     if ('camera' in state && isPlayerCamera(state.camera)) this.session.camera = { ...state.camera };
     this.app.workspace.onLayoutReady(() => {
       if (this.isClosed) return;

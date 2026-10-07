@@ -2,7 +2,7 @@ import { Notice, type App, type EventRef } from 'obsidian';
 import playerClient from 'virtual:atlas-player-client';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AtlasView } from '../atlas-view';
-import type { PlayerFrameSource } from '../services/PlayerFrameMirror';
+import { followedScene, onFollowedScene, type FollowedScene } from '../services/followedScene';
 import type { SettingsService } from '../services/SettingsService';
 import type { ViewAtlasState } from '../storeFactory';
 import { OnlineSessionServer } from './OnlineSessionServer';
@@ -38,7 +38,7 @@ export const onlineSessionStore: StoreApi<OnlineSessionState> = createStore<Onli
 
 /**
  * Lets players join from a browser with a link. The server runs on this computer; the player's
- * browser runs Atlas' own canvas on the scene the DM presents (ADR 0001), through their own camera.
+ * browser runs Atlas' own canvas on the scene the DM has open (ADR 0001), through their own camera.
  * Players move, turn and change the tokens the DM gave them, follow
  * the initiative order and roll dice.
  */
@@ -47,15 +47,12 @@ export class OnlineSession {
   private server: OnlineSessionServer | null = null;
   private readonly controls: PlayerControls;
   private readonly diceFeed: PlayerDiceFeed;
-  /** Keeps the players' scenes in step with the presented one. */
+  /** Keeps the players' scenes in step with the DM's. */
   private readonly replicator: SceneReplicator;
   /** The view whose scene players see; its dice engine rolls for them. */
   private presentedView: AtlasView | null = null;
   /** Artwork of the rolls players were sent, which their pages load. */
   private readonly rollImages = new Set<string>();
-  private stopWatchingTab: (() => void) | null = null;
-  /** Views that already release the session when they close. */
-  private readonly viewsReleasingOnClose = new WeakSet<AtlasView>();
   /** The connected pages and the profile each one's player chose. */
   private readonly connected = new ConnectedPlayers();
   private collectionSettingsRef: EventRef | null = null;
@@ -74,6 +71,8 @@ export class OnlineSession {
       toAll: (event, data) => this.server?.broadcast(event, data),
       toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
     });
+    // Released with the other listeners when the plugin unloads (`registerFollowedScene`)
+    onFollowedScene((scene) => this.follow(scene));
     OnlineSession.instance = this;
   }
 
@@ -96,7 +95,6 @@ export class OnlineSession {
   }
 
   stop(): void {
-    this.stopWatchingTab?.();
     this.setSource(null);
     this.diceFeed.stop();
     this.presentedView = null;
@@ -110,42 +108,19 @@ export class OnlineSession {
   }
 
   /**
-   * Shows the scene tab `tabId` of `view`, whose canvas `source` draws, to online players. They
-   * keep the scene they have while the DM works on another tab.
+   * Players follow the DM: they see the scene the Atlas view has open, a new one once it has
+   * loaded, and the waiting message while none is open.
    */
-  present(view: AtlasView, tabId: string, source: PlayerFrameSource, resolveSource: () => Promise<PlayerFrameSource | null>): void {
-    this.setSource({ view, source });
-    this.presentedView = view;
+  private follow(scene: FollowedScene | null): void {
+    this.presentedView = scene?.view ?? null;
+    if (!this.isRunning()) return;
+    this.setSource(scene);
+    if (!scene) this.server?.broadcast('noScene', null);
     this.showConnected();
-    this.stopWatchingTab?.();
-    const stopWatching = view.tabMetaStore.subscribe((state, previous) => {
-      if (state.activeTabId === previous.activeTabId) return;
-      if (state.activeTabId !== tabId) {
-        this.setSource(null);
-        return;
-      }
-      void resolveSource().then((resumed) => {
-        if (resumed && view.tabMetaStore.getState().activeTabId === tabId) this.setSource({ view, source: resumed });
-      });
-    });
-    this.stopWatchingTab = (): void => {
-      stopWatching();
-      this.stopWatchingTab = null;
-    };
-    if (!this.viewsReleasingOnClose.has(view)) {
-      this.viewsReleasingOnClose.add(view);
-      // Closing the presented map must not leave its store reachable from the session
-      view.register(() => {
-        this.stopWatchingTab?.();
-        this.controls.releaseSource(view.atlasStore);
-        this.replicator.releaseSource(view.atlasStore);
-        if (this.presentedView === view) this.presentedView = null;
-      });
-    }
   }
 
-  /** Players act on and see the scene of `presented`; none while the DM works on another tab. */
-  private setSource(presented: { view: AtlasView; source: PlayerFrameSource } | null): void {
+  /** Players act on and see the scene of `presented`; none while no scene is open. */
+  private setSource(presented: FollowedScene | null): void {
     const store = presented?.source.store;
     if (!presented || !store) {
       this.controls.setSource(null);
@@ -237,6 +212,7 @@ export class OnlineSession {
     }
     this.server = server;
     this.diceFeed.start();
+    this.follow(followedScene());
     // A renamed or recoloured player shows so on the dashboard at once
     this.collectionSettingsRef = this.app.workspace.on('atlas-vtt:collection-settings-changed', () => this.showConnected());
     onlineSessionStore.setState({ isRunning: true, playerCount: 0, players: [] });

@@ -23,6 +23,8 @@ body { overflow: hidden; -webkit-app-region: no-drag; user-select: none; }
 body:not(.online-live) #status { bottom: 50%; font-size: var(--font-ui-medium); }
 #content { position: absolute; inset: 0; }
 #content canvas { display: block; }
+/* No scene from the DM yet, or none open any more: only the waiting message shows */
+body:not(.online-live) #content canvas { visibility: hidden; }
 
 /* The connection to the DM's Atlas is lost: the page is covered until it comes back. */
 .online-disconnected {

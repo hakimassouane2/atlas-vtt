@@ -51,6 +51,8 @@ import { AtlasErrorLog } from './src/app/support/errorLog';
 import { IssueReporter } from './src/app/support/IssueReporter';
 import { runInBackground } from './src/app/utils/backgroundTask';
 import { OnlineSession } from './src/app/online/OnlineSession';
+import { registerFollowedScene } from './src/app/services/followedScene';
+import { registerPlayerWindowFollow } from './src/app/services/PlayerWindowPresenter';
 import { onlineSessionSettingsSection } from './src/app/online/onlineSessionSettingsSection';
 
 declare const __ATLAS_RELEASE_BUILD__: boolean;
@@ -130,6 +132,8 @@ export default class AtlasVTTPlugin extends Plugin {
     this.registerEditorSuggest(new HeaderAutocompleteSuggest(this.app));
     registerAtlasLinks(this);
     registerAtlasLeafSync(this);
+    registerFollowedScene(this);
+    registerPlayerWindowFollow(this);
     registerReturnToAtlasOnClose(this);
     registerPlayerWindowReloadCleanup(this);
     registerCommands(this, {

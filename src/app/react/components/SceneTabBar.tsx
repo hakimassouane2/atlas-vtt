@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { ChevronDown, Eye, Plus, X } from 'lucide-react';
+import { ChevronDown, Plus, X } from 'lucide-react';
 import { useStore } from 'zustand';
 import { cn } from '../../../utils/cn';
 import { useSceneTabStore } from '../hooks/useSceneTabStore';
 import { useTabStripOverflow } from '../hooks/useTabStripOverflow';
-import { playerWindowStore } from '../../stores/playerWindowStore';
 import type { SceneTab } from '../../types/sceneTabTypes';
 import { LabelTooltip, TooltipProvider } from '../../packages/components/primitives/tooltip';
 import './scene-tab-bar.scss';
@@ -14,7 +13,6 @@ interface SceneTabBarProps {
   onSwitchTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onAddTab: () => void;
-  onPresentTab: (tabId: string) => void;
   /** Lists every open map; offered while the tabs do not fit the bar. */
   onShowAllTabs: () => void;
 }
@@ -22,25 +20,22 @@ interface SceneTabBarProps {
 interface TabActionButtonProps {
   icon: React.ComponentType<{ size?: number }>;
   label: string;
-  /** When defined the button is a toggle and stays visible while active. */
-  isActive?: boolean;
   onClick: () => void;
 }
 
 /** Icon button inside a tab; keeps its events from activating or closing the tab. */
-function TabActionButton({ icon: Icon, label, isActive, onClick }: TabActionButtonProps): React.ReactElement {
+function TabActionButton({ icon: Icon, label, onClick }: TabActionButtonProps): React.ReactElement {
   return (
     <LabelTooltip side="bottom" label={label}>
       <button
         type="button"
-        className={cn('atlas-scene-tab__action', isActive && 'atlas-scene-tab__action--active')}
+        className="atlas-scene-tab__action"
         onClick={(e) => {
           e.stopPropagation();
           onClick();
         }}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
-        aria-pressed={isActive}
       >
         <Icon size={12} />
       </button>
@@ -48,13 +43,11 @@ function TabActionButton({ icon: Icon, label, isActive, onClick }: TabActionButt
   );
 }
 
-export function SceneTabBar({ onSwitchTab, onCloseTab, onAddTab, onPresentTab, onShowAllTabs }: SceneTabBarProps): React.ReactElement | null {
+export function SceneTabBar({ onSwitchTab, onCloseTab, onAddTab, onShowAllTabs }: SceneTabBarProps): React.ReactElement | null {
   const store = useSceneTabStore();
 
   const tabs = useStore(store, (s) => s.tabs);
   const activeTabId = useStore(store, (s) => s.activeTabId);
-  const presentedTabId = useStore(playerWindowStore, (s) => s.presentedTabId);
-  const isPlayerWindowOpen = useStore(playerWindowStore, (s) => s.isOpen);
   const [strip, setStrip] = useState<HTMLDivElement | null>(null);
   const { overflows, hiddenBefore, hiddenAfter } = useTabStripOverflow(strip, activeTabId);
 
@@ -75,7 +68,6 @@ export function SceneTabBar({ onSwitchTab, onCloseTab, onAddTab, onPresentTab, o
         >
           {tabs.map((tab: SceneTab) => {
             const isActive = tab.id === activeTabId;
-            const isPresented = isPlayerWindowOpen && tab.id === presentedTabId;
             const stateClass = isActive
               ? 'atlas-scene-tab--active'
               : tab.isLoaded
@@ -103,13 +95,6 @@ export function SceneTabBar({ onSwitchTab, onCloseTab, onAddTab, onPresentTab, o
                   }
                 }}
               >
-                {/* Show and close sit at opposite ends, so one is never clicked for the other */}
-                <TabActionButton
-                  icon={Eye}
-                  label={t(isPresented ? 'tabs.shown' : 'tabs.show', { name: tab.displayName })}
-                  isActive={isPresented}
-                  onClick={() => onPresentTab(tab.id)}
-                />
                 <LabelTooltip side="bottom" label={tab.filePath}>
                   <span className="atlas-scene-tab__name">{tab.displayName}</span>
                 </LabelTooltip>

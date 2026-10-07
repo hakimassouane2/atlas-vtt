@@ -138,11 +138,6 @@ $tab-fade: 24px;
       background: var(--background-modifier-hover);
       color: var(--text-normal);
     }
-
-    &--active {
-      visibility: visible;
-      color: var(--text-accent);
-    }
   }
 
   &:hover .atlas-scene-tab__action,

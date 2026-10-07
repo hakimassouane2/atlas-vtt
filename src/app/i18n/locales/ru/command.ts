@@ -9,7 +9,7 @@ export const command: Translation = {
   'command.openDashboard': 'Открыть панель',
   'command.openSceneBrowser': 'Открыть список сцен',
   'command.reportIssue': 'Сообщить о проблеме…',
-  'command.sendMapToPlayerView': 'Показать текущую карту игрокам',
+  'command.sendMapToPlayerView': 'Открыть окно игроков',
   'command.toggleDiceLog': 'Показать/скрыть журнал бросков',
   'command.toggleInitiativeTracker': 'Показать/скрыть трекер инициативы',
   'command.toggleLootRoller': 'Показать/скрыть генератор добычи',

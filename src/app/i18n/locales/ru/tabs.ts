@@ -5,6 +5,4 @@ export const tabs: Translation = {
   'tabs.close': 'Закрыть «{name}»',
   'tabs.openMaps': 'Открытые карты',
   'tabs.openScene': 'Открыть сцену',
-  'tabs.show': 'Показать «{name}» игрокам',
-  'tabs.shown': '«{name}» показана игрокам',
 };

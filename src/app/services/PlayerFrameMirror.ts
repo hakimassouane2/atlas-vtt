@@ -202,6 +202,11 @@ export class PlayerFrameMirror {
   }
 }
 
+/** Whether the store holds a scene completely: loaded, and its tokens drawn. */
+export function showsScene(state: ViewAtlasState): boolean {
+  return state.mapLoaded && !state.isMapLoading;
+}
+
 /** A source without a store never counts as loading. */
 function isLoading(source: PlayerFrameSource): boolean {
   return source.store?.getState().isMapLoading === true;

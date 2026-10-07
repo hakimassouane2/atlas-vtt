@@ -9,7 +9,7 @@ export const command = {
   'command.openDashboard': 'Open dashboard',
   'command.openSceneBrowser': 'Open scene browser',
   'command.reportIssue': 'Report an issue…',
-  'command.sendMapToPlayerView': 'Send current map to player view',
+  'command.sendMapToPlayerView': 'Open player view',
   'command.toggleDiceLog': 'Toggle dice log',
   'command.toggleInitiativeTracker': 'Toggle initiative tracker',
   'command.toggleLootRoller': 'Toggle loot roller',

@@ -4,6 +4,8 @@ import type { DiceRollResult } from '../../tools/DiceTool';
 import { setDisconnected, setStatus } from './dom';
 import { sessionUrl, setPlayerId } from './session';
 
+const WAITING = "Waiting for the GM's scene…";
+
 /** What the canvas page does with the messages of the DM's Atlas. */
 export interface SceneListener {
   /** The DM's Atlas named the page's connection, on every connect: the page says who the player is. */
@@ -11,11 +13,13 @@ export interface SceneListener {
   context(context: PlayerCanvasContext): void;
   scene(scene: ReplicatedScene): void;
   changes(changes: SceneChange[]): void;
+  /** The DM has no scene open. */
+  noScene(): void;
   /** A roll players may see. */
   roll(result: DiceRollResult): void;
 }
 
-/** Opens the event stream of the presented scene; the browser reopens it after a lost connection. */
+/** Opens the event stream of the DM's scene; the browser reopens it after a lost connection. */
 export function connectToScene(listener: SceneListener): EventSource {
   const stream = new EventSource(sessionUrl('/events'));
   const on = <M extends PlayerSceneMessage>(event: M['event'], handle: (data: M['data']) => void): void => {
@@ -33,11 +37,16 @@ export function connectToScene(listener: SceneListener): EventSource {
     listener.scene(data);
   });
   on<Extract<PlayerSceneMessage, { event: 'changes' }>>('changes', (data) => listener.changes(data));
+  on<Extract<PlayerSceneMessage, { event: 'noScene' }>>('noScene', () => {
+    document.body.classList.remove('online-live');
+    setStatus(WAITING);
+    listener.noScene();
+  });
   const json = <T>(message: Event): T => JSON.parse((message as MessageEvent<string>).data) as T;
   stream.addEventListener('roll', (message) => listener.roll(json<DiceRollResult>(message)));
   stream.onopen = (): void => {
     setDisconnected(false);
-    setStatus(document.body.classList.contains('online-live') ? '' : "Waiting for the GM's scene…");
+    setStatus(document.body.classList.contains('online-live') ? '' : WAITING);
   };
   stream.onerror = (): void => {
     setStatus('');

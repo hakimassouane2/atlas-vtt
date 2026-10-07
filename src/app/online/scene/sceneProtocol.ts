@@ -19,4 +19,6 @@ export interface PlayerCanvasContext {
 export type PlayerSceneMessage =
   | { event: 'context'; data: PlayerCanvasContext }
   | { event: 'scene'; data: ReplicatedScene }
-  | { event: 'changes'; data: SceneChange[] };
+  | { event: 'changes'; data: SceneChange[] }
+  /** The DM closed every scene: players wait for the next one. */
+  | { event: 'noScene'; data: null };

@@ -26,7 +26,7 @@ function setup() {
   const onShowAllTabs = vi.fn();
   const value = { app: {}, view: { viewId: 'map', tabMetaStore }, pixiApp: null, renderer: null } as never;
   render(<AtlasUIContext.Provider value={value}>
-    <SceneTabBar onSwitchTab={vi.fn()} onCloseTab={vi.fn()} onAddTab={vi.fn()} onPresentTab={vi.fn()} onShowAllTabs={onShowAllTabs} />
+    <SceneTabBar onSwitchTab={vi.fn()} onCloseTab={vi.fn()} onAddTab={vi.fn()} onShowAllTabs={onShowAllTabs} />
   </AtlasUIContext.Provider>);
   const strip = screen.getByRole('tablist');
   /** Gives the strip the layout jsdom lacks and lets the bar measure it. */
@@ -95,11 +95,11 @@ it('scrolls the active tab into view, at once on mount and smoothly on later swi
   expect(scrollIntoView.mock.contexts.at(-1)).toBe(screen.getByRole('tab', { name: /Cave Entrance/ }));
 });
 
-it('keeps the player view and close buttons at opposite ends of a tab, with the name between them', () => {
+it('offers no way to show a tab to players, who follow the open scene: only the close button follows the name', () => {
   setup();
   const tab = screen.getAllByRole('tab')[0]!;
-  const [show, close] = tab.querySelectorAll('.atlas-scene-tab__action');
+  const actions = tab.querySelectorAll('.atlas-scene-tab__action');
   const name = tab.querySelector('.atlas-scene-tab__name')!;
-  expect(show!.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(name.compareDocumentPosition(close!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(actions).toHaveLength(1);
+  expect(name.compareDocumentPosition(actions[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });

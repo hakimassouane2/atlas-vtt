@@ -48,7 +48,8 @@ describe('PlayerWindowService cleanup', () => {
 
     service.destroy();
 
-    expect(unsubscribe).toHaveBeenCalledTimes(2);
+    // The widget bar, the initiative panel and the watch for the next map
+    expect(unsubscribe).toHaveBeenCalledTimes(3);
     expect(PlayerWindowService.getInstance()).toBeNull();
   });
 });

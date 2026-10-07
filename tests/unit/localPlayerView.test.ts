@@ -17,14 +17,15 @@ function createView(): LocalPlayerView {
 }
 
 describe('restorable local player view', () => {
-  it('round-trips the presented scene and manual pause through workspace state', async () => {
+  it('round-trips the camera and manual pause through workspace state', async () => {
     const original = createView();
-    original.updateSession({ tabId: 'tavern', filePath: 'maps/tavern.atlasmap', frozen: true, camera: { centerX: 100, centerY: 200, scale: 1.5 } });
+    original.updateSession({ frozen: true, camera: { centerX: 100, centerY: 200, scale: 1.5 } });
     const restored = createView();
     await restored.setState(JSON.parse(JSON.stringify(original.getState())), {});
     expect(restored.getState()).toEqual(original.getState());
-    await restored.setState({ tabId: 42, filePath: null }, {});
-    expect(restored.getState()).toEqual(original.getState());
+    // Windows saved before players followed the DM name a scene tab, which is ignored
+    await restored.setState({ tabId: 'tavern', filePath: 'maps/tavern.atlasmap', frozen: false }, {});
+    expect(restored.getState()).toEqual({ frozen: false });
   });
 
   it('preserves the popout workspace and window when unloading the plugin', async () => {
@@ -44,7 +45,7 @@ describe('restorable local player view', () => {
     const service = new PlayerWindowService(view.app, createStore(() => ({})) as ReturnType<typeof createStore<ViewAtlasState>>, settings);
     const drawImage = vi.fn();
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn(), drawImage } as never);
-    service.attachToView(view, { canvas: document.createElement('canvas'), withPlayerSafeFrame: (draw) => draw() }, 'tavern');
+    service.attachToView(view, { canvas: document.createElement('canvas'), withPlayerSafeFrame: (draw) => draw() });
     expect(doc.body.contains(chrome)).toBe(true);
     expect(chrome.querySelector('#atlas-player-canvas')).not.toBeNull();
     expect(drawImage).toHaveBeenCalledTimes(1);

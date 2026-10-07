@@ -28,10 +28,19 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function setup(): { service: PlayerWindowService; source: PlayerFrameSource; doc: Document } {
+/** A view store showing `mapPath`, as the DM's view holds a loaded scene. */
+const SHOWN = { mapLoaded: true, isMapLoading: false };
+
+/** The view's store loads `mapPath`, as when the DM opens another scene. */
+function load(store: StoreApi<ViewAtlasState>, mapPath: string): void {
+  store.setState({ isMapLoading: true });
+  store.setState({ ...SHOWN, mapPath });
+}
+
+function setup(): { service: PlayerWindowService; source: PlayerFrameSource; store: StoreApi<ViewAtlasState>; doc: Document } {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn(), drawImage: vi.fn() } as never);
   const { app } = createInMemoryApp();
-  const store = createStore(() => ({})) as StoreApi<ViewAtlasState>;
+  const store = createStore(() => ({ ...SHOWN, mapPath: 'a.atlasmap' })) as unknown as StoreApi<ViewAtlasState>;
   const service = new PlayerWindowService(app, store, new SettingsService(app));
   const doc = document.implementation.createHTMLDocument();
   Object.defineProperty(doc, 'readyState', { value: 'complete' });
@@ -39,21 +48,23 @@ function setup(): { service: PlayerWindowService; source: PlayerFrameSource; doc
     document: doc, closed: false, addEventListener: vi.fn(), removeEventListener: vi.fn(), close: vi.fn(),
     requestAnimationFrame: vi.fn(() => 1), cancelAnimationFrame: vi.fn(),
   } });
-  const session: LocalPlayerSession = { tabId: 'scene-a', filePath: '', frozen: false };
+  const session: LocalPlayerSession = { frozen: false };
   const view = {
     contentEl: doc.body,
     getState: (): LocalPlayerSession => ({ ...session }),
     updateSession: (state: Partial<LocalPlayerSession>): void => { Object.assign(session, state); },
   };
   const source = { canvas: createEl('canvas'), withPlayerSafeFrame: vi.fn(), store };
-  service.attachToView(view as unknown as LocalPlayerView, source, 'scene-a');
-  return { service, source, doc };
+  service.attachToView(view as unknown as LocalPlayerView, source);
+  return { service, source, store, doc };
 }
 
 describe('player window scene crossfade', () => {
-  it('crossfades what players see into the newly presented scene', () => {
-    const { service, source, doc } = setup();
-    service.presentCanvas(source, 'scene-b');
+  it('crossfades what players see into the scene the DM opens, once it has loaded', () => {
+    const { store, doc } = setup();
+    store.setState({ isMapLoading: true });
+    expect(transitions.frozen).toHaveLength(0);
+    store.setState({ ...SHOWN, mapPath: 'b.atlasmap' });
 
     expect(transitions.frozen).toHaveLength(1);
     expect(transitions.frozen[0]!.target).toBe(doc.getElementById('atlas-player-canvas'));
@@ -62,17 +73,17 @@ describe('player window scene crossfade', () => {
     expect(freezeCanvasFrame).toHaveBeenCalledWith(expect.anything(), expect.any(Function), null, { settle: false });
   });
 
-  it('does not animate when the DM re-presents the scene players already see', () => {
-    const { service, source } = setup();
-    service.presentCanvas(source, 'scene-a');
+  it('does not animate when the scene players already see loads again', () => {
+    const { store } = setup();
+    load(store, 'a.atlasmap');
 
     expect(transitions.frozen).toHaveLength(0);
   });
 
   it('carries a running crossfade into the next one and drops it when the window closes', () => {
-    const { service, source } = setup();
-    service.presentCanvas(source, 'scene-b');
-    service.presentCanvas(source, 'scene-c');
+    const { service, store } = setup();
+    load(store, 'b.atlasmap');
+    load(store, 'c.atlasmap');
     expect(transitions.frozen[1]!.previous).toBe(transitions.frozen[0]);
 
     service.destroy();

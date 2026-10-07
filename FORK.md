@@ -80,8 +80,9 @@ vocabulaire : `CONTEXT.md`.
 2. Accueil Atlas : tuile **Online Session**. Elle démarre le serveur et copie le lien joueur, puis
    affiche les profils connectés.
    Commandes équivalentes : "Start online session and copy the player link", "Stop online session".
-3. Dans la scène : **Présenter** ("Send to player view"). Les joueurs en ligne voient la scène ;
-   la popout locale n'est plus nécessaire.
+3. Rien à présenter : les joueurs voient toujours la scène ouverte chez le MJ (l'onglet de scène
+   actif). Changer d'onglet ou ouvrir une scène les y emmène ; ils gardent l'image de l'ancienne
+   pendant le chargement. La popout locale suit de la même façon ("Open player view" l'ouvre).
 4. Réglages de la collection, onglet **Players** : un profil par joueur (nom et couleur, sans mot de
    passe). Puis donner les tokens : Edit Token, section **Players** (un interrupteur par profil), ou
    clic droit sur le token (ou la sélection), sous-menu **Players**. Un token peut appartenir à
@@ -139,8 +140,16 @@ vocabulaire : `CONTEXT.md`.
   `visibleResources`, par le spectateur `controller` (joueur à qui le token est donné).
 - `PlayerDiceFeed` envoie les jets des joueurs et ceux du MJ si `showDiceRolls`, masqués pour un
   token caché. Les dés lisent leur environnement par un contexte React (`diceEnvironment.ts`).
-- Quand le MJ passe sur un autre onglet, les joueurs gardent leur scène et leurs commandes sont
-  refusées ; au retour, la scène est renvoyée entière.
+- **Les joueurs suivent le MJ** (`services/followedScene.ts`) : la scène suivie est celle de la vue
+  Atlas (une seule, ses onglets partagent un store et un canvas), dès que sa première scène est
+  chargée. La session en ligne et la popout locale s'y abonnent (`onFollowedScene`) ; un changement
+  de scène passe par le store (la réplication envoie la nouvelle scène entière une fois chargée, la
+  popout tient sa dernière image puis fait un fondu enchaîné, `PlayerWindowService.watchScene`).
+  La page joueur garde l'image de l'ancienne scène par-dessus son canvas jusqu'à ce que la nouvelle
+  soit dessinée (`captureSceneTransition` dans `PlayerCanvas.showScene`). Vue Atlas fermée : la
+  page reçoit `noScene` et revient au message d'attente ; la popout garde sa dernière image sous
+  le message d'attente. Plus de bouton Show : œil des onglets, Maj+Entrée du sélecteur et
+  `presentedTabId` supprimés.
 
 ### Fichiers ajoutés
 
@@ -158,6 +167,7 @@ vocabulaire : `CONTEXT.md`.
   `pageMenus.tsx`, `pageIcons.ts`, `initiativeOverlay.ts`, `pageStandIns.ts`, `session.ts`,
   `dom.ts`, `obsidianDom.ts`, `events.ts`, `playerPage.css`, `PlayerSettingsMenu.tsx`, `inputDevice.ts`, `pageZoomGuard.ts`,
   `profileChoice.ts`, `ProfileChooser.tsx`.
+- `src/app/services/followedScene.ts` : la scène que les écrans joueurs suivent.
 - Côté MJ, sorties du moteur : `services/canvasHost/`, `services/TokenStatblockSync.ts`,
   `services/obsidianDiceEnvironment.ts`, `react/components/context-menu/gmTokenMenu.ts`,
   `pixi/audio/AudioFeature.ts`, `pixi/mapDisplay.ts`, `viewStore.ts`, `services/sceneFileVersion.ts`,
@@ -187,6 +197,12 @@ doit rester vert.
   menu joueur). L'interface d'un token sélectionné (nom, barres, roues, +/-) garde sa taille de repos
   et zoome avec la carte (`selectedTokenUIScale` supprimé).
 - `PlayerInitiativePanel`, `InitiativeCard` : badge d'instance partagé (`shownInstanceNumber`).
+- Joueurs qui suivent le MJ : `PlayerWindowPresenter` (réécrit : ouvrir, restaurer, suivre),
+  `PlayerWindowService` (`follow` remplace `presentCanvas` / `holdCurrentFrame` /
+  `releaseHeldFrame` / `releaseSource`), `PlayerFrameMirror` (`showsScene`), `local-player-view`
+  (la session ne retient plus d'onglet), `playerWindowStore` (sans `presentedTabId`), `SceneTabBar`
+  (sans œil), `SceneSwitcher` et son pied (sans Maj+Entrée), `UIRoot`, textes en/ru
+  (`command`/`palette.sendMapToPlayerView` = "Open player view", clés de présentation retirées).
 - `main.ts` : session en ligne, registres (notices, icônes, plateforme). `PlayerView`
   (`atlas-vtt-player`, jamais ouverte) est supprimée.
 - `i18n/index.ts` : la langue est lue dans le `localStorage` (là où `getLanguage()` la lit), pas

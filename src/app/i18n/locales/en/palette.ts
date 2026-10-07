@@ -31,7 +31,7 @@ export const palette = {
   'palette.playerDashboard': 'Player dashboard configuration',
   'palette.sceneSnapshots': 'Scene snapshots',
   'palette.searchPlaceholder': 'Search commands...',
-  'palette.sendMapToPlayerView': 'Send Current Map to Player View',
+  'palette.sendMapToPlayerView': 'Open Player View',
   'palette.tab.all': 'All',
   'palette.tab.mode': 'Mode',
   'palette.tab.settings': 'Settings',

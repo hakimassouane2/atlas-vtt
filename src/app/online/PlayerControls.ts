@@ -40,11 +40,6 @@ export class PlayerControls {
     this.source = source;
   }
 
-  /** The map view owning `store` is closing. */
-  releaseSource(store: StoreApi<ViewAtlasState>): void {
-    if (this.source?.store === store) this.setSource(null);
-  }
-
   /**
    * Applies a command of the player `playerId` (null for a page that has not said who it is),
    * who chose the profile `profileId` (null before they chose one).
