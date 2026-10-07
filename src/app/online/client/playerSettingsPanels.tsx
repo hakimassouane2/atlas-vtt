@@ -17,7 +17,7 @@ export function PlayerColourPanel({ choice, onChange }: { choice: ProfileChoice;
   const free = RESOURCE_COLORS.filter(({ value }) =>
     !players?.some(({ id, color }) => id !== chosen.id && color.toLowerCase() === value.toLowerCase()));
   return (
-    <div className="atlas-player-settings-panel">
+    <div className="atlas-player-settings-panel atlas-player-settings-panel--colour">
       <DropdownSwatchGrid label="My colour" swatches={free} value={chosen.color} onChange={onChange} />
     </div>
   );
@@ -30,7 +30,7 @@ export function PlayerDicePanel({ choice, onChange }: { choice: ProfileChoice; o
   const previews = usePlayerDicePreviews(look.font, chosen?.color ?? null);
   if (!chosen) return null;
   return (
-    <div className="atlas-player-settings-panel">
+    <div className="atlas-player-settings-panel atlas-player-settings-panel--dice">
       <DiceColourStrip value={look.colour} previews={previews} options={PLAYER_DICE_COLOURS} onChange={(colour) => onChange({ ...look, colour })} />
       <SegmentedControl ariaLabel="Dice numbers" value={look.font} options={DICE_FONT_OPTIONS} onChange={(font) => onChange({ ...look, font })} />
     </div>
