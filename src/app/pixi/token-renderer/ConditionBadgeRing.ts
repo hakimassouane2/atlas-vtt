@@ -12,7 +12,7 @@ export interface ActiveCondition extends ConditionBadgeSpec {
 
 /** The badges fan out around the token's upper left, clear of the instance number at the upper right. */
 const ARC_CENTRE = -0.75 * Math.PI;
-/** The quarter between the rotate handle at the top and the resize handle on the left. */
+/** A quarter of the ring, between its top and its left. */
 const ARC_SPAN = Math.PI / 2;
 /** Badge diameter including its bezel, in UI units. */
 const BADGE_DIAMETER = (CONDITION_BADGE_RADIUS + 1) * 2;

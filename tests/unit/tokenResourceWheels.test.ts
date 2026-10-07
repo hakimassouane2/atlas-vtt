@@ -6,7 +6,7 @@ import { ResourceBarHitArea } from '../../src/app/pixi/ResourceBarHitArea';
 import { TokenControlsUI } from '../../src/app/pixi/TokenControlsUI';
 import { TokenUIRenderer } from '../../src/app/pixi/TokenUIRenderer';
 import { getTokenRingCenterRadius } from '../../src/app/pixi/token-renderer/tokenRingMetrics';
-import { computeTokenPixelSize, NAMEPLATE_HEIGHT, RESIZE_HANDLE_SIZE, tokenUIScale } from '../../src/app/pixi/token-renderer/tokenSizing';
+import { computeTokenPixelSize, NAMEPLATE_HEIGHT, WHEEL_ANCHOR_OFFSET, tokenUIScale } from '../../src/app/pixi/token-renderer/tokenSizing';
 import { createViewAtlasStore } from '../../src/app/viewStore';
 import type { Character } from '../../src/app/types';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
@@ -89,7 +89,7 @@ describe('resource wheels on a token', () => {
     try {
       const sprite = computeTokenPixelSize(70, size);
       ui.update({ ...hero, size }, sprite);
-      const handleReach = getTokenRingCenterRadius(sprite, 4, 1) + (RESIZE_HANDLE_SIZE / 2) * tokenUIScale(sprite);
+      const handleReach = getTokenRingCenterRadius(sprite, 4, 1) + (WHEEL_ANCHOR_OFFSET / 2) * tokenUIScale(sprite);
       const wheelLeft = beside(ui).position.x + wheelSlots(ui)[0]!.left * beside(ui).scale.x;
       expect(wheelLeft).toBeGreaterThan(handleReach);
     } finally { ui.destroy(); }
@@ -117,15 +117,14 @@ describe('resource wheels on a token', () => {
     } finally { ui.destroy(); }
   });
 
-  it('keeps the wheel slots where they are when a selected token\'s UI grows', () => {
-    const { ui } = tokenUI({ zoom: 1 });
+  it("keeps a selected token's wheels at the resting size, whatever the zoom", () => {
+    const { ui } = tokenUI({ zoom: 0.25 });
     try {
       ui.update(hero, 62);
       const atRest = wheelSlots(ui);
       ui.setSelectionState(true);
       settle();
-      expect(beside(ui).scale.x).toBeCloseTo(2.25);
-      // The controls are laid out from these slots once, so they must not depend on the scale
+      expect(beside(ui).scale.x).toBeCloseTo(1);
       expect(wheelSlots(ui)).toEqual(atRest);
     } finally { ui.destroy(); }
   });
@@ -166,15 +165,14 @@ describe('resource wheels on a token', () => {
     } finally { ui.destroy(); }
   });
 
-  it('reports the reach of the selected size at once, not of the size it is still growing from', () => {
-    const { ui } = tokenUI({ zoom: 1 });
+  it('reports the reach of the bars at the resting size, selected or not', () => {
+    const { ui } = tokenUI({ zoom: 0.25 });
     try {
       ui.update(hero, 62);
+      const atRest = ui.getBarsReach();
       ui.setSelectionState(true);
-      const early = ui.getBarsReach();
-      settle();
-      expect(early).toBe(ui.getBarsReach());
-      expect(early).toBeCloseTo(24 * 2.25);
+      expect(ui.getBarsReach()).toBe(atRest);
+      expect(atRest).toBeCloseTo(24);
     } finally { ui.destroy(); }
   });
 
@@ -206,7 +204,7 @@ describe('resource wheels on a token', () => {
     try {
       const sprite = computeTokenPixelSize(70, size);
       ui.update({ ...veteran, size }, sprite);
-      const handleReach = getTokenRingCenterRadius(sprite, 4, 1) + (RESIZE_HANDLE_SIZE / 2) * tokenUIScale(sprite);
+      const handleReach = getTokenRingCenterRadius(sprite, 4, 1) + (WHEEL_ANCHOR_OFFSET / 2) * tokenUIScale(sprite);
       const slot = leftSlots(ui)[0]!;
       const wheelRight = leftOf(ui).position.x + (slot.left + slot.width) * leftOf(ui).scale.x;
       expect(wheelRight).toBeLessThan(-handleReach);

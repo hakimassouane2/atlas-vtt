@@ -6,7 +6,7 @@ import type { LayerVisibility } from '../playerSafeFrame';
  * Token UI Manager
  * 
  * Coordinates all UI elements for tokens including health bars, nameplates,
- * controls, rotation handles, and resize handles.
+ * resource controls.
  */
 
 import { Container } from 'pixi.js';
@@ -16,8 +16,6 @@ import type { TokenEntity } from '../../types';
 import type { ViewAtlasState, ViewAtlasStore } from '../../storeFactory';
 import { TokenUIRenderer } from '../TokenUIRenderer';
 import { TOKEN_UI_Z_INDEX, TokenControlsUI } from '../TokenControlsUI';
-import { TokenRotationUI } from '../TokenRotationUI';
-import { TokenResizeUI } from '../TokenResizeUI';
 import type { ConditionDefinition } from '../../types/collectionSettingsTypes';
 import { destroyTree } from '../utils/destroyTree';
 import { restingTokenUIScale } from './tokenSizing';
@@ -37,8 +35,6 @@ export class UIManager implements ITokenUIManager {
   private playerTokenUIs: Record<string, TokenUIRenderer> = {};
   private tokenUIs: Record<string, TokenUIRenderer> = {};
   private tokenControlsUI?: TokenControlsUI;
-  private tokenRotationUI?: TokenRotationUI;
-  private tokenResizeUI?: TokenResizeUI;
   
   // Condition definitions provider — forwarded to each TokenUIRenderer
   public conditionDefsProvider: (() => ConditionDefinition[]) | null = null;
@@ -80,19 +76,12 @@ export class UIManager implements ITokenUIManager {
     // Force viewport to sort children to ensure proper z-ordering
     this.viewport.sortChildren();
     
-    // The GM works every token's controls, a player those of their own tokens; size is the GM's alone
+    // The GM works every token's controls, a player those of their own tokens
     if (!this.isPlayerView || this.player) {
       this.tokenControlsUI = new TokenControlsUI(this.viewport, this.store);
       this.tokenControlsUI.resourceDefsProvider = () => this.resourceDefsProvider();
       this.tokenControlsUI.slotsProvider = (tokenId) => this.tokenUIs[tokenId]?.getResourceSlots() ?? [];
-      this.tokenRotationUI = new TokenRotationUI(this.viewport, this.store);
     }
-    if (!this.isPlayerView) {
-      this.tokenResizeUI = new TokenResizeUI(this.viewport, this.store);
-      // Set up cross-references between rotation and resize UI
-      this.tokenRotationUI!.setResizeUI(this.tokenResizeUI);
-    }
-    
     // Set up subscriptions
     this.setupSubscriptions();
   }
@@ -201,40 +190,6 @@ export class UIManager implements ITokenUIManager {
       }
     }
     
-    // Update rotation UI based on selection
-    if (this.tokenRotationUI) {
-      if (selectedTokenIds.length === 1) {
-        const tokenId = selectedTokenIds[0];
-        if (tokenId) {
-          const tokenSprite = this.getTokenSprite(tokenId);
-          if (tokenSprite) {
-            const sprite = tokenSprite.getChildByLabel('tokenSprite');
-            const tokenSize = sprite?.width || 70;
-            this.tokenRotationUI.show(tokenId, tokenSize);
-          }
-        }
-      } else {
-        this.tokenRotationUI.hide();
-      }
-    }
-    
-    // Update resize UI based on selection
-    if (this.tokenResizeUI) {
-      if (selectedTokenIds.length === 1) {
-        const tokenId = selectedTokenIds[0];
-        if (tokenId) {
-          const tokenSprite = this.getTokenSprite(tokenId);
-          if (tokenSprite) {
-            const sprite = tokenSprite.getChildByLabel('tokenSprite');
-            const tokenSize = sprite?.width || 70;
-            this.tokenResizeUI.show(tokenId, tokenSize);
-          }
-        }
-      } else {
-        this.tokenResizeUI.hide();
-      }
-    }
-    
     // Update selection state for all token UIs
     for (const tokenId in this.tokenUIs) {
       const ui = this.tokenUIs[tokenId];
@@ -271,20 +226,10 @@ export class UIManager implements ITokenUIManager {
         this.barScale(tokenId)
       );
     }
-    
-    if (this.tokenRotationUI) {
-      this.tokenRotationUI.show(tokenId, tokenSize);
-    }
-    
-    if (this.tokenResizeUI) {
-      this.tokenResizeUI.show(tokenId, tokenSize);
-    }
   }
 
   hideTokenControls(): void {
     this.tokenControlsUI?.hide();
-    this.tokenRotationUI?.hide();
-    this.tokenResizeUI?.hide();
   }
 
   destroyTokenUI(tokenId: string): void {
@@ -319,7 +264,7 @@ export class UIManager implements ITokenUIManager {
     for (const tokenId in this.tokenUIs) {
       this.destroyTokenUI(tokenId);
     }
-    // Controls (tokenControlsUI, tokenRotationUI, tokenResizeUI) remain intact
+    // The controls (tokenControlsUI) remain intact
   }
 
   destroyAll(): void {
@@ -330,8 +275,6 @@ export class UIManager implements ITokenUIManager {
     
     // Destroy control UIs
     this.tokenControlsUI?.destroy();
-    this.tokenRotationUI?.destroy();
-    this.tokenResizeUI?.destroy();
     
     // Unsubscribe from stores
     this.unsubscribeSelection?.();
@@ -383,11 +326,6 @@ export class UIManager implements ITokenUIManager {
   /** Scale of `tokenId`'s bars, which its +/- controls match. */
   private barScale(tokenId: string): number {
     return this.tokenUIs[tokenId]?.getUIScale() ?? restingTokenUIScale(this.store.getState().grid?.size ?? 70);
-  }
-
-  updateHandlePositions(): void {
-    this.tokenRotationUI?.updateHandlePositions();
-    this.tokenResizeUI?.updateHandlePositions();
   }
 
   /** Shows or hides a token's UI with its token; while hidden, no later update of the token shows it again. */
@@ -515,11 +453,7 @@ export class UIManager implements ITokenUIManager {
       ui.getContainer().position.copyFrom(sprite.position);
       ui.getContainer().renderable = sprite.visible && !token.isHidden && isSeen(tokenId);
     }
-    const dmControls: Container[] = [
-      ...(this.tokenControlsUI ? [this.tokenControlsUI.getContainer()] : []),
-      ...(this.tokenRotationUI?.getHandles() ?? []),
-      ...(this.tokenResizeUI?.getHandles() ?? []),
-    ];
+    const dmControls: Container[] = this.tokenControlsUI ? [this.tokenControlsUI.getContainer()] : [];
     return [
       { layer: this.uiContainer, visible: false },
       { layer: this.playerUIContainer, visible: true },
@@ -537,13 +471,5 @@ export class UIManager implements ITokenUIManager {
 
   getControlsUI(): TokenControlsUI | undefined {
     return this.tokenControlsUI;
-  }
-
-  getRotationUI(): TokenRotationUI | undefined {
-    return this.tokenRotationUI;
-  }
-
-  getResizeUI(): TokenResizeUI | undefined {
-    return this.tokenResizeUI;
   }
 }

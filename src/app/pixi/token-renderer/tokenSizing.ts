@@ -48,8 +48,8 @@ export function computeTokenPixelSize(gridSize: number, sizeInCells: number): nu
 const TOKEN_UI_REFERENCE_SIZE = computeTokenPixelSize(REFERENCE_CELL_SIZE, 1);
 
 /**
- * Scale of a token's UI (resource bars, nameplate, condition markers, +/- buttons,
- * resize and rotation handles) for a sprite `spriteSize` pixels wide. The UI lives in
+ * Scale of a token's UI (resource bars, nameplate, condition markers, +/- buttons)
+ * for a sprite `spriteSize` pixels wide. The UI lives in
  * world space and keeps its proportions to the token, so it zooms with the map and
  * never hides a small token or shrinks to nothing on a large one.
  */
@@ -57,29 +57,17 @@ export function tokenUIScale(spriteSize: number): number {
   return spriteSize / TOKEN_UI_REFERENCE_SIZE;
 }
 
-/** Diameter of a resize or rotate handle before `tokenUIScale`; what sits beside the token must clear it. */
-export const RESIZE_HANDLE_SIZE = 20;
+/** How far a resource wheel's anchor stands out from the token's ring, before `tokenUIScale`. */
+export const WHEEL_ANCHOR_OFFSET = 20;
 
 /** Height of the nameplate, which lies on the token's bottom edge, in UI units. */
 export const NAMEPLATE_HEIGHT = 14;
 
 /**
- * Scale of a token's bars, nameplate and condition markers while it is not selected or
- * is being dragged: a medium token's on a `gridSize` grid, whatever the token's size,
- * so the bars of huge tokens do not cover the map around them.
+ * Scale of a token's bars, nameplate and condition markers, selected or not: a medium
+ * token's on a `gridSize` grid, whatever the token's size, so the bars of huge tokens do
+ * not cover the map around them. It lives in world space, so it zooms with the map.
  */
 export function restingTokenUIScale(gridSize: number): number {
   return tokenUIScale(computeTokenPixelSize(gridSize, 1));
-}
-
-/** Screen pixels per UI unit of a selected token's bars, whatever the zoom or token size. */
-const SELECTED_TOKEN_UI_SCREEN_SCALE = 2.25;
-
-/**
- * World scale of a selected token's bars at viewport `zoom`: a constant size on screen,
- * like map pins, so they are easy to read and click at any zoom, but never smaller than
- * the resting size (when zoomed far in).
- */
-export function selectedTokenUIScale(restingScale: number, zoom: number): number {
-  return Math.max(restingScale, SELECTED_TOKEN_UI_SCREEN_SCALE / zoom);
 }

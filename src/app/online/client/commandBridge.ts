@@ -34,7 +34,7 @@ export function commandsFor(before: TokenEntity, token: TokenEntity, held: boole
 
 /**
  * Turns the player's edits on their canvas into commands for the DM's Atlas. The canvas edits
- * its own store as Atlas does (drags, the +/- controls, the rotation handle, the menu); the
+ * its own store as Atlas does (drags, the +/- controls, the menu); the
  * bridge sends what changed on the tokens the player controls. The DM's Atlas decides: what it
  * accepts comes back with its changes, and a refused command puts the scene back as it sent it.
  */

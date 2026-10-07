@@ -70,7 +70,6 @@ export class InteractionController implements ITokenInteractionController {
   private updateUIPosition?: (tokenId: string, x: number, y: number) => void;
   private updateControlsPosition?: (x: number, y: number, tokenSize: number) => void;
   private onTokensHeldChange?: (tokenIds: string[]) => void;
-  private updateHandlePositions?: () => void;
   private dragRuler?: DragRuler;
   /** Where a lost pointer is heard while the pointer is down (`watchLostPointer`). */
   private lostPointerTargets: { canvas: HTMLElement; win: Window | null } | null = null;
@@ -502,9 +501,6 @@ export class InteractionController implements ITokenInteractionController {
         }
       }
       
-      // Update handle positions
-      this.updateHandlePositions?.();
-      
     } catch (error) {
       console.error('[InteractionController] Error in onPointerUp handler:', error);
     } finally {
@@ -564,10 +560,6 @@ export class InteractionController implements ITokenInteractionController {
 
   setControlsPositionUpdater(updater: (x: number, y: number, tokenSize: number) => void): void {
     this.updateControlsPosition = updater;
-  }
-
-  setHandlePositionUpdater(updater: () => void): void {
-    this.updateHandlePositions = updater;
   }
 
   /**

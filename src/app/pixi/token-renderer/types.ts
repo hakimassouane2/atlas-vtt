@@ -139,7 +139,7 @@ export interface ITokenUIManager {
   updateSelectionUI(selectedTokenIds: string[]): void;
   
   /**
-   * Shows token controls UI (rotation, resize handles)
+   * Shows token controls UI (the resource +/- controls)
    * @param tokenId The token identifier
    * @param container The token container
    */

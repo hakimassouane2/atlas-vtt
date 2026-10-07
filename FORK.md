@@ -182,6 +182,10 @@ doit rester vert.
 - `gmTokenMenu`, `AtlasContextMenu`, `atlas-context-menu.scss` : le menu MJ du token est rangé en
   groupes (jeu, le token, qui le voit, copies, destruction) séparés par l'entrée `separator` ;
   sous-menus Fiche et Apparence.
+- Tokens : plus de poignées de taille ni de rotation (`TokenResizeUI`, `TokenRotationUI` supprimés) ;
+  Apparence ▸ (Taille, Rotate) agit sur toute la sélection (`tokenRotationMenu.ts`, partagé avec le
+  menu joueur). L'interface d'un token sélectionné (nom, barres, roues, +/-) garde sa taille de repos
+  et zoome avec la carte (`selectedTokenUIScale` supprimé).
 - `PlayerInitiativePanel`, `InitiativeCard` : badge d'instance partagé (`shownInstanceNumber`).
 - `main.ts` : session en ligne, registres (notices, icônes, plateforme). `PlayerView`
   (`atlas-vtt-player`, jamais ouverte) est supprimée.

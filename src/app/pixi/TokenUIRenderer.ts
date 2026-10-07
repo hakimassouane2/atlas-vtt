@@ -7,7 +7,6 @@ import { barDimensions } from '../styles/designTokens';
 import { TokenConditionsUI, type TokenConditionsLayout } from './token-renderer/TokenConditionsUI';
 import { isNameplateVisible } from './token-renderer/nameplateVisibility';
 import type { ConditionDefinition } from '../types/collectionSettingsTypes';
-import type { TokenGestureEventDetail } from '../types/atlasWindowEvents';
 import { ResourceStack, type ResourceSlot } from './token-renderer/resources/ResourceStack';
 import { ResourceWheels } from './token-renderer/resources/ResourceWheels';
 import { wheelAnchor } from './token-renderer/resources/wheelAnchor';
@@ -15,10 +14,9 @@ import type { ResourceDefsProvider, ResourceViewer, VisibleResource } from '../r
 import { isDefeated, isSpent } from '../resources/resourceValues';
 import { shapeOf, visibleResources } from '../resources/visibleResources';
 import { destroyTree } from './utils/destroyTree';
-import { computeTokenStrokeWidth, NAMEPLATE_HEIGHT, restingTokenUIScale, selectedTokenUIScale } from './token-renderer/tokenSizing';
+import { computeTokenStrokeWidth, NAMEPLATE_HEIGHT, restingTokenUIScale } from './token-renderer/tokenSizing';
 import { getTokenRingCenterRadius } from './token-renderer/tokenRingMetrics';
-import { ValueTransition } from './utils/ValueTransition';
-import { MOTION_SLOW_MS, prefersReducedMotion } from '../utils/motion';
+import { prefersReducedMotion } from '../utils/motion';
 import { t } from '../i18n';
 
 /**
@@ -49,7 +47,6 @@ export class TokenUIRenderer {
   /** Bars and nameplate, anchored at the token's bottom edge and scaled with the token. */
   private belowToken: Container;
   /** Eases the UI between its resting scale (0) and a selected token's on-screen size (1). */
-  private emphasis: ValueTransition;
   /** The resources of the bar slots, one view per resource. */
   private resources: ResourceStack;
   /** Anchor past the right resize button on the token's bottom edge (`wheelAnchor`), scaled like `belowToken`; holds the wheels of the right side. */
@@ -81,8 +78,6 @@ export class TokenUIRenderer {
   private fadeAnimation: number | null = null;
   private store: StoreApi<ViewAtlasState> | undefined;
   private lastUpdateData: string = ''; // Cache for checking if update is needed
-  private isHiddenDuringResize: boolean = false;
-  private isHiddenDuringRotation: boolean = false;
 
   // Name badge elements
   private nameBadge: Graphics;
@@ -123,7 +118,6 @@ export class TokenUIRenderer {
     this.leftOfToken.addChild(this.wheels.left);
     // Conditions come last, so the hover card lies above this token's own bars and wheels
     this.container.addChild(this.belowToken, this.besideToken, this.leftOfToken, this.conditionUI.container);
-    this.emphasis = new ValueTransition(0, MOTION_SLOW_MS, () => this.layoutUIScale());
     
     this.resources = new ResourceStack(ticker);
     this.resources.view.zIndex = 10; // Above the nameplate, below the defeated overlay
@@ -192,99 +186,11 @@ export class TokenUIRenderer {
     // Initially visible
     this.container.visible = true;
     this.container.alpha = 1;
-    
-    
+
     // Set up theme observer
     this.setupThemeObserver();
-
-    this.setupGestureListeners();
   }
 
-  private setupGestureListeners(): void {
-    // Listen for token resize events to hide/show UI elements
-    window.addEventListener('atlas-token-resize-started', this.onResizeStarted);
-    window.addEventListener('atlas-token-resize-ended', this.onResizeEnded);
-    
-    // Listen for token rotation events to hide/show UI elements
-    window.addEventListener('atlas-token-rotation-started', this.onRotationStarted);
-    window.addEventListener('atlas-token-rotation-ended', this.onRotationEnded);
-  }
-  
-  /**
-   * Handle resize started events - hide UI elements except resize handles
-   */
-  private onResizeStarted = (e: CustomEvent<TokenGestureEventDetail>): void => {
-    const resizingTokenIds = e.detail.tokenIds;
-    
-    // Only hide UI if this token is being resized
-    if (this.currentToken && resizingTokenIds.includes(this.currentToken.id)) {
-      this.isHiddenDuringResize = true;
-      
-      // Hide resources and status badges during resize
-      this.resources.view.visible = false;
-      this.setWheelsVisible(false);
-      this.nameBadge.visible = false;
-      this.nameText.visible = false;
-      this.conditionUI.setHidden(true);
-    }
-  };
-
-  /**
-   * Handle resize ended events - show UI elements again
-   */
-  private onResizeEnded = (e: CustomEvent<TokenGestureEventDetail>): void => {
-    const resizedTokenIds = e.detail.tokenIds;
-    
-    // Only restore UI if this token was being resized
-    if (this.currentToken && resizedTokenIds.includes(this.currentToken.id)) {
-      this.isHiddenDuringResize = false;
-      
-      // Force a re-render to show UI elements with correct visibility
-      if (this.currentTokenSize > 0) {
-        this.lastUpdateData = ''; // Clear cache to force update
-        this.update(this.currentToken, this.currentTokenSize);
-      }
-    }
-  };
-  
-  /**
-   * Handle rotation started events - hide UI elements except rotation handles
-   */
-  private onRotationStarted = (e: CustomEvent<TokenGestureEventDetail>): void => {
-    const rotatingTokenIds = e.detail.tokenIds;
-    
-    // Only hide UI if this token is being rotated
-    if (this.currentToken && rotatingTokenIds.includes(this.currentToken.id)) {
-      this.isHiddenDuringRotation = true;
-      
-      // Hide resources and status badges during rotation
-      this.resources.view.visible = false;
-      this.setWheelsVisible(false);
-      this.defeatedOverlay.visible = false;
-      this.nameBadge.visible = false;
-      this.nameText.visible = false;
-      this.conditionUI.setHidden(true);
-    }
-  };
-  
-  /**
-   * Handle rotation ended events - show UI elements again
-   */
-  private onRotationEnded = (e: CustomEvent<TokenGestureEventDetail>): void => {
-    const rotatedTokenIds = e.detail.tokenIds;
-    
-    // Only restore UI if this token was being rotated
-    if (this.currentToken && rotatedTokenIds.includes(this.currentToken.id)) {
-      this.isHiddenDuringRotation = false;
-      
-      // Force a re-render to show UI elements with correct visibility
-      if (this.currentTokenSize > 0) {
-        this.lastUpdateData = ''; // Clear cache to force update
-        this.update(this.currentToken, this.currentTokenSize);
-      }
-    }
-  };
-  
   private setupThemeObserver(): void {
     if (this.themeObserver) {
       this.themeObserver.disconnect();
@@ -367,7 +273,6 @@ export class TokenUIRenderer {
     this.leftOfToken.position.set(-anchor.x, anchor.y);
     this.layoutUIScale();
     this.refreshConditions();
-    this.conditionUI.setHidden(this.isHiddenDuringResize || this.isHiddenDuringRotation);
 
     // Before the early return: the controls lay out from the stack's slots, which must empty with it
     const baseGap = 2; // Gap between token and first bar
@@ -439,15 +344,14 @@ export class TokenUIRenderer {
       this.nameText.scale.set(0.333); // Fixed text scale
     }
     
-    // Hide unused elements (but respect resize and rotation hidden state)
-    const isHidden = this.isHiddenDuringResize || this.isHiddenDuringRotation;
-    this.resources.view.visible = bars.length > 0 && !isHidden;
-    this.setWheelsVisible(!isHidden);
+    // Hide unused elements
+    this.resources.view.visible = bars.length > 0;
+    this.setWheelsVisible(true);
     this.difficultyBadge.visible = false; // Never show difficulty badge
-    this.defeatedOverlay.visible = defeatedSlot !== undefined && !isHidden;
+    this.defeatedOverlay.visible = defeatedSlot !== undefined;
     const hasDisplayName = showNameplate && !!displayName;
-    this.nameBadge.visible = hasDisplayName && !isHidden; // Only show if enabled, has name, and not hidden
-    this.nameText.visible = hasDisplayName && !isHidden; // Only show if enabled, has name, and not hidden
+    this.nameBadge.visible = hasDisplayName; // Only show if enabled and has a name
+    this.nameText.visible = hasDisplayName;
   }
   
   /** The bar of the first shown resource whose spending defeated the token. */
@@ -466,14 +370,12 @@ export class TokenUIRenderer {
   }
 
   /**
-   * How far this token's bars reach below it while it is selected, in world units; the
-   * selection frame encloses them. The wheels stand outside the frame. Taken at the selected
-   * size itself, not at the size the UI is still growing from, so the frame drawn when the
-   * selection changes fits.
+   * How far this token's bars reach below it, in world units; the selection frame encloses
+   * them. The wheels stand outside the frame.
    */
   public getBarsReach(): number {
     const bars = this.resources.view.visible ? this.resources.layout() : [];
-    return Math.max(0, ...bars.map((slot) => slot.top + slot.height)) * this.selectedScale();
+    return Math.max(0, ...bars.map((slot) => slot.top + slot.height)) * this.restingScale();
   }
 
   private canAnimateValues(): boolean {
@@ -484,7 +386,7 @@ export class TokenUIRenderer {
     return this.container;
   }
 
-  /** Current scale of the bars, nameplate and condition markers, including mid-transition. */
+  /** Scale of the bars, nameplate and condition markers. */
   public getUIScale(): number {
     return this.belowToken.scale.x;
   }
@@ -539,41 +441,25 @@ export class TokenUIRenderer {
     return this.hasContent;
   }
 
-  /** Marks the pointer as down on this token; a held or dragged token keeps its UI at rest. */
+  /** Marks the pointer as down on this token; a held or dragged token shows no conditions card. */
   public setHeld(held: boolean): void {
     if (this.isHeld === held) return;
     this.isHeld = held;
-    this.updateEmphasis();
     this.updateConditionCard();
   }
 
-  /** Eases the UI to a selected token's on-screen size, or back to rest while unselected or held. */
-  private updateEmphasis(): void {
-    const target = this.isSelected && !this.isHeld ? 1 : 0;
-    if (target === this.emphasis.targetValue) return;
-    if (prefersReducedMotion(document.body)) this.emphasis.jumpTo(target);
-    else this.emphasis.animateTo(target);
+  /** The scale of the token's UI: a medium token's on this grid, selected or not, so it zooms with the map like the token. */
+  private restingScale(): number {
+    return restingTokenUIScale(this.store?.getState().grid?.size ?? 70);
   }
 
-  /** The scale of a selected token's UI: its constant size on screen, never below the resting size. */
-  private selectedScale(): number {
-    const resting = restingTokenUIScale(this.store?.getState().grid?.size ?? 70);
-    const zoom = this.zoomProvider?.();
-    return zoom ? selectedTokenUIScale(resting, zoom) : resting;
-  }
-
-  /**
-   * Scales both anchors between `restingTokenUIScale` and `selectedTokenUIScale` by the
-   * current emphasis. The selected size follows the zoom, so it is recomputed on every call.
-   */
+  /** Scales the anchors to the resting UI scale. */
   private layoutUIScale(): void {
-    const resting = restingTokenUIScale(this.store?.getState().grid?.size ?? 70);
-    const scale = resting + (this.selectedScale() - resting) * this.emphasis.value;
+    const scale = this.restingScale();
     this.belowToken.scale.set(scale);
     this.besideToken.scale.set(scale);
     this.leftOfToken.scale.set(scale);
-    // A selected token's text keeps a constant screen size, which the resting resolution covers
-    this.setTextResolution(textResolutionFor(resting));
+    this.setTextResolution(textResolutionFor(scale));
     this.onScaleChange?.(scale);
   }
 
@@ -604,7 +490,6 @@ export class TokenUIRenderer {
     if (this.isSelected === selected) return;
     this.isSelected = selected;
     this.container.zIndex = selected ? SELECTED_Z_INDEX : RESTING_Z_INDEX;
-    this.updateEmphasis();
     this.updateConditionCard();
     this.updateTextVisibility();
   }
@@ -663,7 +548,6 @@ export class TokenUIRenderer {
   destroy(): void {
     // End any active editing
     this.endNameEdit();
-    this.emphasis.cancel();
     this.resources.destroy();
     this.wheels.destroy();
     
@@ -682,12 +566,6 @@ export class TokenUIRenderer {
       this.editThemeObserver.disconnect();
       this.editThemeObserver = null;
     }
-    
-    // Clean up window listeners
-    window.removeEventListener('atlas-token-resize-started', this.onResizeStarted);
-    window.removeEventListener('atlas-token-resize-ended', this.onResizeEnded);
-    window.removeEventListener('atlas-token-rotation-started', this.onRotationStarted);
-    window.removeEventListener('atlas-token-rotation-ended', this.onRotationEnded);
     
     this.conditionUI.destroy();
 

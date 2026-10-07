@@ -4,9 +4,9 @@ import { Circle, Container, EventBoundary, Texture } from 'pixi.js';
 import { SpriteFactory } from '../../src/app/pixi/token-renderer/SpriteFactory';
 
 /**
- * Resize/rotation handles are added as children of the token group. PIXI prunes
+ * Interactive children of the token group must stay hit-testable. PIXI prunes
  * a `passive` container with `interactiveChildren=false` from hit-testing
- * entirely, which would make those handles unclickable.
+ * entirely, which would make such children unclickable.
  */
 describe('token group handle hit-testing', () => {
   it('lets a static child handle receive the hit', async () => {

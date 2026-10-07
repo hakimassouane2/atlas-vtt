@@ -1,6 +1,6 @@
 import type { NotePin } from '../types';
 
-/** Tokens affected by a resize, rotation or drag gesture. */
+/** Tokens affected by a drag or size change. */
 export interface TokenGestureEventDetail {
   tokenIds: string[];
 }
@@ -21,13 +21,7 @@ export interface ViewportPositionRequestDetail {
 declare global {
   /** Custom events Atlas VTT dispatches on `window` to coordinate its PIXI layers. */
   interface WindowEventMap {
-    'atlas-token-resize-started': CustomEvent<TokenGestureEventDetail>;
-    'atlas-token-resize-ended': CustomEvent<TokenGestureEventDetail>;
-    'atlas-token-rotation-started': CustomEvent<TokenGestureEventDetail>;
-    'atlas-token-rotation-ended': CustomEvent<TokenGestureEventDetail>;
     'atlas-token-size-changing': CustomEvent<TokenGestureEventDetail>;
-    'atlas-tokens-resize-update': CustomEvent<TokenGestureEventDetail>;
-    'atlas-tokens-rotation-update': CustomEvent<TokenGestureEventDetail>;
     'atlas-tokens-drag-update': CustomEvent<TokenGestureEventDetail>;
     'atlas-pin-action': CustomEvent<PinActionEventDetail>;
     'get-viewport-position': CustomEvent<ViewportPositionRequestDetail>;

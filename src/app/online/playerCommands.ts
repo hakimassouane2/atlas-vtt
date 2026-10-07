@@ -20,7 +20,7 @@ export type PlayerCommand =
   | { type: 'move'; id: string; x: number; y: number }
   /** Where a token the player drags is now, for everyone to see it move; the drop is a `move`. */
   | { type: 'drag'; id: string; x: number; y: number }
-  /** Turns the token to `rotation` degrees, as the rotation handle does. */
+  /** Turns the token to `rotation` degrees, as the token menu's Rotate does. */
   | { type: 'rotate'; id: string; rotation: number }
   /** Sets the current value of the resource `key`, one the collection shows players. */
   | { type: 'resource'; id: string; key: string; current: number }

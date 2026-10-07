@@ -5,7 +5,6 @@ import type { TokenUpdates, ViewAtlasState } from '../storeFactory';
 import type { StoreApi } from 'zustand';
 import { colors, barDimensions } from '../styles/designTokens';
 import { toError } from '../utils/errors';
-import type { TokenGestureEventDetail } from '../types/atlasWindowEvents';
 import { openResourceEditor, type BarAnchor, type ResourceEditor, type ResourceValue } from './tokenValueEditor';
 import { ResourceBarHitArea } from './ResourceBarHitArea';
 import { destroyTree } from './utils/destroyTree';
@@ -45,8 +44,6 @@ export class TokenControlsUI {
   private store: StoreApi<ViewAtlasState>;
   private currentTokenId: string | null = null;
   private buttons: ControlButton[] = [];
-  private isHiddenDuringResize: boolean = false;
-  private isHiddenDuringRotation: boolean = false;
   private isDestroyed: boolean = false;
 
   /** Controls per resource key, created when the resource first shows and reused after. */
@@ -105,14 +102,6 @@ export class TokenControlsUI {
 
     // Add to viewport
     this.viewport.addChild(this.container);
-    
-    // Listen for resize events to hide/show controls
-    window.addEventListener('atlas-token-resize-started', this.onResizeStarted);
-    window.addEventListener('atlas-token-resize-ended', this.onResizeEnded);
-    
-    // Listen for rotation events to hide/show controls
-    window.addEventListener('atlas-token-rotation-started', this.onRotationStarted);
-    window.addEventListener('atlas-token-rotation-ended', this.onRotationEnded);
   }
   
   private async initializeIconTextures(): Promise<void> {
@@ -278,8 +267,7 @@ export class TokenControlsUI {
     // Update button visibility and handlers
     this.updateButtons(token);
     
-    // Make container visible (unless hidden during resize or rotation)
-    this.container.visible = !this.isHiddenDuringResize && !this.isHiddenDuringRotation;
+    this.container.visible = true;
   }
   
   public hide(): void {
@@ -424,64 +412,6 @@ export class TokenControlsUI {
     }
   }
   
-  /**
-   * Handle resize started events - hide controls
-   */
-  private onResizeStarted = (e: CustomEvent<TokenGestureEventDetail>): void => {
-    const resizingTokenIds = e.detail.tokenIds;
-    
-    // Only hide controls if this token is being resized
-    if (this.currentTokenId && resizingTokenIds.includes(this.currentTokenId)) {
-      this.isHiddenDuringResize = true;
-      this.container.visible = false;
-    }
-  };
-  
-  /**
-   * Handle resize ended events - show controls if they should be visible
-   */
-  private onResizeEnded = (e: CustomEvent<TokenGestureEventDetail>): void => {
-    const resizedTokenIds = e.detail.tokenIds;
-    
-    // Only restore controls if this token was being resized
-    if (this.currentTokenId && resizedTokenIds.includes(this.currentTokenId)) {
-      this.isHiddenDuringResize = false;
-      // Restore visibility if not hidden by other operations
-      if (!this.isHiddenDuringRotation) {
-        this.container.visible = true;
-      }
-    }
-  };
-  
-  /**
-   * Handle rotation started events - hide controls
-   */
-  private onRotationStarted = (e: CustomEvent<TokenGestureEventDetail>): void => {
-    const rotatingTokenIds = e.detail.tokenIds;
-    
-    // Only hide controls if this token is being rotated
-    if (this.currentTokenId && rotatingTokenIds.includes(this.currentTokenId)) {
-      this.isHiddenDuringRotation = true;
-      this.container.visible = false;
-    }
-  };
-  
-  /**
-   * Handle rotation ended events - show controls if they should be visible
-   */
-  private onRotationEnded = (e: CustomEvent<TokenGestureEventDetail>): void => {
-    const rotatedTokenIds = e.detail.tokenIds;
-    
-    // Only restore controls if this token was being rotated
-    if (this.currentTokenId && rotatedTokenIds.includes(this.currentTokenId)) {
-      this.isHiddenDuringRotation = false;
-      // Restore visibility if not hidden by other operations
-      if (!this.isHiddenDuringResize) {
-        this.container.visible = true;
-      }
-    }
-  };
-  
   public getContainer(): Container {
     return this.container;
   }
@@ -489,14 +419,6 @@ export class TokenControlsUI {
   public destroy(): void {
     // Mark as destroyed to prevent async operations
     this.isDestroyed = true;
-    
-    // Remove resize event listeners
-    window.removeEventListener('atlas-token-resize-started', this.onResizeStarted);
-    window.removeEventListener('atlas-token-resize-ended', this.onResizeEnded);
-    
-    // Remove rotation event listeners
-    window.removeEventListener('atlas-token-rotation-started', this.onRotationStarted);
-    window.removeEventListener('atlas-token-rotation-ended', this.onRotationEnded);
     
     this.editor?.close();
 

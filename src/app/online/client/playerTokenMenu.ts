@@ -5,9 +5,7 @@ import { openContextMenuGlobal } from '../../ui/contextMenus';
 import { conditionsSubmenu } from '../../react/components/context-menu/conditionsMenu';
 import { resourceUpdate, withCurrent } from '../../resources/resourceValues';
 import { visibleResources } from '../../resources/visibleResources';
-
-/** How far a step of the menu turns a token, in degrees. */
-const ROTATION_STEP = 45;
+import { tokenRotationSubmenu } from '../../react/components/context-menu/tokenRotationMenu';
 
 /**
  * A player's token menu: what the player may change on a token they control (its resources,
@@ -37,19 +35,7 @@ function playerTokenMenuEntries(canvas: TokenMenuCanvas, tokenId: string): Conte
   const conditions = canvas.conditions();
   if (conditions.length > 0) entries.push(conditionsSubmenu(store, conditions, [tokenId]));
 
-  const turn = (degrees: number): void => {
-    const rotation = ((current()?.rotation ?? 0) + degrees + 360) % 360;
-    store.getState().updateToken(tokenId, { rotation });
-  };
-  entries.push({
-    type: 'submenu',
-    label: 'Rotate',
-    icon: 'rotate-cw',
-    children: [
-      { type: 'item', label: `${ROTATION_STEP}° left`, icon: 'rotate-ccw', keepOpen: true, onClick: () => turn(-ROTATION_STEP) },
-      { type: 'item', label: `${ROTATION_STEP}° right`, icon: 'rotate-cw', keepOpen: true, onClick: () => turn(ROTATION_STEP) },
-    ],
-  });
+  entries.push(tokenRotationSubmenu(store, [tokenId]));
   return entries;
 }
 

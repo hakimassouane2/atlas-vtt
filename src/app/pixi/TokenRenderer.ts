@@ -9,7 +9,6 @@ import { Sprite, Container, Graphics, Application, FederatedPointerEvent } from 
 import { Viewport } from "pixi-viewport";
 import type { CanvasHost } from '../canvas/canvasHost';
 import type { TokenEntity } from "../types";
-import type { TokenGestureEventDetail } from '../types/atlasWindowEvents';
 import type { GridSystem } from "../grid/GridSystem";
 import { getDrawingBounds } from "./drawingGeometry";
 import type { ViewAtlasStore } from '../storeFactory';
@@ -91,16 +90,11 @@ export class TokenRenderer {
   private mapLoadGeneration = 0;
   private allTokensLoadedCallbacks: Array<() => void> = [];
   private viewId: string;
-  private themeObserver: MutationObserver | null = null;
   private isLocalPlayerMode: boolean = false;
   private isDestroyed = false;
 
   // Store event handlers for proper cleanup
   private _handleGridTypeChange?: EventListener;
-  private _handleRotationUpdate?: (event: CustomEvent<TokenGestureEventDetail>) => void;
-  private _handleResizeUpdate?: (event: CustomEvent<TokenGestureEventDetail>) => void;
-  private _handleRotationEnded?: EventListener;
-  private _handleResizeEnded?: EventListener;
 
   // Fog provider pattern — wired by PixiRendererOrchestrator
   private fogHitTestProvider?: (worldX: number, worldY: number) => string | null;
@@ -196,9 +190,6 @@ export class TokenRenderer {
     this.interactionController.setControlsPositionUpdater((x: number, y: number, tokenSize: number) =>
       this.uiManager.updateControlsPosition(x, y, tokenSize)
     );
-    this.interactionController.setHandlePositionUpdater(() => 
-      this.uiManager.updateHandlePositions()
-    );
     this.interactionController.setTokensHeldCallback((tokenIds) => {
       this.uiManager.setTokensHeld(tokenIds);
       this.heldTokenIds = new Set(tokenIds);
@@ -280,7 +271,6 @@ export class TokenRenderer {
     
     
     // Set up theme observer
-    this.setupThemeObserver();
     
     
     
@@ -337,7 +327,6 @@ export class TokenRenderer {
       this.tokenRings = {};
       
       // Clear only token-specific UI elements, not the singleton controls
-      // This preserves TokenControlsUI, TokenRotationUI, and TokenResizeUI
       this.uiManager.destroyAllTokenUIs();
       
       // Clear selection to ensure controls are hidden
@@ -358,79 +347,6 @@ export class TokenRenderer {
     };
 
     window.addEventListener('atlas-grid-type-changed', this._handleGridTypeChange);
-    
-    // Listen for rotation updates during drag
-    this._handleRotationUpdate = (event): void => {
-      const tokenIds = event.detail?.tokenIds || [];
-      const tokens = this.store.getState().objects.tokens;
-
-      // Apply the temporary rotation directly; syncTokens would skip the
-      // token as unchanged because the store value has not moved yet.
-      for (const tokenId of tokenIds) {
-        const tokenGroup = this.tokenSprites[tokenId];
-        const tempRotation = this.uiManager.getRotationUI()?.getTemporaryRotation(tokenId);
-        if (tokens[tokenId] && tokenGroup instanceof Container && tempRotation !== undefined) {
-          this.spriteFactory.updateTokenRotation(tokenGroup, tempRotation);
-          this.uiManager.updateHandlePositions();
-        }
-      }
-    };
-
-    window.addEventListener('atlas-tokens-rotation-update', this._handleRotationUpdate);
-    
-    // Listen for rotation start/end events to manage UI visibility
-    this._handleRotationEnded = ((event: Event) => {
-      // Re-show resize handles if tokens are still selected
-      const selectedIds = this.store.getState().selectedIds;
-      const isPlayerView = this.store.getState().isPlayerView;
-
-      if (!isPlayerView && selectedIds.length > 0) {
-        // Show resize handles for all selected tokens
-        this.uiManager.getResizeUI()?.showHandles(selectedIds, this.getTokenSprites());
-      }
-    });
-
-    // Listen for resize end events to re-show rotation handles
-    this._handleResizeEnded = ((event: Event) => {
-      // Re-show rotation handles if tokens are still selected
-      const selectedIds = this.store.getState().selectedIds;
-      const isPlayerView = this.store.getState().isPlayerView;
-
-      if (!isPlayerView && selectedIds.length > 0) {
-        // Show rotation handles for all selected tokens
-        this.uiManager.getRotationUI()?.showHandles(selectedIds, this.getTokenSprites());
-      }
-    });
-
-    window.addEventListener('atlas-token-rotation-ended', this._handleRotationEnded);
-    window.addEventListener('atlas-token-resize-ended', this._handleResizeEnded);
-    
-    // Listen for resize updates during drag
-    this._handleResizeUpdate = (event): void => {
-      const tokenIds = event.detail?.tokenIds || [];
-      const tokens = this.store.getState().objects.tokens;
-
-      // Get temporary sizes from resize UI
-      for (const tokenId of tokenIds) {
-        const token = tokens[tokenId];
-        if (token) {
-          const tempSize = this.uiManager.getResizeUI()?.getTemporarySize(tokenId);
-          if (tempSize !== undefined) {
-            // Update the visual size without storing to state
-            const tokenGroup = this.tokenSprites[tokenId];
-            if (tokenGroup instanceof Container) {
-              this.spriteFactory.updateTokenSize(tokenId, tokenGroup, tempSize);
-              const tokenSize = computeTokenPixelSize(this.gridSystem.getOptions().size, tempSize);
-              this.uiManager.syncUIScale(tokenId, tokenSize);
-              this.updateTokenRing(tokenId, tokenGroup, tokenSize, token.ringColor);
-            }
-          }
-        }
-      }
-      this.selectionOverlayUpdater();
-    };
-
-    window.addEventListener('atlas-tokens-resize-update', this._handleResizeUpdate);
     
     // Condition badges follow edits to the map's collection conditions
     const stopCollectionChanges = host.collections.onChanged((collectionId) => {
@@ -758,51 +674,21 @@ export class TokenRenderer {
             existingTokenGroup.position.set(token.x, token.y);
             this.uiManager.syncUIPosition(token.id, token.x, token.y);
           }
-          
-          // Update rotation handle positions when token moves
-          this.uiManager.updateHandlePositions();
         }
-        
-        // Update rotation if it changed or if there's a temporary rotation
-        const tempRotation = this.uiManager.getRotationUI()?.getTemporaryRotation(token.id);
-        const displayRotation = tempRotation !== undefined ? tempRotation : (token.rotation || 0);
-        this.spriteFactory.updateTokenRotation(existingTokenGroup, displayRotation);
-        
-        // Update rotation handle positions when token rotates
-        if (!prevToken || prevToken.rotation !== token.rotation || tempRotation !== undefined) {
-          this.uiManager.updateHandlePositions();
-        }
-        
-        // Check for temporary size during resize
-        const tempSize = this.uiManager.getResizeUI()?.getTemporarySize(token.id);
-        
-        // Update resize handle positions when token size changes
-        const sizeChanged = !prevToken || prevToken.size !== token.size || tempSize !== undefined;
-        if (sizeChanged) {
-          this.uiManager.getResizeUI()?.updateHandlePositions();
-          // Also update rotation handles since token size affects their position
-          // Build temporary sizes map for all tokens
-          const tempSizes: Record<string, number> = {};
-          if (tempSize !== undefined) {
-            tempSizes[token.id] = tempSize;
-          }
-          this.uiManager.getRotationUI()?.updateHandlePositions(undefined, tempSizes);
-        }
-        
-        // Update size if it changed (not temporary)
+
+        this.spriteFactory.updateTokenRotation(existingTokenGroup, token.rotation || 0);
+
+        // Update size if it changed
         if (!prevToken || prevToken.size !== token.size) {
-          // Only update actual size if there's no temporary size override
-          if (tempSize === undefined) {
-            const newSize = token.size || 1;
-            this.spriteFactory.updateTokenSize(token.id, existingTokenGroup, newSize);
-            const tokenSize = computeTokenPixelSize(this.gridSystem.getOptions().size, newSize);
-            
-            // Update UI scale
-            this.uiManager.syncUIScale(token.id, tokenSize);
-            
-            // Always refresh ring, even when token has no explicit ringColor.
-            this.updateTokenRing(token.id, existingTokenGroup, tokenSize, token.ringColor);
-          }
+          const newSize = token.size || 1;
+          this.spriteFactory.updateTokenSize(token.id, existingTokenGroup, newSize);
+          const tokenSize = computeTokenPixelSize(this.gridSystem.getOptions().size, newSize);
+
+          // Update UI scale
+          this.uiManager.syncUIScale(token.id, tokenSize);
+
+          // Always refresh ring, even when token has no explicit ringColor.
+          this.updateTokenRing(token.id, existingTokenGroup, tokenSize, token.ringColor);
         }
 
         if (!prevToken || token.imagePath !== prevToken.imagePath) {
@@ -827,8 +713,7 @@ export class TokenRenderer {
         const prevRingColor = prevToken?.ringColor;
         if (newRingColor !== prevRingColor || token.showRing !== prevToken?.showRing) {
           // Calculate token size for ring update
-          const currentSize = tempSize !== undefined ? tempSize : (token.size || 1);
-          const tokenSize = computeTokenPixelSize(this.gridSystem.getOptions().size, currentSize);
+          const tokenSize = computeTokenPixelSize(this.gridSystem.getOptions().size, token.size || 1);
           
           this.updateTokenRing(token.id, existingTokenGroup, tokenSize, newRingColor);
         }
@@ -1084,12 +969,6 @@ export class TokenRenderer {
     this.dragRuler.destroy();
     this.playerSight.destroy();
     
-    // Clean up theme observer
-    if (this.themeObserver) {
-      this.themeObserver.disconnect();
-      this.themeObserver = null;
-    }
-    
     // Clean up event listeners
     // Remove window event listeners using properly typed handlers
     if (this._handleGridTypeChange) {
@@ -1097,26 +976,6 @@ export class TokenRenderer {
       delete this._handleGridTypeChange;
     }
 
-    if (this._handleRotationUpdate) {
-      window.removeEventListener('atlas-tokens-rotation-update', this._handleRotationUpdate);
-      delete this._handleRotationUpdate;
-    }
-
-    if (this._handleResizeUpdate) {
-      window.removeEventListener('atlas-tokens-resize-update', this._handleResizeUpdate);
-      delete this._handleResizeUpdate;
-    }
-
-    if (this._handleRotationEnded) {
-      window.removeEventListener('atlas-token-rotation-ended', this._handleRotationEnded);
-      delete this._handleRotationEnded;
-    }
-
-    if (this._handleResizeEnded) {
-      window.removeEventListener('atlas-token-resize-ended', this._handleResizeEnded);
-      delete this._handleResizeEnded;
-    }
-    
     // Now destroy the container and its children. 
     // Textures associated with sprites in tokenContainer should be handled by PixiAppManager.destroy
     // if they were not individually destroyed from the cache.
@@ -1139,27 +998,6 @@ export class TokenRenderer {
     if (this.isDestroyed) return;
     this.uiManager.refreshConditions();
     this.uiManager.refreshResources();
-  }
-
-  /**
-   * Setup theme observer to update UI when theme changes
-   */
-  private setupThemeObserver(): void {
-    this.themeObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          // Theme changed, update rotation and resize handles
-          this.uiManager.getRotationUI()?.updateTheme();
-          this.uiManager.getResizeUI()?.updateTheme();
-        }
-      }
-    });
-    
-    // Start observing
-    this.themeObserver.observe(document.body, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
   }
 
   /**

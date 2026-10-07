@@ -6,6 +6,7 @@ import type { ContextMenuEntry } from './AtlasContextMenu';
 import { openContextMenuGlobal, closeContextMenuGlobal } from '../../../ui/contextMenus';
 import { conditionsSubmenu } from './conditionsMenu';
 import { tokenSizeSubmenu } from './tokenSizeMenu';
+import { tokenRotationSubmenu } from './tokenRotationMenu';
 import { playersSubmenu } from './playersMenu';
 import { mapPlayers } from '../../../players/playerProfiles';
 import { AssetService } from '../../../services/AssetService';
@@ -97,7 +98,7 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
       icon: 'edit',
       onClick: () => openEditTokenModal(token, store, app, canvas.resources()),
     },
-    appearanceSubmenu(canvas, token),
+    appearanceSubmenu(canvas, token, targets),
   );
 
   // Who sees it and who moves it
@@ -150,14 +151,16 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   return entries;
 }
 
-/** Size and ring colour of the clicked token. */
-function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity): ContextMenuEntry {
+/** Size and rotation of the selection the token belongs to (one undo step each), and the clicked token's ring colour. */
+function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity, targets: string[]): ContextMenuEntry {
   const size = tokenSizeSubmenu(token.size, (newSize) => {
-    const { grid, objects, updateToken } = store.getState();
-    const current = objects.tokens[token.id];
-    if (!current) return;
-    const center = resizedTokenCenter(current, current.size || 1, newSize, grid);
-    updateToken(token.id, { size: newSize, x: center.x, y: center.y });
+    const { grid, objects, updateTokens } = store.getState();
+    updateTokens(targets.flatMap((id) => {
+      const current = objects.tokens[id];
+      if (!current) return [];
+      const center = resizedTokenCenter(current, current.size || 1, newSize, grid);
+      return [{ id, changes: { size: newSize, x: center.x, y: center.y } }];
+    }));
   });
   const ringColor: ContextMenuEntry = {
     type: 'submenu',
@@ -170,7 +173,7 @@ function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity): Cont
       onClick: () => store.getState().setTokenRing(token.id, color.value),
     })),
   };
-  return { type: 'submenu', label: t('token.appearance'), icon: 'paintbrush', children: [size, ringColor] };
+  return { type: 'submenu', label: t('token.appearance'), icon: 'paintbrush', children: [size, tokenRotationSubmenu(store, targets), ringColor] };
 }
 
 /** A linked statblock opens or unlinks from its own submenu; an unlinked token offers to link one. */
