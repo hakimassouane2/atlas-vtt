@@ -1,3 +1,10 @@
+# Fork workflow (always, after every change)
+This repo is the user's fork (`FORK.md`). Once a change is done and its checks pass, without being asked:
+1. **Build into the game vault**: `npm run build` (it must end with `Copied plugin artifacts to obsidian-jdr`; the vaults are `GAME_VAULTS` in `scripts/worktree-targets.js`), then restore the line endings the build rewrites: `git checkout -- CHANGELOG.md src/app/changelog/releases.json`. Tell the user to switch Atlas off and on in Obsidian (or restart it).
+2. **Record it in `FORK.md`** when it changes what differs from upstream.
+3. **Commit** on `main` (or the temporary feature branch) with a message in the repo's style.
+4. **Push** to `origin` (the fork). Never push to `upstream`.
+
 # Context
 - We are working on Atlas VTT, a Virtual Tabletop plugin for Obsidian.md
 - **IMPORTANT**: We use PIXI.js v8 (not v7). Obsidian bundles PIXI v7 globally, but we must use our own PIXI v8 imports.
