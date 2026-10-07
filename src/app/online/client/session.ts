@@ -9,6 +9,11 @@ export function setPlayerId(id: string): void {
   playerId = id;
 }
 
+/** The page's connection, by which the DM's Atlas names its player's ruler; null before the stream opened. */
+export function currentPlayerId(): string | null {
+  return playerId;
+}
+
 /** `path` on the DM's Atlas, with the session key and `params`. */
 export function sessionUrl(path: string, params: Record<string, string> = {}): string {
   return `${path}?${new URLSearchParams({ k: key, ...params }).toString()}`;

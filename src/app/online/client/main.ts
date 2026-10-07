@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { installObsidianDom } from './obsidianDom';
 import { byId } from './dom';
-import { announceProfile, post } from './session';
+import { announceProfile, currentPlayerId, post } from './session';
 import { connectToScene } from './sceneConnection';
 import { InitiativeOverlay } from './initiativeOverlay';
 import { PlayerCanvas } from './PlayerCanvas';
@@ -88,6 +88,11 @@ async function start(): Promise<void> {
     noScene: () => canvas.clearScene(),
     roll: showRoll,
     diceLog: (entries) => diceLog.setEntries(entries),
+    // The page draws its own ruler as it drags
+    rulers: (rulers) => {
+      const own = currentPlayerId();
+      canvas.store.getState().setSharedRulers(Object.fromEntries(Object.entries(rulers).filter(([key]) => key !== own)));
+    },
   });
   addEventListener('resize', () => canvas.resize(window.innerWidth, window.innerHeight));
 }

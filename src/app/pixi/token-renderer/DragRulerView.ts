@@ -33,11 +33,11 @@ export class DragRulerView {
     this.clear();
   }
 
-  /** Draws the path through `points` with `distance` labelled at its middle. */
-  draw(points: readonly Point[], distance: string): void {
+  /** Draws the path through `points` with `distance` labelled at its middle, in `color` (`#rrggbb`) or the accent. */
+  draw(points: readonly Point[], distance: string, color?: string): void {
     const middle = pathMidpoint(points);
     if (!middle) return;
-    const accent = cssColorToHexNumber(getObsidianAccentColor());
+    const accent = cssColorToHexNumber(color ?? getObsidianAccentColor());
     const scale = this.viewport.scale.x;
 
     this.path.clear();

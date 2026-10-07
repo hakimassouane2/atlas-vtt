@@ -9,6 +9,7 @@ import { OnlineSessionServer } from './OnlineSessionServer';
 import { PlayerControls, type CommandSource } from './PlayerControls';
 import { PlayerDiceFeed } from './PlayerDiceFeed';
 import { PlayerDiceLog } from './PlayerDiceLog';
+import { PlayerRulers } from './PlayerRulers';
 import { tokenImage } from './tokenImage';
 import { pageTheme } from './pageTheme';
 import { lanAddress } from './lanAddress';
@@ -49,6 +50,7 @@ export class OnlineSession {
   private readonly controls: PlayerControls;
   private readonly diceFeed: PlayerDiceFeed;
   private readonly diceLog: PlayerDiceLog;
+  private readonly rulers: PlayerRulers;
   /** Keeps the players' scenes in step with the DM's. */
   private readonly replicator: SceneReplicator;
   /** The view whose scene players see; its dice engine rolls for them. */
@@ -73,6 +75,10 @@ export class OnlineSession {
       toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
     }, (roll) => {
       if (roll.source?.tokenImagePath) this.rollImages.add(roll.source.tokenImagePath);
+    });
+    this.rulers = new PlayerRulers({
+      toAll: (event, data) => this.server?.broadcast(event, data),
+      toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
     });
     this.replicator = new SceneReplicator(settingsService, {
       toAll: (event, data) => this.server?.broadcast(event, data),
@@ -131,6 +137,7 @@ export class OnlineSession {
     const store = presented?.source.store;
     // The log follows the scene while the DM browses other tabs, as the rolls do
     this.diceLog.setStore(store ?? null);
+    this.rulers.setStore(store ?? null);
     if (!presented || !store) {
       this.controls.setSource(null);
       this.replicator.setSource(null);
@@ -202,6 +209,7 @@ export class OnlineSession {
         this.connected.join(playerId);
         this.replicator.sendTo(playerId);
         this.diceLog.sendTo(playerId);
+        this.rulers.sendTo(playerId);
         this.showConnected();
       },
       onLeave: (playerId) => {

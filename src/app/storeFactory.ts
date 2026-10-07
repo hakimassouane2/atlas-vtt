@@ -341,6 +341,10 @@ export interface ViewAtlasState {
   setSceneLightingPanelOpen: UISlice['setSceneLightingPanelOpen'];
   heldTokens: UISlice['heldTokens'];
   setHeldTokens: UISlice['setHeldTokens'];
+  localRuler: UISlice['localRuler'];
+  setLocalRuler: UISlice['setLocalRuler'];
+  sharedRulers: UISlice['sharedRulers'];
+  setSharedRulers: UISlice['setSharedRulers'];
   exploredBrush: UISlice['exploredBrush'];
   setExploredBrush: UISlice['setExploredBrush'];
   isToolbarEditing: UISlice['isToolbarEditing'];

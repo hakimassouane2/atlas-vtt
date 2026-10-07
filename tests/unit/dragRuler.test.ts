@@ -14,7 +14,7 @@ function makeRuler(token: { isHidden?: boolean } = {}): { ruler: DragRuler; view
     getOptions: () => ({ type: 'square', size: CELL, offsetX: 0, offsetY: 0 }),
     snapTokenCenter: (x: number, y: number) => center(Math.floor(x / CELL), Math.floor(y / CELL)),
   };
-  const state = { grid: { snapToGrid: true }, objects: { tokens: { t1: { id: 't1', size: 1, ...token } } } };
+  const state = { grid: { snapToGrid: true }, objects: { tokens: { t1: { id: 't1', size: 1, ...token } } }, setLocalRuler: vi.fn() };
   const settings: MeasurementSettings = { mode: 'metric', unitType: 'feet', unitDistance: 5, diagonalRule: 'equidistant', rangeBands: [] };
   const ruler = new DragRuler(
     view as unknown as DragRulerView,

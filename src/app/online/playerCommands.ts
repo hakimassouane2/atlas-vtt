@@ -9,6 +9,7 @@ import { isPlayerControlled } from './playerTokens';
 import { runUntracked } from '../stores/history';
 import { isDiceColour, isDiceFont, type DiceLook } from '../dice3d/diceLook';
 import { RESOURCE_COLORS } from '../resources/resourceColors';
+import { readRulerPath, type RulerPath } from '../canvas/sharedRulers';
 
 /** Dice a player may roll at once, and the largest die: the dice engine rolls each die one by one. */
 const MAX_DICE = 100;
@@ -32,12 +33,14 @@ export type PlayerCommand =
   | { type: 'diceLook'; look: DiceLook }
   /** The player's colour, one of `RESOURCE_COLORS` no other player has. */
   | { type: 'color'; color: string }
+  /** The drag ruler the player draws now, for everyone else to see; null once they let go. */
+  | { type: 'ruler'; ruler: RulerPath | null }
   | { type: 'condition'; id: string; conditionId: string; active: boolean }
   /** Steps a valued condition by one; stepping below 1 removes it. */
   | { type: 'conditionValue'; id: string; conditionId: string; delta: 1 | -1 };
 
 /** The commands that change a token. */
-export type TokenCommand = Exclude<PlayerCommand, { type: 'roll' | 'diceLook' | 'color' }>;
+export type TokenCommand = Exclude<PlayerCommand, { type: 'roll' | 'diceLook' | 'color' | 'ruler' }>;
 
 /** Accepts only well-formed commands: the body comes from the network. */
 export function parsePlayerCommand(value: unknown): PlayerCommand | null {
@@ -50,6 +53,10 @@ export function parsePlayerCommand(value: unknown): PlayerCommand | null {
   if (type === 'diceLook') {
     const look = command.look as Record<string, unknown> | null | undefined;
     return isDiceColour(look?.colour) && isDiceFont(look?.font) ? { type, look: { colour: look.colour, font: look.font } } : null;
+  }
+  if (type === 'ruler') {
+    const ruler = readRulerPath(command.ruler);
+    return ruler === undefined ? null : { type, ruler };
   }
   if (type === 'color') {
     const color = RESOURCE_COLORS.find(({ value }) => value === command.color)?.value;

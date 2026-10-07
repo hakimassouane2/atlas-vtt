@@ -7,6 +7,15 @@ import type { ConditionDefinition, PlayerProfile } from '../types/collectionSett
 import { applyPlayerCommand, parsePlayerCommand } from './playerCommands';
 import { isPlayerControlled } from './playerTokens';
 import { PlayerHolds } from './playerHolds';
+import type { SharedRuler } from '../canvas/sharedRulers';
+
+/** Shows `ruler` as the one of the player `playerId` on the DM's map, or takes theirs away. */
+function setSharedRuler(store: StoreApi<ViewAtlasState>, playerId: string, ruler: SharedRuler | null): void {
+  const { sharedRulers, setSharedRulers } = store.getState();
+  if (!ruler && !sharedRulers[playerId]) return;
+  const others = Object.fromEntries(Object.entries(sharedRulers).filter(([key]) => key !== playerId));
+  setSharedRulers(ruler ? { ...others, [playerId]: ruler } : others);
+}
 
 /** Rolls `formula` with the DM's dice engine for the player of `profile`, for `token` when given; returns whether it rolled. */
 export type RollDice = (formula: string, token: TokenEntity | undefined, profile: PlayerProfile | null) => boolean;
@@ -64,6 +73,13 @@ export class PlayerControls {
       source.updateProfile(profile, { diceLook: command.look });
       return true;
     }
+    if (command.type === 'ruler') {
+      if (!playerId || !player) return false;
+      const { ruler } = command;
+      if (ruler && !isPlayerControlled(source.store.getState().objects.tokens[ruler.tokenId], player.id)) return false;
+      setSharedRuler(source.store, playerId, ruler && { ...ruler, color: player.color });
+      return true;
+    }
     if (command.type === 'color') {
       // Players tell each other apart by colour: one another player has is not to be had
       const taken = source.players().some(({ id, color }) => id !== profile && color.toLowerCase() === command.color.toLowerCase());
@@ -83,8 +99,9 @@ export class PlayerControls {
     return applied;
   }
 
-  /** The player left: tokens they were dragging are free again. */
+  /** The player left: tokens they were dragging are free again, and their ruler goes. */
   playerLeft(playerId: string): void {
     this.holds.releasePlayer(playerId);
+    if (this.source) setSharedRuler(this.source.store, playerId, null);
   }
 }

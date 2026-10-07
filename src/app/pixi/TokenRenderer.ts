@@ -21,6 +21,7 @@ import { UIManager } from './token-renderer/UIManager';
 import { InteractionController } from './token-renderer/InteractionController';
 import { DragRuler } from './token-renderer/DragRuler';
 import { DragRulerView } from './token-renderer/DragRulerView';
+import { SharedDragRulers } from './token-renderer/SharedDragRulers';
 import { mapMeasurementSettings } from '../services/mapMeasurementSettings';
 import { SyncService } from './token-renderer/SyncService';
 import { updateInstanceBadge } from './token-renderer/InstanceBadge';
@@ -74,6 +75,8 @@ export class TokenRenderer {
   private uiManager: UIManager;
   private interactionController: InteractionController;
   private dragRuler: DragRuler;
+  /** The drag rulers of the others at an online table. */
+  private sharedRulers: SharedDragRulers;
   private syncService: SyncService;
   
   
@@ -252,6 +255,13 @@ export class TokenRenderer {
       () => mapMeasurementSettings(host.collections, this.store.getState()),
     );
     this.interactionController.setDragRuler(this.dragRuler);
+    this.sharedRulers = new SharedDragRulers(
+      this.viewport,
+      this.tokenContainer,
+      this.gridSystem,
+      this.store,
+      () => mapMeasurementSettings(host.collections, this.store.getState()),
+    );
 
     // Initialize sync service
     this.syncService.initialize();
@@ -967,6 +977,7 @@ export class TokenRenderer {
     // Destroy interaction controller
     this.interactionController.destroyAll();
     this.dragRuler.destroy();
+    this.sharedRulers.destroy();
     this.playerSight.destroy();
     
     // Clean up event listeners

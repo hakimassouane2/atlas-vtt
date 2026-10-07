@@ -1,6 +1,7 @@
 import type { AtlasSettings } from '../../services/SettingsService';
 import type { DiceDisplay } from '../../dice3d/diceDisplay';
 import type { DiceRollResult } from '../../tools/DiceTool';
+import type { SharedRulers } from '../../canvas/sharedRulers';
 import type { CollectionSettings } from '../../types/collectionSettingsTypes';
 import type { InitiativeRules } from '../../types/initiativeRulesTypes';
 import type { ReplicatedScene, SceneChange } from './sceneReplica';
@@ -27,4 +28,6 @@ export type PlayerSceneMessage =
   /** The DM closed every scene: players wait for the next one. */
   | { event: 'noScene'; data: null }
   /** The table's dice log as players see it, newest first (`PlayerDiceLog`). */
-  | { event: 'diceLog'; data: DiceRollResult[] };
+  | { event: 'diceLog'; data: DiceRollResult[] }
+  /** The drag rulers drawn now, by who drags (`PlayerRulers`); the page leaves out its own. */
+  | { event: 'rulers'; data: SharedRulers };

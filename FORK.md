@@ -8,6 +8,11 @@ Ce document liste tout ce qui diffère de l'original, pour reprendre le travail 
 PC ou dans une nouvelle session, et pour savoir où regarder quand on récupère les mises à jour du
 dev d'origine.
 
+**La fenêtre joueur locale (popout sur un second écran) ne nous sert pas** : on joue en ligne. On
+n'y investit rien. Une feature n'a pas à y fonctionner, on ne la teste pas là, et on n'y touche que
+si un changement pour le mode en ligne l'exige, en faisant au plus simple pour limiter les
+conflits avec l'original.
+
 ## Dépôts et branches
 
 | Remote     | Dépôt                        | Rôle                                         |
@@ -100,6 +105,8 @@ vocabulaire : `CONTEXT.md`.
      MJ, et les chiffres), les deux gardés dans son profil, et Input device (souris ou trackpad,
      retenu par le navigateur) ;
    - initiative à droite (avec les numéros d'instance, "Gobelin 2"), dés en 3D.
+   Pendant un drag, tout le monde voit la règle (trajet, étapes posées avec Espace, distance) de
+   celui qui déplace, dans sa couleur (accent pour le MJ), sauf pour un token caché aux joueurs.
    Chaque jet dit qui l'a lancé : le personnage s'il y en a un, sinon le joueur (dans la couleur de
    son profil) ou « GM ». Les dés de chacun gardent son habillage partout ; la vitesse et le choix
    3D ou carte sont ceux du MJ (réglages des dés), pour toute la table.
@@ -157,6 +164,13 @@ vocabulaire : `CONTEXT.md`.
   propre habillage (`dieAssets(sides, look)`, cache par habillage dans `dieMesh.ts`), la police des
   chiffres par `rollFontClass`. `context` porte `diceDisplay` du MJ. Les dés lisent leur
   environnement par un contexte React (`diceEnvironment.ts`).
+- **Règles partagées** : `DragRuler` publie son trajet (token, départ, étapes) dans le store
+  (`localRuler`, tranche UI). Une page l'envoie (commande `ruler`), le MJ le pose dans
+  `sharedRulers` sous l'id de la connexion avec la couleur du profil (`PlayerControls`), et
+  `PlayerRulers` envoie aux pages (`rulers`) celles des joueurs plus celle du MJ (`dm`) ; chaque
+  page retire la sienne. `SharedDragRulers` (dans `TokenRenderer`) dessine celles de
+  `sharedRulers` avec `DragRulerView`, jusqu'à la case où le token atterrirait là où il est
+  (sa position arrive avec la réplication), et ignore sur une page un token caché.
 - **Historique des joueurs** : `PlayerDiceLog` envoie (`diceLog`) le journal de la scène suivie
   (`diceLog` du store, 20 derniers), sans les jets que les joueurs n'ont pas vus, à chaque
   changement et à chaque arrivée. La page l'affiche avec `DiceRollLogPanel` (`client/pageDiceLog.tsx`) ;
@@ -175,10 +189,12 @@ vocabulaire : `CONTEXT.md`.
 ### Fichiers ajoutés
 
 - `src/app/canvas/canvasHost.ts` : ce que le canvas reçoit de son hôte.
+- `src/app/canvas/sharedRulers.ts`, `pixi/token-renderer/SharedDragRulers.ts` : les règles des autres.
 - `src/app/online/` (côté MJ) : `OnlineSession.ts`, `OnlineSessionServer.ts`, `PlayerControls.ts`,
   `playerCommands.ts`, `playerHolds.ts`, `playerTokens.ts`, `PlayerDiceFeed.ts`, `playerPage.ts`,
   `pageTheme.ts`, `tokenImage.ts`, `onlineSessionSettingsSection.ts`, `playerClient.d.ts`,
-  `connectedPlayers.ts`, `OnlineConnections.tsx`, `PlayerDiceLog.ts`, `rollStamps.ts`, et
+  `connectedPlayers.ts`, `OnlineConnections.tsx`, `PlayerDiceLog.ts`, `rollStamps.ts`,
+  `PlayerRulers.ts`, et
   `scene/` (`sceneReplica.ts`, `sceneProtocol.ts`, `SceneReplicator.ts`).
 - `src/app/players/` : `playerProfiles.ts`, `PlayerDot.tsx`, `players.scss` ; onglet
   `react/components/collection-settings/PlayersTab.tsx`, sous-menu `context-menu/playersMenu.ts`.
@@ -212,6 +228,9 @@ doit rester vert.
   `ContextMenuContext` réexporte `ContextMenuEntry` et `ContextMenuOptions` de `ui/contextMenus.ts`.
 - `DiceRollDisplay`, `useDiceAvatar`, `useDiceDisplay`, `useDiceLook`, `DiceDropdownMenu` :
   environnement des dés par contexte React.
+- Règles partagées : `uiSlice` et `storeFactory` (`localRuler`, `sharedRulers`), `DragRuler`
+  (publie son trajet ; `snapRulerPoint` et `drawRuler` exportés), `DragRulerView.draw` (couleur
+  facultative), `TokenRenderer` (crée `SharedDragRulers`).
 - Auteur et habillage des jets : `DiceTool` (`roller`, `look`, `shownToPlayers`, tampon du MJ passé
   par `ToolController`), `DiceRollHeader`, `DiceToast`, `DiceRollEntry` (nom de l'auteur, bouton
   Relancer facultatif), `DiceRollLog` (réduit à l'historique du MJ autour de `DiceRollLogPanel`),

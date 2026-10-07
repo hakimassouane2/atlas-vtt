@@ -8,6 +8,7 @@
 
 import { DEFAULT_EXPLORED_BRUSH, type ExploredBrushOptions } from '../lighting/exploredEdits';
 import type { HeldTokens } from '../lighting/sightOnDrop';
+import type { RulerPath, SharedRulers } from '../canvas/sharedRulers';
 
 /** State fields added to ViewAtlasState */
 export interface UISlice {
@@ -32,6 +33,10 @@ export interface UISlice {
   exploredBrush: ExploredBrushOptions;
   /** The toolbar editor is open in this view: tray, hide and show, inert tools. Never saved. */
   isToolbarEditing: boolean;
+  /** The drag ruler this view draws now, shared with the other people at an online table. */
+  localRuler: RulerPath | null;
+  /** The drag rulers of the others at an online table, drawn over the map (`SharedDragRulers`). */
+  sharedRulers: SharedRulers;
 
   // Actions
   setGridSettingsOpen: (open: boolean) => void;
@@ -48,6 +53,8 @@ export interface UISlice {
   closeLightZonePopover: () => void;
   setSceneLightingPanelOpen: (open: boolean) => void;
   setHeldTokens: (held: HeldTokens) => void;
+  setLocalRuler: (ruler: RulerPath | null) => void;
+  setSharedRulers: (rulers: SharedRulers) => void;
   setExploredBrush: (changes: Partial<ExploredBrushOptions>) => void;
   /** Starting the toolbar editor closes the dice tray, which hangs where the tray goes. */
   setToolbarEditing: (on: boolean) => void;
@@ -70,6 +77,8 @@ export function createInitialUIState(): Pick<
   | 'heldTokens'
   | 'exploredBrush'
   | 'isToolbarEditing'
+  | 'localRuler'
+  | 'sharedRulers'
 > {
   return {
     isGridSettingsOpen: false,
@@ -86,6 +95,8 @@ export function createInitialUIState(): Pick<
     heldTokens: {},
     exploredBrush: DEFAULT_EXPLORED_BRUSH,
     isToolbarEditing: false,
+    localRuler: null,
+    sharedRulers: {},
   };
 }
 
@@ -108,6 +119,8 @@ export function createUIActions(
   | 'closeLightZonePopover'
   | 'setSceneLightingPanelOpen'
   | 'setHeldTokens'
+  | 'setLocalRuler'
+  | 'setSharedRulers'
   | 'setExploredBrush'
   | 'setToolbarEditing'
 > {
@@ -146,6 +159,8 @@ export function createUIActions(
     closeLightPopover: () => set((draft) => { draft.lightPopover = null; }),
     setSceneLightingPanelOpen: (open) => set((draft) => { draft.isSceneLightingPanelOpen = open; }),
     setHeldTokens: (held) => set((draft) => { draft.heldTokens = held; }),
+    setLocalRuler: (ruler) => set((draft) => { draft.localRuler = ruler; }),
+    setSharedRulers: (rulers) => set((draft) => { draft.sharedRulers = rulers; }),
     setExploredBrush: (changes) => set((draft) => { draft.exploredBrush = { ...draft.exploredBrush, ...changes }; }),
     setToolbarEditing: (on) => set((draft) => {
       draft.isToolbarEditing = on;
