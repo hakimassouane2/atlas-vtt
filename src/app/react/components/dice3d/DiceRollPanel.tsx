@@ -12,6 +12,7 @@ import { DiceRollEngraving } from './DiceRollEngraving';
 import { DiceRollChip } from './DiceRollChip';
 import { hasBreakdown, rollBreakdown, rollLabel } from './diceRollText';
 import { useElementHeight } from './useElementHeight';
+import { rollFontClass } from '../../hooks/useDiceLook';
 
 interface DiceRollPanelProps {
   result: DiceRollResult;
@@ -154,6 +155,7 @@ export function DiceRollPanel({ result, scene, compact: compactNow, leaving, mut
       layout="position"
       className={cn(
         'atlas-dice-roll',
+        result.look && rollFontClass(result.look),
         compact && 'atlas-dice-roll--compact',
         crit === 'high' && 'atlas-dice-roll--crit-success',
         crit === 'low' && 'atlas-dice-roll--crit-fail',
@@ -262,6 +264,7 @@ export function DiceRollPanel({ result, scene, compact: compactNow, leaving, mut
           crit={result.crit ?? null}
           muted={muted}
           style={style}
+          look={result.look}
           seed={result.id}
           frame={compact ? field : null}
           onSettled={() => {

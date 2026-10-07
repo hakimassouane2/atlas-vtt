@@ -94,8 +94,13 @@ vocabulaire : `CONTEXT.md`.
      verrouillé pour les autres), poignée de rotation, +/- de ses ressources sur le token ;
    - clic droit relâché sur place sur son token : menu Ressources / Conditions / Rotation ;
      clic droit glissé : déplacer la carte ; molette : zoomer (même caméra que le MJ) ;
-   - barre en bas : plateau de dés et réglages (souris ou trackpad, retenu par le navigateur) ;
+   - barre en bas : plateau de dés, historique des jets (aussi Entrée) et réglages (souris ou
+     trackpad, retenu par le navigateur ; « My dice » : couleur et chiffres de ses dés, gardés dans
+     son profil) ;
    - initiative à droite (avec les numéros d'instance, "Gobelin 2"), dés en 3D.
+   Chaque jet dit qui l'a lancé : le personnage s'il y en a un, sinon le joueur (dans la couleur de
+   son profil) ou « GM ». Les dés de chacun gardent son habillage partout ; la vitesse et le choix
+   3D ou carte sont ceux du MJ (réglages des dés), pour toute la table.
 6. Ce que les joueurs voient suit tes réglages de la vue joueur (grille, noms, jets du MJ) et la
    visibilité de chaque ressource. Pas d'éclairage dynamique en ligne : le brouillard seul révèle.
 7. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
@@ -138,8 +143,19 @@ vocabulaire : `CONTEXT.md`.
   réglage modifié. Les bundles ne portent pas la fiche (`withoutTableState`).
 - **Barres par personnage** : `barsShownTo` (`everyone`, `controllers`, `nobody`) dans
   `visibleResources`, par le spectateur `controller` (joueur à qui le token est donné).
-- `PlayerDiceFeed` envoie les jets des joueurs et ceux du MJ si `showDiceRolls`, masqués pour un
-  token caché. Les dés lisent leur environnement par un contexte React (`diceEnvironment.ts`).
+- **Jets** : chaque jet porte qui l'a fait (`DiceRollResult.roller`, copie du profil), son habillage
+  (`look`, `RollLook` avec la couleur d'accent résolue) et `shownToPlayers`, posés au lancer
+  (`online/rollStamps.ts` : `dmRollStamp` pour le MJ, `playerRollStamp` pour un joueur, dont l'accent
+  est la couleur du profil). `PlayerDiceFeed` envoie les jets `shownToPlayers`, masqués pour un
+  token caché ; `rollAuthor` décide du nom affiché (panneau 3D, carte, historique). L'habillage d'un
+  joueur est dans `PlayerProfile.diceLook` (commande `diceLook`). Un jet est dessiné dans son
+  propre habillage (`dieAssets(sides, look)`, cache par habillage dans `dieMesh.ts`), la police des
+  chiffres par `rollFontClass`. `context` porte `diceDisplay` du MJ. Les dés lisent leur
+  environnement par un contexte React (`diceEnvironment.ts`).
+- **Historique des joueurs** : `PlayerDiceLog` envoie (`diceLog`) le journal de la scène suivie
+  (`diceLog` du store, 20 derniers), sans les jets que les joueurs n'ont pas vus, à chaque
+  changement et à chaque arrivée. La page l'affiche avec `DiceRollLogPanel` (`client/pageDiceLog.tsx`) ;
+  « Relancer » seulement sur ses propres jets.
 - **Les joueurs suivent le MJ** (`services/followedScene.ts`) : la scène suivie est celle de la vue
   Atlas (une seule, ses onglets partagent un store et un canvas), dès que sa première scène est
   chargée. La session en ligne et la popout locale s'y abonnent (`onFollowedScene`) ; un changement
@@ -157,7 +173,7 @@ vocabulaire : `CONTEXT.md`.
 - `src/app/online/` (côté MJ) : `OnlineSession.ts`, `OnlineSessionServer.ts`, `PlayerControls.ts`,
   `playerCommands.ts`, `playerHolds.ts`, `playerTokens.ts`, `PlayerDiceFeed.ts`, `playerPage.ts`,
   `pageTheme.ts`, `tokenImage.ts`, `onlineSessionSettingsSection.ts`, `playerClient.d.ts`,
-  `connectedPlayers.ts`, `OnlineConnections.tsx`, et
+  `connectedPlayers.ts`, `OnlineConnections.tsx`, `PlayerDiceLog.ts`, `rollStamps.ts`, et
   `scene/` (`sceneReplica.ts`, `sceneProtocol.ts`, `SceneReplicator.ts`).
 - `src/app/players/` : `playerProfiles.ts`, `PlayerDot.tsx`, `players.scss` ; onglet
   `react/components/collection-settings/PlayersTab.tsx`, sous-menu `context-menu/playersMenu.ts`.
@@ -166,7 +182,9 @@ vocabulaire : `CONTEXT.md`.
   `PlayerHud.tsx`, `playerTokenMenu.ts`, `pageDice.tsx`,
   `pageMenus.tsx`, `pageIcons.ts`, `initiativeOverlay.ts`, `pageStandIns.ts`, `session.ts`,
   `dom.ts`, `obsidianDom.ts`, `events.ts`, `playerPage.css`, `PlayerSettingsMenu.tsx`, `inputDevice.ts`, `pageZoomGuard.ts`,
-  `profileChoice.ts`, `ProfileChooser.tsx`.
+  `profileChoice.ts`, `ProfileChooser.tsx`, `pageDiceLog.tsx`.
+- `src/app/tools/rollAuthor.ts`, `react/components/dice-log/DiceRollLogPanel.tsx` (le panneau de
+  l'historique, sorti de `DiceRollLog`).
 - `src/app/services/followedScene.ts` : la scène que les écrans joueurs suivent.
 - Côté MJ, sorties du moteur : `services/canvasHost/`, `services/TokenStatblockSync.ts`,
   `services/obsidianDiceEnvironment.ts`, `react/components/context-menu/gmTokenMenu.ts`,
@@ -189,6 +207,12 @@ doit rester vert.
   `ContextMenuContext` réexporte `ContextMenuEntry` et `ContextMenuOptions` de `ui/contextMenus.ts`.
 - `DiceRollDisplay`, `useDiceAvatar`, `useDiceDisplay`, `useDiceLook`, `DiceDropdownMenu` :
   environnement des dés par contexte React.
+- Auteur et habillage des jets : `DiceTool` (`roller`, `look`, `shownToPlayers`, tampon du MJ passé
+  par `ToolController`), `DiceRollHeader`, `DiceToast`, `DiceRollEntry` (nom de l'auteur, bouton
+  Relancer facultatif), `DiceRollLog` (réduit à l'historique du MJ autour de `DiceRollLogPanel`),
+  `DiceRollPanel` / `DiceStage` / `DiceRenderer.setPlan` / `dieMesh` / `dieArtwork.buildTextures`
+  (habillage du jet), `dieSkin` (`resolveRollLook`), `diceLook` (`RollLook`, `toHex`,
+  `readDiceLook`), `dice-roll.scss` (`__author`, `__names`, `.atlas-dice-font--medieval`).
 - `gmTokenMenu`, `AtlasContextMenu`, `atlas-context-menu.scss` : le menu MJ du token est rangé en
   groupes (jeu, le token, qui le voit, copies, destruction) séparés par l'entrée `separator` ;
   sous-menus Fiche et Apparence.

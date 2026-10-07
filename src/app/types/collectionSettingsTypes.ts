@@ -8,6 +8,7 @@
 import type { ResourceDefinition } from '../resources/resourceTypes';
 import type { CreatureFilterDefinition } from './creatureFilterTypes';
 import type { DiceRules } from './diceRulesTypes';
+import type { DiceLook } from '../dice3d/diceLook';
 import type { InitiativeRules } from './initiativeRulesTypes';
 import type { LightPresetDefinition } from './lightPresetTypes';
 import type { TokenVisionDefaults } from './lightingTypes';
@@ -121,4 +122,6 @@ export interface PlayerProfile {
   name: string;
   /** `#rrggbb`, one of `RESOURCE_COLORS`, by which players tell each other apart. */
   color: string;
+  /** The dice the player throws, chosen on their page; read with `readDiceLook`. Accent dice take `color`. */
+  diceLook?: DiceLook;
 }

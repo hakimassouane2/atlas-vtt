@@ -10,6 +10,12 @@ export interface DiceLook {
   font: DiceFont;
 }
 
+/** The look a roll is thrown in, with the colour its accent stands for, so every window paints it alike. */
+export interface RollLook extends DiceLook {
+  /** `#rrggbb`: Obsidian's accent for the DM's dice, the profile's colour for a player's. */
+  accent?: string;
+}
+
 export const DEFAULT_DICE_LOOK: Readonly<DiceLook> = { colour: 'light', font: 'medieval' };
 
 export const DICE_COLOUR_OPTIONS: readonly { value: DiceColour; label: string }[] = [
@@ -53,6 +59,20 @@ const LIGHT_BODY = 150;
 /** The numeral colour that reads best on a body of this colour: dark ink on light bodies, light ink otherwise. */
 export function readableInk(body: Rgb): string {
   return brightness(body) > LIGHT_BODY ? DARK_INK : LIGHT_INK;
+}
+
+/** Channels to `#rrggbb`. */
+export function toHex(rgb: Rgb): string {
+  return `#${rgb.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** A look read from the network or a file: what is no look of this Atlas reads as the default. */
+export function readDiceLook(value: unknown): DiceLook {
+  const look = typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
+  return {
+    colour: isDiceColour(look.colour) ? look.colour : DEFAULT_DICE_LOOK.colour,
+    font: isDiceFont(look.font) ? look.font : DEFAULT_DICE_LOOK.font,
+  };
 }
 
 /** `#rrggbb` to channels; null for anything else. */

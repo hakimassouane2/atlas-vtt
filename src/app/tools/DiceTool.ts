@@ -4,6 +4,24 @@ import type { DiceRules } from '../types/diceRulesTypes';
 import { getDiceCrit, type DiceCrit } from './diceCrit';
 import { hasDiceTerm, rollFormula, type RolledDie } from './diceFormula';
 import { t } from '../i18n';
+import { DEFAULT_DICE_LOOK, type RollLook } from '../dice3d/diceLook';
+
+/** An online player as they were when they rolled; no profile for one who has not chosen one. */
+export interface DiceRoller {
+  profileId?: string;
+  name: string;
+  /** `#rrggbb`, the profile's colour. */
+  color?: string;
+}
+
+/** What a roll records of whoever made it. */
+export interface RollStamp {
+  /** Unset for the DM's own rolls. */
+  roller?: DiceRoller;
+  look: RollLook;
+  /** Whether players see the roll: their own always, the DM's while the player view shows dice rolls. */
+  shownToPlayers: boolean;
+}
 
 export interface DiceRollResult {
   id: string;
@@ -15,6 +33,12 @@ export interface DiceRollResult {
   /** Decided by the collection's critical rule when rolled; missing on rolls logged before rules existed. */
   crit?: DiceCrit;
   player?: string;
+  /** Who rolled, when it was an online player. Unset on the DM's rolls and on rolls logged before. */
+  roller?: DiceRoller;
+  /** The look the dice are thrown in, whoever watches. Unset on rolls logged before. */
+  look?: RollLook;
+  /** Whether players were shown the roll. Unset on rolls logged before. */
+  shownToPlayers?: boolean;
   source?: {
     type: 'toolbar' | 'statblock';
     /** Let the roll follow its token's or statblock's current artwork. */
@@ -37,10 +61,17 @@ export class DiceTool {
   public state: DiceToolState;
   private eventBus: EventEmitter;
   private readonly getDiceRules: () => DiceRules;
+  /** What the DM's own rolls record of the DM. */
+  private readonly dmStamp: () => RollStamp;
 
-  constructor(eventBus: EventEmitter, getDiceRules: () => DiceRules = () => DEFAULT_DICE_RULES) {
+  constructor(
+    eventBus: EventEmitter,
+    getDiceRules: () => DiceRules = () => DEFAULT_DICE_RULES,
+    dmStamp: () => RollStamp = () => ({ look: { ...DEFAULT_DICE_LOOK }, shownToPlayers: false }),
+  ) {
     this.eventBus = eventBus;
     this.getDiceRules = getDiceRules;
+    this.dmStamp = dmStamp;
     this.state = {
       isTrayOpen: false,
       rollHistory: [],
@@ -54,8 +85,9 @@ export class DiceTool {
     this.eventBus.emit('dice-tray-toggled', this.state.isTrayOpen);
   }
 
-  public rollDice(formula: string, source?: DiceRollResult['source']): DiceRollResult {
-    const result = this.parseAndRoll(formula);
+  /** Rolls `formula` for the DM, or for whoever `stamp` names. */
+  public rollDice(formula: string, source?: DiceRollResult['source'], stamp?: RollStamp): DiceRollResult {
+    const result: DiceRollResult = { ...this.parseAndRoll(formula), ...(stamp ?? this.dmStamp()) };
     if (source) {
       result.source = source;
     }

@@ -7,6 +7,7 @@ import { resourceUpdate, withCurrent } from '../resources/resourceValues';
 import { visibleResources } from '../resources/visibleResources';
 import { isPlayerControlled } from './playerTokens';
 import { runUntracked } from '../stores/history';
+import { isDiceColour, isDiceFont, type DiceLook } from '../dice3d/diceLook';
 
 /** Dice a player may roll at once, and the largest die: the dice engine rolls each die one by one. */
 const MAX_DICE = 100;
@@ -26,9 +27,14 @@ export type PlayerCommand =
   | { type: 'resource'; id: string; key: string; current: number }
   /** Rolled by the DM's dice engine, for the token `id` when given. */
   | { type: 'roll'; formula: string; id?: string }
+  /** The dice the player throws from now on, kept in their profile. */
+  | { type: 'diceLook'; look: DiceLook }
   | { type: 'condition'; id: string; conditionId: string; active: boolean }
   /** Steps a valued condition by one; stepping below 1 removes it. */
   | { type: 'conditionValue'; id: string; conditionId: string; delta: 1 | -1 };
+
+/** The commands that change a token. */
+export type TokenCommand = Exclude<PlayerCommand, { type: 'roll' | 'diceLook' }>;
 
 /** Accepts only well-formed commands: the body comes from the network. */
 export function parsePlayerCommand(value: unknown): PlayerCommand | null {
@@ -37,6 +43,10 @@ export function parsePlayerCommand(value: unknown): PlayerCommand | null {
   const { type, id } = command;
   if (type === 'roll' && typeof command.formula === 'string' && isSafeDiceFormula(command.formula)) {
     return { type, formula: command.formula.trim(), ...(typeof id === 'string' && { id }) };
+  }
+  if (type === 'diceLook') {
+    const look = command.look as Record<string, unknown> | null | undefined;
+    return isDiceColour(look?.colour) && isDiceFont(look?.font) ? { type, look: { colour: look.colour, font: look.font } } : null;
   }
   if (typeof id !== 'string') return null;
   if ((type === 'move' || type === 'drag') && isFiniteNumber(command.x) && isFiniteNumber(command.y)) {
@@ -83,7 +93,7 @@ export interface PlayerRules {
 export function applyPlayerCommand(
   store: StoreApi<ViewAtlasState>,
   grid: GridSystem | null,
-  command: Exclude<PlayerCommand, { type: 'roll' }>,
+  command: TokenCommand,
   rules: PlayerRules,
 ): boolean {
   return runUntracked(store, () => applyToToken(store, grid, command, rules));
@@ -92,7 +102,7 @@ export function applyPlayerCommand(
 function applyToToken(
   store: StoreApi<ViewAtlasState>,
   grid: GridSystem | null,
-  command: Exclude<PlayerCommand, { type: 'roll' }>,
+  command: TokenCommand,
   { profileId, conditions, resources }: PlayerRules,
 ): boolean {
   const state = store.getState();

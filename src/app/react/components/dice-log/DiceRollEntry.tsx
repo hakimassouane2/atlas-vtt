@@ -7,11 +7,13 @@ import { useDiceAvatar } from '../dice/useDiceAvatar';
 import { LabelTooltip } from '../../../packages/components/primitives/tooltip';
 import { dieLabel } from '../../../tools/diceLabels';
 import { t } from '../../../i18n';
+import { rollAuthor } from '../../../tools/rollAuthor';
 
 interface DiceRollEntryProps {
   result: DiceRollResult;
   isNew?: boolean;
-  onRepeat: () => void;
+  /** Rolls it again; no button without it. */
+  onRepeat?: () => void;
 }
 
 function formatRelativeTime(timestamp: number): string {
@@ -43,6 +45,7 @@ export function DiceRollEntry({ result, isNew, onRepeat }: DiceRollEntryProps): 
   const avatar = useDiceAvatar(source);
 
   const hasSource = source?.type === 'statblock' && source.tokenName;
+  const author = rollAuthor(result);
 
   return (
     <div
@@ -77,8 +80,8 @@ export function DiceRollEntry({ result, isNew, onRepeat }: DiceRollEntryProps): 
 
       {/* Content column */}
       <div className="dice-log-entry__body">
-        {hasSource && (
-          <span className="dice-log-entry__token-name">{sourceTokenName}</span>
+        {author && (
+          <span className="dice-log-entry__token-name" style={author.color ? { color: author.color } : undefined}>{author.name}</span>
         )}
         {source?.abilityName && (
           <span className="dice-log-entry__ability-name">{source.abilityName}</span>
@@ -97,14 +100,16 @@ export function DiceRollEntry({ result, isNew, onRepeat }: DiceRollEntryProps): 
             <ChevronDown className={cn('dice-log-entry__chevron', isExpanded && 'dice-log-entry__chevron--open')} />
             <span className="dice-log-entry__callout-label">{t('dice.details')}</span>
           </div>
-          <LabelTooltip label={t('dice.rollAgain')}>
-            <button
-              className="btn btn--ghost btn--icon dice-log-entry__repeat"
-              onClick={(e) => { e.stopPropagation(); onRepeat(); }}
-            >
-              <RotateCw />
-            </button>
-          </LabelTooltip>
+          {onRepeat && (
+            <LabelTooltip label={t('dice.rollAgain')}>
+              <button
+                className="btn btn--ghost btn--icon dice-log-entry__repeat"
+                onClick={(e) => { e.stopPropagation(); onRepeat(); }}
+              >
+                <RotateCw />
+              </button>
+            </LabelTooltip>
+          )}
         </div>
 
         {/* Expanded dice detail */}

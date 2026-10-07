@@ -12,6 +12,8 @@ import { borrowStage, returnStage } from '../../../dice3d/stagePool';
 import { bank, burst, rattle, rollEnd, rollStart } from '../../../dice3d/audio/diceSounds';
 import type { DiceCrit } from '../../../tools/diceCrit';
 import type { ThrowStyle } from '../../../dice3d/diceDisplay';
+import type { RollLook } from '../../../dice3d/diceLook';
+import { resolveRollLook } from '../../../dice3d/dieSkin';
 
 export interface DiceStageHandle {
   /**
@@ -34,6 +36,8 @@ interface DiceStageProps {
    * or the sparks would freeze mid-shower.
    */
   style: ThrowStyle;
+  /** The roll's own look (who rolled it chose it); without one, the active look. */
+  look?: RollLook | undefined;
   /** Set in a shrunk roll: the dice lie still, and the view frames them instead of the whole stage. */
   frame: RestingFrame | null;
   /**
@@ -66,8 +70,13 @@ const AFTERGLOW = 1.45;
  * once every die rests and the stage is still, at the latest when the afterglow
  * ran out.
  */
-export function DiceStage({ scene, crit, onSettled, muted, style, frame, seed, label, className, ref }: DiceStageProps): React.ReactElement {
+export function DiceStage({ scene, crit, onSettled, muted, style, look, frame, seed, label, className, ref }: DiceStageProps): React.ReactElement {
   const { speed, maxWallHits } = style;
+  const { colour, font, accent } = look ?? {};
+  const resolved = useMemo(
+    () => (colour && font ? resolveRollLook({ colour, font, ...(accent && { accent }) }) : undefined),
+    [colour, font, accent],
+  );
   const holderRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<DiceRenderer | null>(null);
   const diceRef = useRef<StageDie[]>([]);
@@ -114,8 +123,8 @@ export function DiceStage({ scene, crit, onSettled, muted, style, frame, seed, l
       burst: burstOf(scene.plan, i),
     }));
     stepRandoms.current = scene.plan.map((_, i) => throwRandom(seed, 1000 + i));
-    rendererRef.current?.setPlan(scene.plan.map((die) => die.sides));
-  }, [scene, offsets, radius, seed]);
+    rendererRef.current?.setPlan(scene.plan.map((die) => die.sides), resolved);
+  }, [scene, offsets, radius, seed, resolved]);
 
   const paint = useCallback((): void => {
     const renderer = rendererRef.current;
@@ -241,13 +250,13 @@ export function DiceStage({ scene, crit, onSettled, muted, style, frame, seed, l
   // (`dieAssets`); a stage at rest shows them with one more frame.
   useEffect(() => {
     let alive = true;
-    void loadDiceArtwork().then(() => {
+    void loadDiceArtwork(resolved?.font).then(() => {
       if (alive && frameRef.current === null) paint();
     });
     return (): void => {
       alive = false;
     };
-  }, [paint]);
+  }, [paint, resolved]);
 
   useEffect(() => {
     const targets = diceRef.current.map((die, i) => {

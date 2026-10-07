@@ -133,6 +133,10 @@ $dice-roll-engraving-fade: radial-gradient(ellipse 74% 74% at 50% 50%, #000 38%,
     translate: 0 -50%;
   }
 
+  .atlas-dice-roll__names {
+    align-items: center;
+  }
+
   // Between the sides there is room for few letters, so a long action takes a second line.
   .atlas-dice-roll__label {
     display: -webkit-box;
@@ -165,6 +169,22 @@ $dice-roll-engraving-fade: radial-gradient(ellipse 74% 74% at 50% 50%, #000 38%,
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.atlas-dice-roll__names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+// Who rolled, above what they rolled: in the player's colour, the DM's in the text colour.
+.atlas-dice-roll__author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: $font-ui-small;
+  font-weight: $font-weight-semibold;
+  color: var(--text-normal);
 }
 
 .atlas-dice-roll__content {
@@ -314,4 +334,9 @@ $dice-roll-engraving-fade: radial-gradient(ellipse 74% 74% at 50% 50%, #000 38%,
 &.atlas-dice-font--scifi,
 .atlas-dice-font--scifi {
   --atlas-dice-font: #{$font-dice-scifi};
+}
+
+// A roll thrown in the medieval font inside a sci-fi column (another player's dice): the default face again.
+.atlas-dice-font--medieval {
+  --atlas-dice-font: initial;
 }

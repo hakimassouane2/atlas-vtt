@@ -27,6 +27,7 @@ function setup(): {
   const collectionListeners = new Set<() => void>();
   const settings = {
     getLocalPlayerViewSettings: () => PLAYER_VIEW,
+    getDiceDisplay: () => 'full',
     onChange: (listener: () => void) => {
       settingsListeners.add(listener);
       return () => settingsListeners.delete(listener);

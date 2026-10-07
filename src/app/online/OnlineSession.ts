@@ -8,6 +8,7 @@ import type { ViewAtlasState } from '../storeFactory';
 import { OnlineSessionServer } from './OnlineSessionServer';
 import { PlayerControls, type CommandSource } from './PlayerControls';
 import { PlayerDiceFeed } from './PlayerDiceFeed';
+import { PlayerDiceLog } from './PlayerDiceLog';
 import { tokenImage } from './tokenImage';
 import { pageTheme } from './pageTheme';
 import { lanAddress } from './lanAddress';
@@ -47,6 +48,7 @@ export class OnlineSession {
   private server: OnlineSessionServer | null = null;
   private readonly controls: PlayerControls;
   private readonly diceFeed: PlayerDiceFeed;
+  private readonly diceLog: PlayerDiceLog;
   /** Keeps the players' scenes in step with the DM's. */
   private readonly replicator: SceneReplicator;
   /** The view whose scene players see; its dice engine rolls for them. */
@@ -58,15 +60,20 @@ export class OnlineSession {
   private collectionSettingsRef: EventRef | null = null;
 
   constructor(private readonly app: App, private readonly settingsService: SettingsService) {
-    this.controls = new PlayerControls((formula, token) => this.rollForPlayer(formula, token));
+    this.controls = new PlayerControls((formula, token, profile) => this.rollForPlayer(formula, token, profile));
     this.diceFeed = new PlayerDiceFeed(
-      settingsService,
       () => this.presentedView?.atlasStore.getState().objects.tokens,
       (roll) => {
         if (roll.source?.tokenImagePath) this.rollImages.add(roll.source.tokenImagePath);
         this.server?.broadcast('roll', roll);
       },
     );
+    this.diceLog = new PlayerDiceLog({
+      toAll: (event, data) => this.server?.broadcast(event, data),
+      toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
+    }, (roll) => {
+      if (roll.source?.tokenImagePath) this.rollImages.add(roll.source.tokenImagePath);
+    });
     this.replicator = new SceneReplicator(settingsService, {
       toAll: (event, data) => this.server?.broadcast(event, data),
       toPlayer: (playerId, event, data) => this.server?.sendTo(playerId, event, data),
@@ -122,6 +129,8 @@ export class OnlineSession {
   /** Players act on and see the scene of `presented`; none while no scene is open. */
   private setSource(presented: FollowedScene | null): void {
     const store = presented?.source.store;
+    // The log follows the scene while the DM browses other tabs, as the rolls do
+    this.diceLog.setStore(store ?? null);
     if (!presented || !store) {
       this.controls.setSource(null);
       this.replicator.setSource(null);
@@ -140,6 +149,13 @@ export class OnlineSession {
       conditions: () => mapConditions(assets, store.getState().mapPath),
       resources: () => mapResources(assets, store.getState().mapPath),
       players: () => mapPlayers(assets, store.getState().mapPath),
+      saveDiceLook: (profileId, look) => {
+        const mapPath = store.getState().mapPath;
+        const collectionId = mapPath ? assets.getCollectionForMap(mapPath) : null;
+        if (!collectionId) return;
+        const players = mapPlayers(assets, mapPath).map((player) => (player.id === profileId ? { ...player, diceLook: look } : player));
+        void assets.updateCollectionSettings(collectionId, { players }).catch((error) => console.error('[OnlineSession] Could not save the dice a player chose:', error));
+      },
     };
   }
 
@@ -168,10 +184,10 @@ export class OnlineSession {
     };
   }
 
-  private rollForPlayer(formula: string, token: TokenEntity | undefined): boolean {
+  private rollForPlayer(formula: string, token: TokenEntity | undefined, profile: PlayerProfile | null): boolean {
     const diceTool = this.presentedView?.serviceManager.getToolController().getDiceTool();
     if (!diceTool) return false;
-    this.diceFeed.rollForPlayer(diceTool, formula, token);
+    this.diceFeed.rollForPlayer(diceTool, formula, token, profile);
     return true;
   }
 
@@ -185,6 +201,7 @@ export class OnlineSession {
       onJoin: (playerId) => {
         this.connected.join(playerId);
         this.replicator.sendTo(playerId);
+        this.diceLog.sendTo(playerId);
         this.showConnected();
       },
       onLeave: (playerId) => {

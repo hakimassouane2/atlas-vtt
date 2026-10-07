@@ -7,6 +7,8 @@ import { useDiceAvatar } from './useDiceAvatar';
 import { DICE_TOAST_KNOT_SYMBOL_ID } from './diceToastOrnament';
 import { dieLabel } from '../../../tools/diceLabels';
 import { t } from '../../../i18n';
+import { rollAuthor } from '../../../tools/rollAuthor';
+import { rollFontClass } from '../../hooks/useDiceLook';
 
 export type ToastPhase = 'entering' | 'visible' | 'exiting';
 
@@ -26,6 +28,7 @@ export function DiceToast({ result, phase, onDismiss }: DiceToastProps): React.R
   const sourceTokenName = source?.tokenName ?? t('dice.unknown');
   const avatar = useDiceAvatar(source);
   const hasSource = source?.type === 'statblock' && Boolean(source.tokenName);
+  const author = rollAuthor(result);
 
   const handleToggleDetails = (e: React.MouseEvent): void => {
     e.stopPropagation();
@@ -36,6 +39,7 @@ export function DiceToast({ result, phase, onDismiss }: DiceToastProps): React.R
     <div
       className={cn(
         'atlas-dice-toast',
+        result.look && rollFontClass(result.look),
         phase === 'entering' && 'atlas-dice-toast--entering',
         phase === 'exiting' && 'atlas-dice-toast--exiting',
         crit === 'high' && 'atlas-dice-toast--crit-success',
@@ -70,7 +74,9 @@ export function DiceToast({ result, phase, onDismiss }: DiceToastProps): React.R
             </div>
           ))}
         <div className="atlas-dice-toast__content">
-          {hasSource && <span className="atlas-dice-toast__name">{sourceTokenName}</span>}
+          {author && (
+            <span className="atlas-dice-toast__name" style={author.color ? { color: author.color } : undefined}>{author.name}</span>
+          )}
           {source?.abilityName && (
             <span className="atlas-dice-toast__ability">{source.abilityName}</span>
           )}

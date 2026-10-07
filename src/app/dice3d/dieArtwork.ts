@@ -23,7 +23,7 @@ import { CELL, atlasLayout } from './atlasCell';
 import type { DiceFont } from './diceLook';
 import { dieGeometry, type DieSides } from './dieGeometry';
 import { loadImage, loadNumerals, numeralsReady, paintNumeral } from './dieNumerals';
-import { activeLook, paintCard, paintWear } from './dieSkin';
+import { activeLook, paintCard, paintWear, type ResolvedLook } from './dieSkin';
 
 let cardStock: HTMLImageElement | null = null;
 let cardPending: Promise<void> | null = null;
@@ -88,16 +88,16 @@ export interface DieTextures {
  * Randomised separately, the relief would look like scratches on a photo of
  * paper.
  */
-export function buildTextures(sides: DieSides): DieTextures {
-  // Read at every redraw, so a new look reaches the faces with `refreshDieArtwork`.
-  const albedo = (look = activeLook()): HTMLCanvasElement =>
+export function buildTextures(sides: DieSides, fixedLook?: ResolvedLook): DieTextures {
+  // Read at every redraw, so a new look reaches the faces with `refreshDieArtwork`; a roll's own look stays.
+  const albedo = (look = fixedLook ?? activeLook()): HTMLCanvasElement =>
     drawAtlas(sides, (ctx, { x, y, value }) => {
       paintCard(ctx, x, y, sides * 31 + (value ?? 0) * 7 + 5, cardStock, look);
       paintWear(ctx, x, y, value === null, look);
       if (value !== null) paintNumeral(ctx, x, y, sides, value, look.font, look.ink);
     });
 
-  const bump = (look = activeLook()): HTMLCanvasElement =>
+  const bump = (look = fixedLook ?? activeLook()): HTMLCanvasElement =>
     drawAtlas(sides, (ctx, { x, y, value }) => {
       ctx.fillStyle = '#8a8a8a';
       ctx.fillRect(x - CELL / 2, y - CELL / 2, CELL, CELL);

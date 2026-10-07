@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Dices } from 'lucide-react';
+import React, { useRef, useState, useSyncExternalStore } from 'react';
+import { Dices, ScrollText } from 'lucide-react';
 import type { ViewAtlasStore } from '../../storeFactory';
 import type { NavigationInputMode } from '../../services/SettingsService';
 import type { TokenEntity } from '../../types';
@@ -12,6 +12,8 @@ import { DiceDropdownMenu } from '../../react/components/dice/DiceDropdownMenu';
 import { PlayerSettingsMenu } from './PlayerSettingsMenu';
 import { storeInputDevice, storedInputDevice } from './inputDevice';
 import type { ProfileChoice } from './profileChoice';
+import type { PageDiceLog } from './pageDiceLog';
+import type { DiceLook } from '../../dice3d/diceLook';
 
 interface PlayerHudProps {
   store: ViewAtlasStore;
@@ -20,13 +22,18 @@ interface PlayerHudProps {
   controls: (token: TokenEntity) => boolean;
   /** Rolls `formula` with the DM's dice engine, for the token `tokenId` when given. */
   roll: (formula: string, tokenId: string | undefined) => void;
+  /** The table's dice log, which a button opens. */
+  diceLog: PageDiceLog;
+  /** Keeps the dice the player chose in their profile. */
+  setDiceLook: (look: DiceLook) => void;
   /** Makes the map's zoom and pan follow `mode`. */
   setInputDevice: (mode: NavigationInputMode) => void;
 }
 
-/** The player's toolbar over the canvas page, in the shape of the GM's: the dice tray and their settings. */
-export function PlayerHud({ store, choice, controls, roll, setInputDevice }: PlayerHudProps): React.ReactElement {
+/** The player's toolbar over the canvas page, in the shape of the GM's: the dice tray, the dice log and their settings. */
+export function PlayerHud({ store, choice, controls, roll, diceLog, setDiceLook, setInputDevice }: PlayerHudProps): React.ReactElement {
   const [diceOpen, setDiceOpen] = useState(false);
+  const logOpen = useSyncExternalStore(diceLog.subscribe, () => diceLog.getState().open);
   const [inputDevice, setInputDeviceState] = useState(storedInputDevice);
   const diceButtonRef = useRef<HTMLDivElement>(null);
 
@@ -57,12 +64,20 @@ export function PlayerHud({ store, choice, controls, roll, setInputDevice }: Pla
       ),
       menuEntry: { icon: Dices, label: 'Roll Dice', isActive: diceOpen, onSelect: toggleDice },
     },
+    {
+      id: 'diceLog',
+      kind: 'button',
+      pinned: false,
+      active: logOpen,
+      element: <ToolButton icon={ScrollText} label="Dice roll log" shortcut="Enter" isActive={logOpen} onClick={diceLog.toggle} />,
+      menuEntry: { icon: ScrollText, label: 'Dice roll log', isActive: logOpen, onSelect: diceLog.toggle },
+    },
   ];
 
   return (
     <TooltipProvider delayDuration={300}>
       <BottomToolbarRow>
-        <ResponsiveToolbar items={items} end={<PlayerSettingsMenu choice={choice} inputDevice={inputDevice} onInputDeviceChange={changeInputDevice} />} />
+        <ResponsiveToolbar items={items} end={<PlayerSettingsMenu choice={choice} inputDevice={inputDevice} onInputDeviceChange={changeInputDevice} onDiceLookChange={setDiceLook} />} />
       </BottomToolbarRow>
     </TooltipProvider>
   );

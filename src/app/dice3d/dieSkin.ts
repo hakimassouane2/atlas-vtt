@@ -7,7 +7,7 @@
 
 import { CELL, seededRandom } from './atlasCell';
 import {
-  DARK_INK, DEFAULT_DICE_LOOK, LIGHT_INK, readableInk, type DiceColour, type DiceFont, type DiceLook, type Rgb,
+  DARK_INK, DEFAULT_DICE_LOOK, LIGHT_INK, parseHex, readableInk, toHex, type DiceColour, type DiceFont, type DiceLook, type Rgb, type RollLook,
 } from './diceLook';
 
 /** A look with its colours worked out for painting. */
@@ -39,19 +39,20 @@ export function setActiveLook(look: ResolvedLook): void {
   active = look;
 }
 
-function hex(rgb: Rgb): string {
-  return `#${rgb.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
-}
-
 /** The colours of a look; `accent` is Obsidian's accent colour where the look needs it. */
 export function resolveLook(look: DiceLook, accent: Rgb | null): ResolvedLook {
   if (look.colour === 'dark') return { ...look, body: DARK_BODY, ink: LIGHT_INK };
   if (look.colour === 'accent') {
     const colour = accent ?? FALLBACK_ACCENT;
-    return { ...look, body: hex(colour), ink: readableInk(colour) };
+    return { ...look, body: toHex(colour), ink: readableInk(colour) };
   }
   // Light dice keep the pencil drawing's graphite; set numerals need a colour of their own.
   return { ...look, body: null, ink: look.font === 'medieval' ? null : DARK_INK };
+}
+
+/** The colours of a roll's look, whose accent travels with it. */
+export function resolveRollLook(look: RollLook): ResolvedLook {
+  return resolveLook({ colour: look.colour, font: look.font }, look.accent ? parseHex(look.accent) : null);
 }
 
 /**

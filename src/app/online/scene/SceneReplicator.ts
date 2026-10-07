@@ -121,6 +121,7 @@ export class SceneReplicator {
       collection: collection?.settings ?? null,
       initiativeRules: source.initiativeRules(),
       playerView: this.settingsService.getLocalPlayerViewSettings(),
+      diceDisplay: this.settingsService.getDiceDisplay(),
     };
   }
 }

@@ -24,6 +24,7 @@ import * as THREE from 'three';
 import type { DiceGpu } from './DiceGpu';
 import type { DieSides } from './dieGeometry';
 import { dieAssets } from './dieMesh';
+import type { ResolvedLook } from './dieSkin';
 import type { DieAnim } from './dieMotion';
 import { FLOOR_Y } from './dieTour';
 import { chainLengthFor, GhostTrail } from './ghostTrail';
@@ -97,7 +98,7 @@ export class DiceRenderer {
    * material. Each gets a chain of ghosts, shorter the more dice there are
    * (`chainLengthFor`).
    */
-  setPlan(sides: DieSides[]): void {
+  setPlan(sides: DieSides[], look?: ResolvedLook): void {
     for (const mesh of this.meshes) this.scene.remove(mesh);
     this.trails.clear();
     this.landed = sides.map(() => false);
@@ -106,7 +107,7 @@ export class DiceRenderer {
     const chainLength = chainLengthFor(sides.length);
 
     this.meshes = sides.map((s) => {
-      const assets = dieAssets(s);
+      const assets = dieAssets(s, look);
       const mesh = new THREE.Mesh(assets.geometry, assets.material);
       mesh.castShadow = true;
       mesh.visible = false;

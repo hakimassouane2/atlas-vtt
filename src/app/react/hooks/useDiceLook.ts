@@ -23,3 +23,8 @@ export function useDiceLook(settings: DiceSettingsSource | undefined): DiceLook 
 export function diceFontClass(look: DiceLook): string | false {
   return look.font === 'scifi' && 'atlas-dice-font--scifi';
 }
+
+/** The class that sets a roll's own dice font, whatever the font around it. */
+export function rollFontClass(look: DiceLook): string {
+  return look.font === 'scifi' ? 'atlas-dice-font--scifi' : 'atlas-dice-font--medieval';
+}

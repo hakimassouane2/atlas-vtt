@@ -17,6 +17,8 @@ export interface SceneListener {
   noScene(): void;
   /** A roll players may see. */
   roll(result: DiceRollResult): void;
+  /** The table's dice log, newest first. */
+  diceLog(entries: DiceRollResult[]): void;
 }
 
 /** Opens the event stream of the DM's scene; the browser reopens it after a lost connection. */
@@ -37,6 +39,7 @@ export function connectToScene(listener: SceneListener): EventSource {
     listener.scene(data);
   });
   on<Extract<PlayerSceneMessage, { event: 'changes' }>>('changes', (data) => listener.changes(data));
+  on<Extract<PlayerSceneMessage, { event: 'diceLog' }>>('diceLog', (data) => listener.diceLog(data));
   on<Extract<PlayerSceneMessage, { event: 'noScene' }>>('noScene', () => {
     document.body.classList.remove('online-live');
     setStatus(WAITING);

@@ -7,9 +7,10 @@ import type { ConditionDefinition, PlayerProfile } from '../types/collectionSett
 import { applyPlayerCommand, parsePlayerCommand } from './playerCommands';
 import { isPlayerControlled } from './playerTokens';
 import { PlayerHolds } from './playerHolds';
+import type { DiceLook } from '../dice3d/diceLook';
 
-/** Rolls `formula` with the DM's dice engine, for `token` when given; returns whether it rolled. */
-export type RollDice = (formula: string, token: TokenEntity | undefined) => boolean;
+/** Rolls `formula` with the DM's dice engine for the player of `profile`, for `token` when given; returns whether it rolled. */
+export type RollDice = (formula: string, token: TokenEntity | undefined, profile: PlayerProfile | null) => boolean;
 
 /** The presented scene as players' commands change it: its store, grid and collection rules. */
 export interface CommandSource {
@@ -21,6 +22,8 @@ export interface CommandSource {
   resources(): ResourceDefinition[];
   /** The player profiles of the scene's collection. */
   players(): PlayerProfile[];
+  /** Keeps the dice the player of `profileId` chose in their profile. */
+  saveDiceLook(profileId: string, look: DiceLook): void;
 }
 
 /**
@@ -48,10 +51,16 @@ export class PlayerControls {
     const command = parsePlayerCommand(body);
     const source = this.source;
     if (!command || !source || source.store.getState().isMapLoading) return false;
-    const profile = profileId && source.players().some(({ id }) => id === profileId) ? profileId : null;
+    const player = (profileId && source.players().find(({ id }) => id === profileId)) || null;
+    const profile = player?.id ?? null;
     if (command.type === 'roll') {
       const token = command.id ? source.store.getState().objects.tokens[command.id] : undefined;
-      return this.rollDice(command.formula, isPlayerControlled(token, profile) ? token : undefined);
+      return this.rollDice(command.formula, isPlayerControlled(token, profile) ? token : undefined, player);
+    }
+    if (command.type === 'diceLook') {
+      if (!profile) return false;
+      source.saveDiceLook(profile, command.look);
+      return true;
     }
     const isDrag = command.type === 'drag' || command.type === 'move';
     if (isDrag && !this.holds.allows(command.id, playerId)) return false;

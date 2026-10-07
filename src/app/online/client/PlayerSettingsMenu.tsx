@@ -7,9 +7,13 @@ import { DropdownMenuItem } from '../../packages/components/primitives/DropdownM
 import { useKeepInView } from '../../packages/components/primitives/useKeepInView';
 import { INPUT_MODE_LABELS } from '../../settings/navigationSettingsSection';
 import { PlayerDot } from '../../players/PlayerDot';
+import { SegmentedControl } from '../../packages/components/primitives/SegmentedControl';
+import { DICE_COLOUR_OPTIONS, DICE_FONT_OPTIONS, readDiceLook, type DiceLook } from '../../dice3d/diceLook';
 import type { ProfileChoice } from './profileChoice';
 
 const MENU_LABEL = 'Settings';
+/** A player's accent dice take their profile's colour (`playerRollStamp`). */
+const PLAYER_COLOUR_OPTIONS = DICE_COLOUR_OPTIONS.map((option) => (option.value === 'accent' ? { ...option, label: 'My colour' } : option));
 const DEVICE_ICONS: Record<NavigationInputMode, React.ComponentType<{ className?: string }>> = {
   mouse: Mouse,
   trackpad: Touchpad,
@@ -20,15 +24,18 @@ interface PlayerSettingsMenuProps {
   choice: ProfileChoice;
   inputDevice: NavigationInputMode;
   onInputDeviceChange: (mode: NavigationInputMode) => void;
+  /** Keeps the dice the player chose in their profile, which every roll of theirs is thrown in. */
+  onDiceLookChange: (look: DiceLook) => void;
 }
 
 /** The player's own settings, in a menu hanging from the toolbar like the GM's tool menus. */
-export function PlayerSettingsMenu({ choice, inputDevice, onInputDeviceChange }: PlayerSettingsMenuProps): React.ReactElement {
+export function PlayerSettingsMenu({ choice, inputDevice, onInputDeviceChange, onDiceLookChange }: PlayerSettingsMenuProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const { players, chosen } = useSyncExternalStore(choice.subscribe, choice.getState);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const keepInView = useKeepInView(menuRef, open, 'top');
+  const diceLook = readDiceLook(chosen?.diceLook);
 
   // A press anywhere else or Escape closes the menu
   useEffect(() => {
@@ -76,6 +83,23 @@ export function PlayerSettingsMenu({ choice, inputDevice, onInputDeviceChange }:
                   setOpen(false);
                   choice.chooseAgain();
                 }}
+              />
+            </div>
+          )}
+          {chosen && (
+            <div className="atlas-dropdown-section">
+              <span className="atlas-dropdown-label">My dice</span>
+              <SegmentedControl
+                ariaLabel="Dice colour"
+                value={diceLook.colour}
+                options={PLAYER_COLOUR_OPTIONS}
+                onChange={(colour) => onDiceLookChange({ ...diceLook, colour })}
+              />
+              <SegmentedControl
+                ariaLabel="Dice numbers"
+                value={diceLook.font}
+                options={DICE_FONT_OPTIONS}
+                onChange={(font) => onDiceLookChange({ ...diceLook, font })}
               />
             </div>
           )}

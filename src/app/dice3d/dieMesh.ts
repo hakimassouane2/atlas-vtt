@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { atlasLayout } from './atlasCell';
 import { buildTextures, diceArtworkReady, loadDiceArtwork } from './dieArtwork';
 import { dieGeometry, type DieSides } from './dieGeometry';
-import { activeLook } from './dieSkin';
+import { activeLook, type ResolvedLook } from './dieSkin';
 import { FACE_CELL_REACH, faceFrame } from './faceFrame';
 import { vAdd, vCross, vDot, vNormalize, vScale, vSub, type Vec3 } from './vectorMath';
 
@@ -21,8 +21,19 @@ export interface DieAssets {
   redraw: () => void;
 }
 
-/** One set of textures and mesh per body; dice of the same kind share it. */
+/** One set of textures and mesh per body in the active look; dice of the same kind share it. */
 const assetCache = new Map<DieSides, DieAssets>();
+/**
+ * Bodies in the look of a roll that differs from the active one (another player's dice), by
+ * body and look. A table has a handful of looks, so they are kept, like the active look's.
+ */
+const rollLookCache = new Map<string, DieAssets>();
+/** One body's chamfered mesh, which every look shares. */
+const geometryCache = new Map<DieSides, THREE.BufferGeometry>();
+
+function lookKey(look: ResolvedLook): string {
+  return `${look.colour}|${look.font}|${look.body ?? ''}|${look.ink ?? ''}`;
+}
 
 type Uv = [number, number];
 
@@ -147,11 +158,17 @@ export function chamferedGeometry(sides: DieSides): THREE.BufferGeometry {
   return geometry;
 }
 
-export function dieAssets(sides: DieSides): DieAssets {
-  const cached = assetCache.get(sides);
+/** The body of a die, in `look` (a roll's own) or in the active look. */
+export function dieAssets(sides: DieSides, look?: ResolvedLook): DieAssets {
+  if (look === undefined || lookKey(look) === lookKey(activeLook())) return cachedAssets(assetCache, sides, sides);
+  return cachedAssets(rollLookCache, `${sides}|${lookKey(look)}`, sides, look);
+}
+
+function cachedAssets<K>(cache: Map<K, DieAssets>, key: K, sides: DieSides, look?: ResolvedLook): DieAssets {
+  const cached = cache.get(key);
   if (cached !== undefined) return cached;
 
-  const textures = buildTextures(sides);
+  const textures = buildTextures(sides, look);
   // **Card has no gloss.** This used to be polished wood with a lacquer coat
   // and gilded, i.e. metallic, numerals: three controls that all did the same
   // thing, reflect. Paper does not reflect. What remains is a dull surface with
@@ -165,15 +182,20 @@ export function dieAssets(sides: DieSides): DieAssets {
     envMapIntensity: 0.2,
   });
 
+  let geometry = geometryCache.get(sides);
+  if (geometry === undefined) {
+    geometry = chamferedGeometry(sides);
+    geometryCache.set(sides, geometry);
+  }
   const assets: DieAssets = {
-    geometry: chamferedGeometry(sides),
+    geometry,
     material,
     redraw: textures.redraw,
   };
-  assetCache.set(sides, assets);
+  cache.set(key, assets);
   // Faces painted before their artwork arrived are painted once more when it does.
   // Only then: repainting means drawing every cell again and uploading the atlas anew.
-  const font = activeLook().font;
+  const font = (look ?? activeLook()).font;
   if (!diceArtworkReady(font)) void loadDiceArtwork(font).then(() => assets.redraw());
   return assets;
 }
@@ -185,4 +207,6 @@ export function refreshDieArtwork(sides?: DieSides): void {
     return;
   }
   for (const assets of assetCache.values()) assets.redraw();
+  // A theme's colours never reach a roll's own look; only artwork that arrived late does.
+  for (const assets of rollLookCache.values()) assets.redraw();
 }
