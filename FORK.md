@@ -179,6 +179,9 @@ doit rester vert.
   `ContextMenuContext` réexporte `ContextMenuEntry` et `ContextMenuOptions` de `ui/contextMenus.ts`.
 - `DiceRollDisplay`, `useDiceAvatar`, `useDiceDisplay`, `useDiceLook`, `DiceDropdownMenu` :
   environnement des dés par contexte React.
+- `gmTokenMenu`, `AtlasContextMenu`, `atlas-context-menu.scss` : le menu MJ du token est rangé en
+  groupes (jeu, le token, qui le voit, copies, destruction) séparés par l'entrée `separator` ;
+  sous-menus Fiche et Apparence.
 - `PlayerInitiativePanel`, `InitiativeCard` : badge d'instance partagé (`shownInstanceNumber`).
 - `main.ts` : session en ligne, registres (notices, icônes, plateforme). `PlayerView`
   (`atlas-vtt-player`, jamais ouverte) est supprimée.

@@ -33,7 +33,9 @@ export type ContextMenuEntry =
     children: ContextMenuEntry[] | (() => ContextMenuEntry[]);
     subscribe?: (onChange: () => void) => () => void;
   }
-  | { type: 'custom'; render: () => React.ReactNode };
+  | { type: 'custom'; render: () => React.ReactNode }
+  /** A rule between groups; one at either end or next to another is dropped, so a group that comes out empty takes its rule along. */
+  | { type: 'separator' };
 
 export interface MenuStepper {
   value: string;
@@ -143,12 +145,26 @@ function ItemContent({ entry }: { entry: ContextMenuItemEntry }): React.ReactEle
 
 // ── Render entries recursively ──────────────────────────────────────────────
 
+/** The entries without separators at either end or next to each other. */
+function withTidySeparators(entries: ContextMenuEntry[]): ContextMenuEntry[] {
+  const tidy: ContextMenuEntry[] = [];
+  for (const entry of entries) {
+    if (entry.type === 'separator' && (tidy.length === 0 || tidy[tidy.length - 1]?.type === 'separator')) continue;
+    tidy.push(entry);
+  }
+  if (tidy[tidy.length - 1]?.type === 'separator') tidy.pop();
+  return tidy;
+}
+
 export function renderEntries(
   entries: ContextMenuEntry[],
   onClose: () => void,
 ): React.ReactNode[] {
-  return entries.map((entry, idx) => {
+  return withTidySeparators(entries).map((entry, idx) => {
     switch (entry.type) {
+      case 'separator':
+        return <DropdownMenu.Separator key={`separator-${idx}`} className="atlas-ctx-separator" />;
+
       case 'custom':
         return (
           <div key={`custom-${idx}`} className="atlas-ctx-custom" role="none">

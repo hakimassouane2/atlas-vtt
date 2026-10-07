@@ -53,23 +53,55 @@ function menuTargets({ store }: TokenMenuCanvas, tokenId: string): string[] {
   return selectedIds.filter((id) => objects.tokens[id] !== undefined);
 }
 
+/**
+ * Grouped from what a fight uses most to what it never does: play, the token's own records and look,
+ * who sees and moves it, copies, and the destructive row last.
+ */
 function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntity): ContextMenuEntry[] {
   const { store, gridSystem } = canvas;
   const character = token.kind === 'character' ? token : undefined;
   const targets = menuTargets(canvas, token.id);
+  const separator: ContextMenuEntry = { type: 'separator' };
   const entries: ContextMenuEntry[] = [];
+
+  // Play
+  // Initiative, for the selection the token belongs to; the clicked token decides which way
+  const isInInitiative = (store.getState().initiative?.entries || []).some((entry) => entry.tokenId === token.id);
+  entries.push({
+    type: 'item',
+    label: isInInitiative ? t('initiative.remove') : t('token.addInitiative'),
+    icon: 'swords',
+    onClick: () => toggleInitiative(canvas, targets, isInInitiative),
+  });
 
   const conditionDefs = canvas.conditions();
   if (conditionDefs.length > 0) entries.push(conditionsSubmenu(store, conditionDefs, targets));
 
-  entries.push(tokenSizeSubmenu(token.size, (size) => {
-    const { grid, objects, updateToken } = store.getState();
-    const current = objects.tokens[token.id];
-    if (!current) return;
-    const center = resizedTokenCenter(current, current.size || 1, size, grid);
-    updateToken(token.id, { size, x: center.x, y: center.y });
-  }));
+  // Reset (only if the token tracks resources)
+  if (hasResources(canvas, character)) {
+    entries.push({
+      type: 'item',
+      label: resetLabel(canvas.resources()),
+      icon: 'rotate-ccw',
+      onClick: () => store.getState().resetTokens([token.id], canvas.resources()),
+    });
+  }
 
+  // The token itself
+  entries.push(
+    separator,
+    statblockEntry(app, canvas, token, character),
+    {
+      type: 'item',
+      label: t('editToken.title'),
+      icon: 'edit',
+      onClick: () => openEditTokenModal(token, store, app, canvas.resources()),
+    },
+    appearanceSubmenu(canvas, token),
+  );
+
+  // Who sees it and who moves it
+  entries.push(separator);
   // Hide/Show the selection in one undo step; the clicked token decides which way
   const isHidden = store.getState().objects.tokens[token.id]?.isHidden || false;
   entries.push({
@@ -84,9 +116,15 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
     entries.push(...tokenLightingEntries(store, token.id, targets, mapLightPresets(app, store.getState())));
   }
 
+  // Which online players move the selection
+  const players = mapPlayers(AssetService.getInstance(app), store.getState().mapPath);
+  if (players.length > 0) entries.push(playersSubmenu(store, players, targets));
+
+  // Copies
   const selectedIds = store.getState().selectedIds;
   const groupIds = selectedIds.includes(token.id) ? selectedIds : [token.id];
   entries.push(
+    separator,
     { type: 'item', label: t('common.duplicate'), icon: 'files', onClick: () => store.getState().duplicateMapObjects(groupIds) },
     { type: 'item', label: t('common.copy'), icon: 'copy', onClick: () => copyMapObjects(store, groupIds) },
     {
@@ -95,53 +133,10 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
       icon: 'swords',
       onClick: () => { void saveMapTokensAsEncounter(app, store, gridSystem, groupIds); },
     },
-    {
-      type: 'item',
-      label: t('editToken.title'),
-      icon: 'edit',
-      onClick: () => openEditTokenModal(token, store, app, canvas.resources()),
-    },
   );
 
-  // Which online players move the selection
-  const players = mapPlayers(AssetService.getInstance(app), store.getState().mapPath);
-  if (players.length > 0) entries.push(playersSubmenu(store, players, targets));
-
-  // Initiative, for the selection the token belongs to; the clicked token decides which way
-  const isInInitiative = (store.getState().initiative?.entries || []).some((entry) => entry.tokenId === token.id);
-  entries.push({
-    type: 'item',
-    label: isInInitiative ? t('initiative.remove') : t('token.addInitiative'),
-    icon: 'swords',
-    onClick: () => toggleInitiative(canvas, targets, isInInitiative),
-  });
-
-  entries.push(...statblockEntries(app, canvas, token, character));
-
-  entries.push({
-    type: 'submenu',
-    label: t('token.ringColor'),
-    icon: 'circle',
-    children: ringColors().map((color) => ({
-      type: 'item' as const,
-      label: color.name,
-      checked: color.value === token.ringColor || (color.value === null && !token.ringColor),
-      onClick: () => store.getState().setTokenRing(token.id, color.value),
-    })),
-  });
-
-  // Reset (only if the token tracks resources)
-  if (hasResources(canvas, character)) {
-    entries.push({
-      type: 'item',
-      label: resetLabel(canvas.resources()),
-      icon: 'rotate-ccw',
-      onClick: () => store.getState().resetTokens([token.id], canvas.resources()),
-    });
-  }
-
   // Destructive actions row (Kill + Delete side by side)
-  entries.push({
+  entries.push(separator, {
     type: 'custom',
     render: () => React.createElement(DestructiveActionRow, {
       tokenId: token.id,
@@ -155,32 +150,61 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   return entries;
 }
 
-function statblockEntries(app: App, { store }: TokenMenuCanvas, token: TokenEntity, character: Character | undefined): ContextMenuEntry[] {
+/** Size and ring colour of the clicked token. */
+function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity): ContextMenuEntry {
+  const size = tokenSizeSubmenu(token.size, (newSize) => {
+    const { grid, objects, updateToken } = store.getState();
+    const current = objects.tokens[token.id];
+    if (!current) return;
+    const center = resizedTokenCenter(current, current.size || 1, newSize, grid);
+    updateToken(token.id, { size: newSize, x: center.x, y: center.y });
+  });
+  const ringColor: ContextMenuEntry = {
+    type: 'submenu',
+    label: t('token.ringColor'),
+    icon: 'circle',
+    children: ringColors().map((color) => ({
+      type: 'item' as const,
+      label: color.name,
+      checked: color.value === token.ringColor || (color.value === null && !token.ringColor),
+      onClick: () => store.getState().setTokenRing(token.id, color.value),
+    })),
+  };
+  return { type: 'submenu', label: t('token.appearance'), icon: 'paintbrush', children: [size, ringColor] };
+}
+
+/** A linked statblock opens or unlinks from its own submenu; an unlinked token offers to link one. */
+function statblockEntry(app: App, { store }: TokenMenuCanvas, token: TokenEntity, character: Character | undefined): ContextMenuEntry {
   const statblockPath = character?.statblockPath;
   if (statblockPath) {
-    return [
-      {
-        type: 'item',
-        label: t('token.editStatblock'),
-        icon: 'file-text',
-        onClick: async () => {
-          const file = app.vault.getAbstractFileByPath(statblockPath);
-          if (file) await app.workspace.openLinkText(file.path, '', true);
+    return {
+      type: 'submenu',
+      label: t('token.statblock'),
+      icon: 'file-text',
+      children: [
+        {
+          type: 'item',
+          label: t('token.openStatblock'),
+          icon: 'file-text',
+          onClick: async () => {
+            const file = app.vault.getAbstractFileByPath(statblockPath);
+            if (file) await app.workspace.openLinkText(file.path, '', true);
+          },
         },
-      },
-      {
-        type: 'item',
-        label: t('am.menu.unlinkStatblock'),
-        icon: 'unlink',
-        onClick: async () => {
-          if (!token.imagePath) return;
-          await TokenStatblockLinkService.getInstance(app).unlinkToken(token.imagePath);
-          store.getState().updateToken(token.id, STATBLOCK_UNLINK_UPDATES);
+        {
+          type: 'item',
+          label: t('token.unlinkStatblock'),
+          icon: 'unlink',
+          onClick: async () => {
+            if (!token.imagePath) return;
+            await TokenStatblockLinkService.getInstance(app).unlinkToken(token.imagePath);
+            store.getState().updateToken(token.id, STATBLOCK_UNLINK_UPDATES);
+          },
         },
-      },
-    ];
+      ],
+    };
   }
-  return [{
+  return {
     type: 'item',
     label: t('am.menu.linkStatblock'),
     icon: 'link',
@@ -203,7 +227,7 @@ function statblockEntries(app: App, { store }: TokenMenuCanvas, token: TokenEnti
         { imagePath: token.imagePath, showRing: token.showRing },
       );
     },
-  }];
+  };
 }
 
 function hasResources(canvas: TokenMenuCanvas, character: Character | undefined): boolean {

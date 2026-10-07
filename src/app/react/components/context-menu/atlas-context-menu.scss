@@ -102,6 +102,16 @@ $ctx-inset: $spacing-xs;
   }
 }
 
+// ── Separator between groups ────────────────────────────────────────────────
+
+// Starts and ends where a row's content does, so the rule never runs into the capsules' curves.
+.atlas-ctx-separator {
+  flex-shrink: 0;
+  height: $border-width-s;
+  margin: $spacing-xs $spacing-s;
+  background: var(--background-modifier-border);
+}
+
 // ── Check mark and value stepper (checkable and valued items) ────────────────
 
 .atlas-ctx-item__check {

@@ -12,8 +12,11 @@ export const token = {
   'token.hide': 'Hide',
   'token.saveEncounter': 'Save as Encounter',
   'token.addInitiative': 'Add to Initiative',
-  'token.editStatblock': 'Edit Statblock',
+  'token.statblock': 'Statblock',
+  'token.openStatblock': 'Open',
+  'token.unlinkStatblock': 'Unlink',
   'token.linkFailed': 'Could not link the statblock',
   'token.ringColor': 'Ring Color',
+  'token.appearance': 'Appearance',
   'token.reset': 'Reset (Full HP, Clear Status)',
 } as const satisfies Record<string, Message>;

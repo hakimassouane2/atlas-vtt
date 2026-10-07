@@ -12,8 +12,11 @@ export const token: Translation = {
   'token.hide': 'Скрыть',
   'token.saveEncounter': 'Сохранить как стычку',
   'token.addInitiative': 'Добавить в инициативу',
-  'token.editStatblock': 'Изменить статблок',
+  'token.statblock': 'Статблок',
+  'token.openStatblock': 'Открыть',
+  'token.unlinkStatblock': 'Отвязать',
   'token.linkFailed': 'Не удалось привязать статблок',
   'token.ringColor': 'Цвет кольца',
+  'token.appearance': 'Внешний вид',
   'token.reset': 'Сбросить (полное HP, без состояний)',
 };

@@ -89,4 +89,18 @@ describe('context menu items', () => {
     React.act(() => listener?.());
     expect(screen.getByRole('menuitem', { name: 'After' })).toBeTruthy();
   });
+
+  it('drops separators at either end and next to another, keeping one between groups', () => {
+    renderMenu([
+      { type: 'separator' },
+      { type: 'item', label: 'Hide', onClick: vi.fn() },
+      { type: 'separator' },
+      { type: 'separator' },
+      { type: 'item', label: 'Copy', onClick: vi.fn() },
+      { type: 'separator' },
+    ], vi.fn());
+
+    const menu = screen.getByRole('menu');
+    expect(Array.from(menu.children).map((child) => child.getAttribute('role'))).toEqual(['menuitem', 'separator', 'menuitem']);
+  });
 });
