@@ -245,6 +245,10 @@ doit rester vert.
 - Règles partagées : `uiSlice` et `storeFactory` (`localRuler`, `sharedRulers`), `DragRuler`
   (publie son trajet ; `snapRulerPoint` et `drawRuler` exportés), `DragRulerView.draw` (couleur
   facultative), `TokenRenderer` (crée `SharedDragRulers`).
+- Plateau de dés (`DiceTray`, `DieFace`, `dice-dropdown.scss`) : dés dessinés en SVG au trait
+  (`currentColor`) à la place des croquis au crayon (`assets/dice-icons/` supprimé) ; clic gauche
+  ajoute un dé, clic droit (ou Retour arrière, Suppr) en retire un, plus de « − » sous les dés ;
+  formule et modificateur dans la police de l'interface.
 - Laser partagé : `uiSlice` et `storeFactory` (`localLaser`, `sharedLasers`), `LaserPointerRenderer`
   (publie ses morceaux ; traînée dans `laserTrail.ts`), `PixiRendererOrchestrator` (crée
   `RemoteLasers`), clé `laser.gmName`.

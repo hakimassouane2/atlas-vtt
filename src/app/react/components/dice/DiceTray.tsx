@@ -14,11 +14,13 @@ interface DiceTrayProps {
   onRoll: (formula: string) => void;
 }
 
+/** Keys that take a die back from the focused body, for those without a right button. */
+const TAKE_BACK_KEYS = new Set(['Backspace', 'Delete', '-']);
+
 /**
- * Seven bodies to click, a modifier and a throw. Every die is a surface: one
- * click puts one in the tray, two put two. The "−" under a die is always there
- * once it holds any: a control that appears only under the pointer is no
- * control on a touchpad. Mixed dice are thrown together, `2d6 + 1d20 + 3`, as
+ * Seven bodies to click, a modifier and a throw. Every die is a surface: a
+ * click puts one in the tray, a right-click takes one back (Backspace or Delete
+ * from the keyboard). Mixed dice are thrown together, `2d6 + 1d20 + 3`, as
  * three kinds held in one hand.
  */
 export function DiceTray({ onRoll }: DiceTrayProps): React.ReactElement {
@@ -47,35 +49,32 @@ export function DiceTray({ onRoll }: DiceTrayProps): React.ReactElement {
       <div className="atlas-dice-tray__dice">
         {TRAY_DICE.map((sides) => {
           const count = pool[sides] ?? 0;
+          const takeBack = (): void => setPool((prev) => removeDie(prev, sides));
           return (
-            <div key={sides} className="atlas-dice-tray__die">
-              <LabelTooltip label={`d${sides}`}>
-                <button
-                  type="button"
-                  className="atlas-dice-tray__face"
-                  onClick={() => setPool((prev) => addDie(prev, sides))}
-                  disabled={count >= MAX_PER_DIE || total >= MAX_DICE}
-                  aria-label={count === 0 ? `Add a d${sides}` : `Add a d${sides}, ${count} in the tray`}
-                >
-                  <DieFace sides={sides} />
-                  {count > 0 && <span key={count} className="atlas-dice-tray__count" aria-hidden="true">{count}</span>}
-                </button>
-              </LabelTooltip>
-              {/* The place under the die stays even when empty: appearing with the
-                  first click, it would push the dice away and the second click would miss. */}
-              {count > 0 ? (
-                <button
-                  type="button"
-                  className="atlas-dice-tray__grip"
-                  onClick={() => setPool((prev) => removeDie(prev, sides))}
-                  aria-label={`Take one d${sides} back`}
-                >
-                  <Minus aria-hidden="true" />
-                </button>
-              ) : (
-                <span className="atlas-dice-tray__grip-space" aria-hidden="true" />
-              )}
-            </div>
+            <LabelTooltip key={sides} label={count > 0 ? `d${sides}: right-click takes one back` : `d${sides}`}>
+              <button
+                type="button"
+                className="atlas-dice-tray__face"
+                onClick={() => setPool((prev) => addDie(prev, sides))}
+                onContextMenu={(event) => {
+                  // The tray's own menu: nothing under it opens one
+                  event.preventDefault();
+                  event.stopPropagation();
+                  takeBack();
+                }}
+                onKeyDown={(event) => {
+                  if (!TAKE_BACK_KEYS.has(event.key)) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  takeBack();
+                }}
+                aria-disabled={count >= MAX_PER_DIE || total >= MAX_DICE || undefined}
+                aria-label={count === 0 ? `Add a d${sides}` : `Add a d${sides}, ${count} in the tray`}
+              >
+                <DieFace sides={sides} />
+                {count > 0 && <span key={count} className="atlas-dice-tray__count" aria-hidden="true">{count}</span>}
+              </button>
+            </LabelTooltip>
           );
         })}
       </div>

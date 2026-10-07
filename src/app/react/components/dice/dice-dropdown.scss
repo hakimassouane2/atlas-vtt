@@ -76,12 +76,6 @@ $tray-art: 32px;
   gap: $spacing-s;
 }
 
-.atlas-dice-tray__die {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-xs;
-}
-
 // Obsidian styles every <button>; the tray's own controls start from nothing.
 .atlas-dice-tray__face,
 .atlas-dice-tray__grip {
@@ -96,7 +90,9 @@ $tray-art: 32px;
   @include atlas-corner-shape;
   transition: background-color $transition-fast $transition-ease;
 
-  &:disabled {
+  // A full die stays `aria-disabled`, not disabled: a right-click must still take one back
+  &:disabled,
+  &[aria-disabled='true'] {
     cursor: default;
     opacity: 0.6;
   }
@@ -109,22 +105,23 @@ $tray-art: 32px;
   border: $border-width-m solid color-mix(in oklch, var(--mono-100) $border-opacity-subtle, transparent);
   border-radius: $radius-l;
 
-  &:hover:not(:disabled) {
+  &:hover {
     background: var(--background-modifier-hover);
   }
 
-  &:active:not(:disabled) {
+  &:active:not([aria-disabled='true']) {
     transform: scale(0.96);
   }
-}
 
-// The outer dice sit $spacing-s below the panel's top corners: concentric with them.
-.atlas-dice-tray__die:first-child > .atlas-dice-tray__face {
-  @include atlas-panel-inset-radius($spacing-s, top-left);
-}
+  // The outer dice sit $spacing-s below the panel's top corners: concentric with them.
+  // Of-type: each die's tooltip leaves a hidden label beside it.
+  &:first-of-type {
+    @include atlas-panel-inset-radius($spacing-s, top-left);
+  }
 
-.atlas-dice-tray__die:last-child > .atlas-dice-tray__face {
-  @include atlas-panel-inset-radius($spacing-s, top-right);
+  &:last-of-type {
+    @include atlas-panel-inset-radius($spacing-s, top-right);
+  }
 }
 
 .atlas-dice-tray__grip {
@@ -143,10 +140,6 @@ $tray-art: 32px;
     background: var(--background-modifier-hover);
     color: var(--text-normal);
   }
-}
-
-.atlas-dice-tray__grip-space {
-  height: $tray-grip-height;
 }
 
 .atlas-dice-tray__count {
@@ -170,43 +163,22 @@ $tray-art: 32px;
   animation: atlas-dice-badge-pop 0.15s ease-out both;
 }
 
-// Pencil drawings lie in the surface rather than on it; the dark theme inverts
-// the graphite, since a drawing has tones and cannot take `currentColor`.
+// Line drawings in the text colour, like every other icon.
 .atlas-die-face {
   display: block;
   width: $tray-art;
   height: $tray-art;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  color: var(--text-normal);
 }
 
-.atlas-die-face__art {
-  mix-blend-mode: multiply;
-
-  .theme-dark & {
-    filter: invert(1) hue-rotate(180deg);
-    mix-blend-mode: screen;
-  }
-}
-
-// d100 has no body of its own: two offset d10s, tens behind and units in front.
-.atlas-die-face--percentile {
-  position: relative;
-
-  > .atlas-die-face__art {
-    position: absolute;
-    width: 24px;
-    height: 24px;
-  }
-
-  > .atlas-die-face__art--tens {
-    top: 0;
-    left: 0;
-    opacity: 0.7;
-  }
-
-  > .atlas-die-face__art--units {
-    right: 0;
-    bottom: 0;
-  }
+// d100: the tens die stands behind the units die, a little fainter.
+.atlas-die-face__tens {
+  opacity: 0.6;
 }
 
 .atlas-dice-tray__modifier {
@@ -231,7 +203,6 @@ $tray-art: 32px;
 .atlas-dice-tray__modifier-value {
   width: 32px;
   text-align: center;
-  font-family: $font-dice-display;
   font-size: $font-ui-medium;
   font-variant-numeric: tabular-nums;
   color: var(--text-normal);
@@ -245,7 +216,6 @@ $tray-art: 32px;
   border-radius: $radius-l;
   background: var(--background-secondary);
   text-align: center;
-  font-family: $font-dice-display;
   font-size: $font-ui-medium;
   font-variant-numeric: tabular-nums;
   color: var(--text-normal);
