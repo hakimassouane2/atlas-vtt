@@ -72,7 +72,8 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 ## Retouches de l'interface du MJ
 
 - **Cadre de sélection des tokens** (`pixi/SelectionManager.ts`) : il suit exactement l'emprise du
-  token sur la grille (taille du token × case), trait à l'intérieur, comme Foundry ; les barres,
+  token sur la grille, les cases qu'il couvre (`tokenFootprintSize`, pas le sprite, qui est en
+  retrait du liseré de la grille), trait de 2 px à l'intérieur, comme Foundry ; les barres,
   le nom et les roues restent dehors. L'original l'agrandissait de 12 px et y ajoutait les barres
   (`getBarsReach`, retiré avec sa chaîne `UIManager` / `TokenRenderer` / `barsReachProvider`).
   Les dessins et le brouillard gardent le cadre d'origine.

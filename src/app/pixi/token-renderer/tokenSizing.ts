@@ -38,6 +38,11 @@ export function tokenSizeFromCreatureSize(value: unknown): number | undefined {
   return CREATURE_SIZE_MULTIPLIERS[word];
 }
 
+/** Side in pixels of the cells a token covers: its sprite plus the stroke inset around it. */
+export function tokenFootprintSize(gridSize: number, sizeInCells: number): number {
+  return gridSize * tokenDiameterInCells(sizeInCells);
+}
+
 /** Token sprite diameter in pixels for a token covering `sizeInCells` cells. */
 export function computeTokenPixelSize(gridSize: number, sizeInCells: number): number {
   const strokeWidth = computeTokenStrokeWidth(gridSize);

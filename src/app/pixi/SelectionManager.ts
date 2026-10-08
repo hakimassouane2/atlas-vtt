@@ -8,9 +8,10 @@ import { EventEmitter } from 'events';
 import { getDrawingBounds, type DrawingBounds } from './drawingGeometry';
 import type { LayerVisibility } from './playerSafeFrame';
 import { MAP_LAYER_Z } from './mapLayerOrder';
+import { tokenFootprintSize } from './token-renderer/tokenSizing';
 
 /** A selected token's frame: its stroke, inside the footprint, and corner, in world px. */
-const TOKEN_FRAME = { line: 3, radius: 4 } as const;
+const TOKEN_FRAME = { line: 2, radius: 4 } as const;
 /** The frame around drawings and fog shapes, which have no cell to fit. */
 const AREA_FRAME = { pad: 12, radius: 16 } as const;
 
@@ -390,10 +391,10 @@ export class SelectionManager {
         // Get the actual sprite from the tokenGroup (should be the first child)
         const sprite = tokenGroup.children[0];
         if (sprite && sprite.width && sprite.height) {
-          // Since sprites have anchor.set(0.5) and are positioned at 0,0 within the group,
-          // we use the tokenGroup's position and the sprite's dimensions
-          const halfWidth = sprite.width / 2;
-          const halfHeight = sprite.height / 2;
+          // The cells the token covers, centred on its group: the sprite is inset from them
+          const footprint = this.tokenFootprint(id);
+          const halfWidth = (footprint ?? sprite.width) / 2;
+          const halfHeight = (footprint ?? sprite.height) / 2;
           const spriteLeft = tokenGroup.position.x - halfWidth;
           const spriteTop = tokenGroup.position.y - halfHeight;
           const spriteRight = tokenGroup.position.x + halfWidth;
@@ -439,6 +440,14 @@ export class SelectionManager {
     const accentHex = cssColorToHexNumber(getObsidianAccentColor());
     if (onlyTokens) this.drawTokenFrame(minX, minY, maxX - minX, maxY - minY, accentHex);
     else this.drawAreaFrame(minX, minY, maxX - minX, maxY - minY, accentHex);
+  }
+
+  /** Side of the cells a token covers, in world px; null without a grid. */
+  private tokenFootprint(id: string): number | null {
+    const { grid, objects } = this.store.getState();
+    const token = objects.tokens[id];
+    if (!grid?.size || !token) return null;
+    return tokenFootprintSize(grid.size, token.size || 1);
   }
 
   /** Tokens: their grid footprint exactly, the stroke inside it, so the frame stays in their cells. */
