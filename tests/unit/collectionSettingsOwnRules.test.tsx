@@ -49,7 +49,8 @@ function open(settings: CollectionSettings, lighting = true): { saved: () => Par
   return { saved: () => written };
 }
 
-const activeRow = (): HTMLElement => screen.getByRole('radio', { name: /D&D 5e/, checked: true });
+/** The header's game system picker, which names the system and marks it edited. */
+const activeRow = (): HTMLElement => screen.getByRole('button', { name: /^Game system D&D 5e/ });
 const save = async (): Promise<void> => {
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })); });
 };
@@ -87,7 +88,7 @@ describe('the collection settings modal and what a collection has of its own', (
     const { saved } = open({ ...fresh(), ...all });
     await waitFor(() => expect(within(activeRow()).getByText('Edited')).toBeTruthy());
     // Visit the tabs of both features without changing anything.
-    for (const tab of ['Vision', 'Resources', 'Conditions', 'Game System']) fireEvent.click(screen.getByRole('button', { name: tab }));
+    for (const tab of ['Vision', 'Resources', 'Conditions', 'Players']) fireEvent.click(screen.getByRole('button', { name: tab }));
     await save();
     expect(saved()).toMatchObject(all);
     expect(saved()!.defaultWidgets).toMatchObject({ hpBar: true });
@@ -107,6 +108,7 @@ describe('the collection settings modal and what a collection has of its own', (
     const all = Object.assign({}, ...Object.values(edits)) as Partial<CollectionSettings>;
     const { saved } = open({ ...fresh(), ...all });
     await waitFor(() => expect(within(activeRow()).getByText('Edited')).toBeTruthy());
+    fireEvent.click(activeRow());
     fireEvent.click(screen.getByRole('button', { name: 'Reset to D&D 5e' }));
     expect(within(activeRow()).queryByText('Edited')).toBeNull();
     await save();
@@ -152,7 +154,7 @@ describe('the collection settings modal and the initiative rules', () => {
 
   it('shows a Cairn collection by sides without a roll, and as not edited', async () => {
     const { saved } = open({ ...rulesOfPreset(cairn), systemPresetId: cairn.id } as CollectionSettings);
-    const cairnRow = (): HTMLElement => screen.getByRole('radio', { name: /Cairn/, checked: true });
+    const cairnRow = (): HTMLElement => screen.getByRole('button', { name: /^Game system Cairn/ });
     await waitFor(() => expect(cairnRow()).toBeTruthy());
     expect(within(cairnRow()).queryByText('Edited')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Default Widgets' }));

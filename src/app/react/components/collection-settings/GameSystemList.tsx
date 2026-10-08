@@ -1,15 +1,13 @@
 /**
- * SystemTab — Choose the collection's game system from the vault's presets,
- * or save its current rules as a preset of your own.
+ * GameSystemList — The vault's game systems, in the header picker's panel:
+ * choose one, reset an edited one, rename or delete your own.
  */
 
 import React, { useState } from 'react';
-import { Plus, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { Button } from '../../../packages/components/primitives/button';
-import { LabelTooltip } from '../../../packages/components/primitives/tooltip';
 import { ActionsMenuButton } from '../../../packages/components/shared/ActionsMenuButton';
 import type { ContextMenuEntry } from '../context-menu/AtlasContextMenu';
-import { findActivePreset, sameSystemRules } from '../../../gameSystems/systemRules';
 import type { SystemPresetService } from '../../../services/SystemPresetService';
 import type { SystemPreset, SystemRules } from '../../../types/systemPresetTypes';
 import { runInBackground } from '../../../utils/backgroundTask';
@@ -17,32 +15,26 @@ import { PresetNameInput } from './PresetNameInput';
 import { SystemPresetRow } from './SystemPresetRow';
 import { t } from '../../../i18n';
 
-interface SystemTabProps {
+interface GameSystemListProps {
   service: SystemPresetService;
   presets: readonly SystemPreset[];
   rules: SystemRules;
-  presetId: string | undefined;
-  onApplyPreset: (preset: SystemPreset) => void;
-  onPresetIdChange: (presetId: string | undefined) => void;
+  /** The game system the collection follows, if any. */
+  active: SystemPreset | undefined;
+  /** The collection's rules differ from the active game system's. */
+  isEdited: boolean;
+  /** Applies a game system, also to reset the active one. */
+  onApply: (preset: SystemPreset) => void;
   /** Deletes a user preset; the collections that use it, this one included, lose their game system. */
   onDeletePreset: (preset: SystemPreset) => Promise<void>;
 }
 
-type PendingEdit = { kind: 'create' } | { kind: 'rename' | 'delete'; presetId: string };
+type PendingEdit = { kind: 'rename' | 'delete'; presetId: string };
 
-export function SystemTab({
-  service, presets, rules, presetId, onApplyPreset, onPresetIdChange, onDeletePreset,
-}: SystemTabProps): React.ReactElement {
+export function GameSystemList({
+  service, presets, rules, active, isEdited, onApply, onDeletePreset,
+}: GameSystemListProps): React.ReactElement {
   const [pending, setPending] = useState<PendingEdit | null>(null);
-  const active = findActivePreset(presets, presetId, rules);
-  const isEdited = active !== undefined && !sameSystemRules(active.rules, rules);
-
-  const save = (name: string): void => {
-    // A copy of a system keeps the widgets it adds, such as Shadowdark's torch timer.
-    const widgets = active?.rules.widgets;
-    onPresetIdChange(service.create(name, { ...rules, ...(widgets && { widgets }) }).id);
-    setPending(null);
-  };
 
   const rename = (preset: SystemPreset, name: string): void => {
     service.rename(preset.id, name);
@@ -55,9 +47,6 @@ export function SystemTab({
   };
 
   const menuEntries = (preset: SystemPreset): ContextMenuEntry[] => [
-    ...(preset.id === active?.id && isEdited
-      ? [{ type: 'item' as const, label: t('csm.system.saveChanges'), icon: 'save', onClick: () => service.update(preset.id, rules) }]
-      : []),
     { type: 'item', label: t('common.rename'), icon: 'pencil', onClick: () => setPending({ kind: 'rename', presetId: preset.id }) },
     { type: 'item', label: t('common.delete'), icon: 'trash-2', destructive: true, onClick: () => setPending({ kind: 'delete', presetId: preset.id }) },
   ];
@@ -90,25 +79,18 @@ export function SystemTab({
     return undefined;
   };
 
-  const actionsFor = (preset: SystemPreset): React.ReactNode => {
-    const reset = preset.id === active?.id && isEdited && (
-      <LabelTooltip label={t('csm.system.resetTo', { name: preset.name })}>
-        <Button variant="ghost" size="icon" className="atlas-csm-preset-icon-btn" onClick={() => onApplyPreset(preset)}>
-          <RotateCcw />
-        </Button>
-      </LabelTooltip>
-    );
-    const menu = !preset.builtIn && (
-      <ActionsMenuButton label={t('csm.system.actions')} entries={menuEntries(preset)} className="atlas-csm-preset-icon-btn" />
-    );
-    return reset || menu ? <>{reset}{menu}</> : null;
-  };
-
   return (
     <>
       <p className="atlas-csm-hint">
         {t('csm.system.intro')}
       </p>
+
+      {active && isEdited && (
+        <Button variant="ghost" className="atlas-csm-system-reset" onClick={() => onApply(active)}>
+          <RotateCcw />
+          {t('csm.system.resetTo', { name: active.name })}
+        </Button>
+      )}
 
       <div className="atlas-csm-preset-list" role="radiogroup" aria-label={t('csm.system.group')}>
         {presets.map((preset) => (
@@ -119,28 +101,15 @@ export function SystemTab({
             isActive={preset.id === active?.id}
             isEdited={preset.id === active?.id && isEdited}
             isBuiltIn={preset.builtIn}
-            onSelect={() => onApplyPreset(preset)}
-            actions={actionsFor(preset)}
+            onSelect={() => onApply(preset)}
+            actions={!preset.builtIn && (
+              <ActionsMenuButton label={t('csm.system.actions')} entries={menuEntries(preset)} className="atlas-csm-preset-icon-btn" />
+            )}
             replacement={replacementFor(preset)}
           />
         ))}
         {!active && <SystemPresetRow name={t('csm.system.custom')} rules={rules} isActive />}
       </div>
-
-      {pending?.kind === 'create' ? (
-        <PresetNameInput
-          initialName=""
-          confirmLabel={t('csm.system.savePreset')}
-          validate={(name) => service.nameError(name)}
-          onConfirm={save}
-          onCancel={() => setPending(null)}
-        />
-      ) : (
-        <Button variant="ghost" className="atlas-csm-add-btn" onClick={() => setPending({ kind: 'create' })}>
-          <Plus />
-          {t('csm.system.saveAs')}
-        </Button>
-      )}
     </>
   );
 }

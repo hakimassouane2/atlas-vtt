@@ -2,7 +2,9 @@
  * CollectionSettingsModal
  *
  * Vertical-tabbed modal for configuring per-collection settings:
- *   Game System | Dice | Grid & Measurement | Vision | Default Widgets | Conditions | Resources | Tokens | Players | Creature Filters | Loot
+ *   Dice | Grid & Measurement | Vision | Default Widgets | Conditions | Resources | Creature Filters | Loot
+ *   then, below a separator, this fork's own: Tokens | Players
+ * The game system is chosen in the header, since it sets what the tabs hold.
  *
  * Opens after collection creation and via a gear button in the sidebar.
  */
@@ -10,7 +12,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { CircleDashed, Dice5, Dices, Eye, Gauge, Grid3X3, LayoutGrid, ListFilter, ShieldAlert, Users } from 'lucide-react';
+import { CircleDashed, Dice5, Eye, Gauge, Grid3X3, LayoutGrid, ListFilter, ShieldAlert, Users } from 'lucide-react';
 import { CoinIcon } from './CoinIcon';
 import { Button } from '../../packages/components/primitives/button';
 import { useAtlasUI } from '../root/AtlasUIContext';
@@ -33,7 +35,7 @@ import { discoverResourceFields } from '../../resources/resourceFields';
 import { LootTab } from './collection-settings/LootTab';
 import { PlayersTab } from './collection-settings/PlayersTab';
 import { TokenRingsTab } from './collection-settings/TokenRingsTab';
-import { SystemTab } from './collection-settings/SystemTab';
+import { GameSystemPicker } from './collection-settings/GameSystemPicker';
 import { DiceTab } from './collection-settings/DiceTab';
 import { collectionDiceRules, isValidDiceRules } from '../../gameSystems/diceRules';
 import { collectionInitiativeRules, isValidInitiativeRules } from '../../gameSystems/initiativeRules';
@@ -56,11 +58,11 @@ interface CollectionSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   collectionId: string;
-  /** The tab it opens on; Game System by default. */
+  /** The tab it opens on; Dice by default. */
   initialTab?: CollectionSettingsTab;
 }
 
-export type CollectionSettingsTab = 'system' | 'dice' | 'grid' | 'vision' | 'widgets' | 'conditions' | 'resources' | 'tokens' | 'players' | 'creatureFilters' | 'loot';
+export type CollectionSettingsTab = 'dice' | 'grid' | 'vision' | 'widgets' | 'conditions' | 'resources' | 'tokens' | 'players' | 'creatureFilters' | 'loot';
 
 interface TabDef {
   id: CollectionSettingsTab;
@@ -68,18 +70,22 @@ interface TabDef {
   icon: React.ReactNode;
 }
 
-const TABS: TabDef[] = [
-  { id: 'system', label: t('csm.tab.system'), icon: <Dices size={16} /> },
+/** Atlas' own tabs. */
+const BASE_TABS: TabDef[] = [
   { id: 'dice', label: 'Dice', icon: <Dice5 size={16} /> },
   { id: 'grid', label: t('csm.tab.grid'), icon: <Grid3X3 size={16} /> },
   { id: 'vision', label: t('csm.tab.vision'), icon: <Eye size={16} /> },
   { id: 'widgets', label: t('csm.tab.widgets'), icon: <LayoutGrid size={16} /> },
   { id: 'conditions', label: t('csm.tab.conditions'), icon: <ShieldAlert size={16} /> },
   { id: 'resources', label: 'Resources', icon: <Gauge size={16} /> },
-  { id: 'tokens', label: t('ring.tab'), icon: <CircleDashed size={16} /> },
-  { id: 'players', label: 'Players', icon: <Users size={16} /> },
   { id: 'creatureFilters', label: t('csm.tab.creatureFilters'), icon: <ListFilter size={16} /> },
   { id: 'loot', label: t('csm.tab.loot'), icon: <CoinIcon size={16} /> },
+];
+
+/** This fork's own tabs, below a separator (FORK.md). */
+const FORK_TABS: TabDef[] = [
+  { id: 'tokens', label: t('ring.tab'), icon: <CircleDashed size={16} /> },
+  { id: 'players', label: 'Players', icon: <Users size={16} /> },
 ];
 
 /** Whether what was typed is the system's rules to the letter; a roll with a space or another case is kept as typed. */
@@ -93,7 +99,7 @@ export function CollectionSettingsModal({
   isOpen,
   onClose,
   collectionId,
-  initialTab = 'system',
+  initialTab = 'dice',
 }: CollectionSettingsModalProps): React.ReactElement | null {
   const { app } = useAtlasUI();
   const lightingOn = useExperimentalFeature('dynamicLighting');
@@ -175,6 +181,18 @@ export function CollectionSettingsModal({
 
   if (!isOpen) return null;
 
+  const tabButton = (tab: TabDef): React.ReactElement => (
+    <Button
+      key={tab.id}
+      variant="ghost"
+      className={`atlas-collection-settings-tab ${activeTab === tab.id ? 'atlas-active' : ''}`}
+      onClick={() => setActiveTab(tab.id)}
+    >
+      {tab.icon}
+      {tab.label}
+    </Button>
+  );
+
   return createPortal(
     <motion.div {...dialogOverlayMotion} className="atlas-vtt-plugin atlas-vtt-root atlas-collection-settings-overlay"
       onMouseDown={(e) => e.stopPropagation()}
@@ -199,6 +217,27 @@ export function CollectionSettingsModal({
             {t('csm.title', { name: collectionName })}
             {releaseLine && <span className="atlas-collection-settings-release">{releaseLine}</span>}
           </h3>
+          {systemPresets.service && (
+            <GameSystemPicker
+              service={systemPresets.service}
+              presets={systemPresets.presets}
+              rules={{
+                gridDefaults,
+                conditions,
+                defaultWidgets: draft.defaultWidgets,
+                dice,
+                initiative,
+                resources: savedResources(draft.resources),
+                ...(draft.defaultTokenVision && { defaultTokenVision: draft.defaultTokenVision }),
+                senses,
+                lightPresets: collectionLightPresets(draft, systemPresets.presets),
+              }}
+              presetId={draft.systemPresetId}
+              onApplyPreset={draft.applyPreset}
+              onPresetIdChange={draft.setSystemPresetId}
+              onDeletePreset={handleDeletePreset}
+            />
+          )}
           <CloseButton onClick={onClose} aria-label={t('csm.close')} />
         </div>
 
@@ -206,42 +245,13 @@ export function CollectionSettingsModal({
         <div className="atlas-collection-settings-body">
           {/* Vertical tab sidebar */}
           <nav className="atlas-collection-settings-sidebar">
-            {TABS.filter((tab) => tab.id !== 'vision' || lightingOn).map((tab) => (
-              <Button
-                key={tab.id}
-                variant="ghost"
-                className={`atlas-collection-settings-tab ${activeTab === tab.id ? 'atlas-active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.icon}
-                {tab.label}
-              </Button>
-            ))}
+            {BASE_TABS.filter((tab) => tab.id !== 'vision' || lightingOn).map(tabButton)}
+            <hr className="atlas-collection-settings-sidebar-separator" />
+            {FORK_TABS.map(tabButton)}
           </nav>
 
           {/* Tab content */}
           <SettingsContent>
-            {activeTab === 'system' && systemPresets.service && (
-              <SystemTab
-                service={systemPresets.service}
-                presets={systemPresets.presets}
-                rules={{
-                  gridDefaults,
-                  conditions,
-                  defaultWidgets: draft.defaultWidgets,
-                  dice,
-                  initiative,
-                  resources: savedResources(draft.resources),
-                  ...(draft.defaultTokenVision && { defaultTokenVision: draft.defaultTokenVision }),
-                  senses,
-                  lightPresets: collectionLightPresets(draft, systemPresets.presets),
-                }}
-                presetId={draft.systemPresetId}
-                onApplyPreset={draft.applyPreset}
-                onPresetIdChange={draft.setSystemPresetId}
-                onDeletePreset={handleDeletePreset}
-              />
-            )}
             {activeTab === 'dice' && (
               <DiceTab dice={dice} onChange={draft.setDice} />
             )}

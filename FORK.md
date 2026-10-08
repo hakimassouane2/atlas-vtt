@@ -77,6 +77,13 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
   le nom et les roues restent dehors. L'original l'agrandissait de 12 px et y ajoutait les barres
   (`getBarsReach`, retiré avec sa chaîne `UIManager` / `TokenRenderer` / `barsReachProvider`).
   Les dessins et le brouillard gardent le cadre d'origine.
+- **Réglages de collection** (`CollectionSettingsModal.tsx`) : le système de jeu n'est plus un
+  onglet. Il se choisit dans le header (`collection-settings/GameSystemPicker.tsx` : un bouton qui
+  ouvre la liste des systèmes, `GameSystemList.tsx`, ex-`SystemTab.tsx`, avec Reset, Rename et
+  Delete), et un bouton à sa gauche enregistre les règles modifiées : « Save to <système> » pour un
+  système à soi, « Save as system… » pour un built-in modifié ou des règles sans système. La modale
+  s'ouvre sur Dice. Les onglets sont alignés à gauche, et ceux du fork (Tokens, Players) sont sous
+  un séparateur (`FORK_TABS`), après ceux d'Atlas (`BASE_TABS`).
 
 ## Anneaux des tokens et rôles PJ / PNJ
 

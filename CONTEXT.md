@@ -39,3 +39,13 @@ _Avoid_: locked token, grabbed token
 **Player command**:
 A request from a player client to change the scene (move, change a resource, set a condition, roll, rotate). The GM's Atlas applies it at once, and only to tokens given to the profile the client chose. The GM's undo never takes it back.
 _Avoid_: action, edit, event
+
+## Collections
+
+**Game system**:
+The named set of rules a collection follows (how the ruler measures, which conditions, senses, dice, resources and initiative it has). Built-in ones ship with Atlas; the GM's own are saved from a collection's rules and shared by every collection of the vault. Choosing one replaces the collection's rules; changing a rule afterwards leaves the collection on that game system, marked as edited.
+_Avoid_: preset (in the UI), ruleset, template
+
+**Collection settings**:
+The rules and choices of one collection, edited in its settings dialog, one tab per area (dice, grid and measurement, conditions…). The game system is chosen above the tabs, not in one of them, since it sets what the tabs hold.
+_Avoid_: default settings, preferences

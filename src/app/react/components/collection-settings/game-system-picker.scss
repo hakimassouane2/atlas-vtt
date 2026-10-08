@@ -1,9 +1,94 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Collection Settings: Game System tab
+// Collection Settings: the game system picker in the header, and its list
 // ═══════════════════════════════════════════════════════════════════════════
 
 @use '../../../../../styles/tokens' as *;
 @use '../../../../../styles/mixins' as *;
+
+// ── Header controls ────────────────────────────────────────────────────────
+.atlas-csm-system-picker {
+  @include atlas-flex-row($spacing-s);
+  position: relative;
+  min-width: 0;
+}
+
+.atlas-csm-system-save.btn,
+.atlas-csm-system-trigger.btn {
+  height: $button-height-m;
+  gap: $spacing-xs;
+  padding-inline: $spacing-s;
+  font-size: $font-ui-small;
+  font-weight: $font-weight-medium;
+
+  svg {
+    width: $icon-s;
+    height: $icon-s;
+    flex-shrink: 0;
+  }
+}
+
+.atlas-csm-system-save.btn {
+  flex-shrink: 0;
+}
+
+.atlas-csm-system-trigger.btn {
+  min-width: 0;
+  max-width: 220px;
+
+  > svg {
+    color: var(--text-muted);
+  }
+}
+
+.atlas-csm-system-trigger__value {
+  @include atlas-flex-row($spacing-xs);
+  min-width: 0;
+}
+
+.atlas-csm-system-trigger__name {
+  @include atlas-truncate;
+}
+
+// ── Panel under the controls ───────────────────────────────────────────────
+.atlas-csm-system-panel {
+  @include atlas-elevated-surface;
+  @include atlas-panel-radius($radius-2xl);
+  @include atlas-flex-col($spacing-s);
+  position: absolute;
+  top: calc(100% + #{$spacing-xs});
+  right: 0;
+  z-index: 1;
+  width: 440px;
+  max-height: min(600px, 70vh);
+  padding: $spacing-s;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  @include atlas-scrollbar;
+
+  > * {
+    flex-shrink: 0;
+  }
+}
+
+.atlas-csm-system-panel--name {
+  width: 320px;
+}
+
+.atlas-csm-system-reset.btn {
+  height: auto;
+  justify-content: flex-start;
+  gap: $spacing-s;
+  padding: $spacing-s;
+  @include atlas-panel-inset-radius($spacing-s);
+  font-size: $font-ui-small;
+  color: var(--text-normal);
+
+  svg {
+    width: $icon-s;
+    height: $icon-s;
+    color: var(--text-muted);
+  }
+}
 
 .atlas-csm-preset-list {
   @include atlas-flex-col($spacing-xs);
