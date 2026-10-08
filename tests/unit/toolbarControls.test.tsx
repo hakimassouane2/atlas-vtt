@@ -29,6 +29,7 @@ function context(overrides: Partial<ToolbarContext> = {}): ToolbarContext {
     loot: { open: false, setOpen: vi.fn() },
     assets: { open: false, toggle: vi.fn() },
     palette: { open: false, setOpen: vi.fn() },
+    online: { session: { isRunning: false, failed: false, playerCount: 0, players: [] }, copyLink: vi.fn(), stop: vi.fn() },
     ...overrides,
   };
 }
@@ -36,7 +37,7 @@ function context(overrides: Partial<ToolbarContext> = {}): ToolbarContext {
 const item = (id: ToolbarControlId, ctx: ToolbarContext): ToolbarItemBody => TOOLBAR_CONTROL_ITEMS[id](ctx);
 const placement = ({ pinned, active }: ToolbarItemBody): { pinned: boolean; active: boolean } => ({ pinned, active });
 
-const GROUPS: readonly ToolMenu[] = ['move', 'fog', 'draw', 'text', 'measure', 'wall'];
+const GROUPS: readonly ToolMenu[] = ['move', 'fog', 'draw', 'text', 'measure', 'wall', 'online'];
 
 describe('toolbar control items', () => {
   it('builds an item for every control of the catalog', () => {
@@ -65,6 +66,16 @@ describe('toolbar control items', () => {
   it('activates the loot roller and the asset manager while open without pinning them', () => {
     expect(placement(item('loot', context({ loot: { open: true, setOpen: vi.fn() } })))).toEqual({ pinned: false, active: true });
     expect(placement(item('assets', context({ assets: { open: true, toggle: vi.fn() } })))).toEqual({ pinned: false, active: true });
+  });
+
+  it('pins the online session while its menu is open, and copies the link from "More tools"', () => {
+    expect(placement(item('online', context()))).toEqual({ pinned: false, active: false });
+    expect(placement(item('online', context({ openMenu: 'online' })))).toEqual({ pinned: true, active: true });
+    const online = { session: { isRunning: true, failed: false, playerCount: 2, players: [] }, copyLink: vi.fn(), stop: vi.fn() };
+    const entry = item('online', context({ online })).menuEntry;
+    expect(entry.isActive).toBe(true);
+    entry.onSelect();
+    expect(online.copyLink).toHaveBeenCalledOnce();
   });
 
   it('always pins the Command palette', () => {

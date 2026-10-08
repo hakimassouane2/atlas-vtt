@@ -3,9 +3,10 @@ import type { DiceTool } from "../../../tools/DiceTool"
 import type { MapHotkeyId } from "../../../keyboard/mapHotkeys"
 import type { Tool } from "./toolFaces"
 import type { ToolGroupControls } from "./ToolGroup"
+import type { OnlineControl } from "../../../online/onlineControl"
 
 /** Tool groups whose options menu is open; only one at a time. */
-export type ToolMenu = 'move' | 'fog' | 'draw' | 'text' | 'measure' | 'wall'
+export type ToolMenu = 'move' | 'fog' | 'draw' | 'text' | 'measure' | 'wall' | 'online'
 
 /**
  * What MainToolbar hands every control's item builder. Gates (player view,
@@ -22,4 +23,5 @@ export interface ToolbarContext {
   loot: { open: boolean; setOpen: (open: boolean) => void }
   assets: { open: boolean; toggle: () => void }
   palette: { open: boolean; setOpen: (open: boolean) => void }
+  online: OnlineControl
 }

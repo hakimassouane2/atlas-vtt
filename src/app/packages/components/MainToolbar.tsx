@@ -29,6 +29,7 @@ import type { Tool } from "./toolbar/toolFaces"
 import type { ToolbarContext, ToolMenu } from "./toolbar/toolbarContext"
 import type { ResponsiveToolbarItem } from "./toolbar/toolbarTypes"
 import { t } from '../../i18n';
+import { useOnlineControl } from '../../online/onlineControl';
 
 interface MainToolbarProps {
   viewId?: string;
@@ -69,6 +70,7 @@ export const MainToolbar = forwardRef<HTMLDivElement, MainToolbarProps>(({ viewI
   const lootRollerOpen = useAtlasStore(s => s.lootRoller.open)
   const setLootRollerOpen = useAtlasStore(s => s.setLootRollerOpen)
   const isToolbarEditing = useAtlasStore(s => s.isToolbarEditing)
+  const online = useOnlineControl()
 
   const [openMenu, setOpenMenu] = useState<ToolMenu | null>(null)
   const closeMenus = useCallback((): void => setOpenMenu(null), [])
@@ -154,6 +156,7 @@ export const MainToolbar = forwardRef<HTMLDivElement, MainToolbarProps>(({ viewI
     loot: { open: lootRollerOpen, setOpen: setLootRollerOpen },
     assets: { open: isAssetManagerOpen, toggle: handleAssetManagerToggle },
     palette: { open: isCommandPaletteOpen, setOpen: setCommandPaletteOpen },
+    online,
   }
 
   // The player view's bar ignores the GM's layout.

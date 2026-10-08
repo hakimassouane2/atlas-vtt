@@ -4,6 +4,7 @@ import { useMapHotkeys } from "../../../keyboard/useMapHotkeys"
 import { AMBIENT_AUDIO_ENABLED } from "../../../featureFlags"
 import { MEASURE_SHAPES, MEASURE_TOOLS, isMeasureTool, type Tool } from "./toolFaces"
 import { useEmitViewEvent } from "./useEmitViewEvent"
+import { OnlineSession } from "../../../online/OnlineSession"
 
 const MOVE_TOOLS: readonly Tool[] = ["move", "laser-pointer"]
 const FOG_TOOLS: readonly Tool[] = ["fog", "eraser"]
@@ -65,6 +66,7 @@ export function useToolbarHotkeys(viewId: string | undefined, isPlayerView: bool
       const state = store.getState()
       state.setLootRollerOpen(!state.lootRoller.open)
     }),
+    online: dmOnly(() => void OnlineSession.getInstance()?.startAndCopyLink()),
     palette: () => store.getState().setCommandPaletteOpen(!store.getState().isCommandPaletteOpen),
     cancel: () => {
       closeMenus()

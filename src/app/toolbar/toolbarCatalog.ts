@@ -68,6 +68,10 @@ export const TOOLBAR_CONTROLS = [
     description: 'Find and place your maps, tokens, scenes and encounters.',
   },
   {
+    id: 'online', label: 'Online session', hotkey: 'online', dmOnly: true, hideable: true,
+    description: 'Copy the link your players join with, and see who is connected.',
+  },
+  {
     id: 'palette', label: 'Command palette', hotkey: 'palette', dmOnly: true, hideable: false,
     description: 'Find any Atlas command or setting by typing its name.',
   },

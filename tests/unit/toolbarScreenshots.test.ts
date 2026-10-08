@@ -14,10 +14,11 @@ const MAX_TOTAL_BYTES = 400 * 1024;
 const files = readdirSync(FOLDER).filter((name) => name.endsWith('.webp'));
 
 describe('the toolbar editor\'s screenshots', () => {
-  it('has a screenshot for every control but ambient sound and for the undo/redo bar, and no file the card never shows', () => {
+  // The fork's online session has none yet.
+  it('has a screenshot for every control but ambient sound and the online session and for the undo/redo bar, and no file the card never shows', () => {
     const units: ToolbarUnitId[] = [...TOOLBAR_CONTROLS.map((control) => control.id), UNDO_BAR_ID];
     const withScreenshot = units.filter((id) => TOOLBAR_SCREENSHOTS[id] !== null);
-    expect(withScreenshot).toEqual(units.filter((id) => id !== 'audio'));
+    expect(withScreenshot).toEqual(units.filter((id) => id !== 'audio' && id !== 'online'));
     expect(files.map((name) => name.replace(/\.webp$/, '')).sort()).toEqual([...withScreenshot].sort());
   });
 

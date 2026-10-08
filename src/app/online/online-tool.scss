@@ -1,0 +1,42 @@
+// The online session's control in the GM's toolbar (`OnlineToolGroup.tsx`).
+
+// Its wrapper only hears right-clicks; the split button lays out as every tool group does.
+.atlas-online-tool {
+  display: contents;
+}
+
+.atlas-online-icon {
+  position: relative;
+  display: inline-flex;
+
+  &:not(.is-running) > svg {
+    opacity: 0.5;
+  }
+
+  &.is-failed > svg {
+    opacity: 1;
+    color: var(--text-error);
+  }
+}
+
+// How many pages are connected, on the globe's corner
+.atlas-online-icon__count {
+  position: absolute;
+  top: -$spacing-xs;
+  right: -$spacing-xs;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 2px;
+  border-radius: $radius-full;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 10px;
+  font-weight: $font-weight-semibold;
+  line-height: 14px;
+  text-align: center;
+}
+
+.atlas-online-tool__status {
+  white-space: normal;
+  max-width: 260px;
+}

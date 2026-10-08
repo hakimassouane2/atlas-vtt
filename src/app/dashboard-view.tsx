@@ -125,7 +125,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const heroScene = recentScenes[0] ?? null;
   const online = useStore(onlineSessionStore);
   const onlineDesc: React.ReactNode = online.isRunning
-    ? <OnlineConnections playerCount={online.playerCount} players={online.players} />
+    ? <OnlineConnections playerCount={online.playerCount} players={online.players} hint="copy link" />
     : 'Start & copy the player link';
 
   const actionTiles = [

@@ -67,6 +67,8 @@ export interface OnlineSessionSettings {
   publicHost: string;
   /** Key in the player link; generated on the first start. */
   secret: string;
+  /** Start the server when Atlas loads (desktop only), so the link sent before works again. */
+  autoStart: boolean;
 }
 
 /** The input mode a device starts with: Macs mostly have a trackpad, other computers a mouse. */
@@ -97,7 +99,7 @@ export const DEFAULT_SETTINGS: AtlasSettings = {
     showDiceRolls: false,
     showCommandPalette: false // Hide command palette
   },
-  onlineSession: { port: 30002, publicHost: '', secret: '' },
+  onlineSession: { port: 30002, publicHost: '', secret: '', autoStart: true },
 };
 
 /**

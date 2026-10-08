@@ -19,5 +19,5 @@ import wall from '../../../assets/toolbar/wall.webp'
  * then shows its text alone.
  */
 export const TOOLBAR_SCREENSHOTS = {
-  move, fog, draw, text, measure, wall, pin, audio: null, dice, loot, assets, palette, undo,
+  move, fog, draw, text, measure, wall, pin, audio: null, dice, loot, assets, online: null, palette, undo,
 } satisfies Record<ToolbarUnitId, string | null>

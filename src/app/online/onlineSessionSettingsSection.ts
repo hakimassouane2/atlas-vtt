@@ -9,6 +9,18 @@ export function onlineSessionSettingsSection(settingsService: SettingsService): 
     heading: 'Online session',
     rows: [
       {
+        name: 'Start automatically',
+        desc: 'Opens the session when Atlas loads, on a computer, so the link you sent works again without a click.',
+        aliases: ['online', 'auto start', 'server'],
+        render: (setting) => {
+          setting.addToggle((toggle) => {
+            toggle
+              .setValue(settingsService.getOnlineSessionSettings().autoStart)
+              .onChange((autoStart) => settingsService.setOnlineSessionSettings({ autoStart }));
+          });
+        },
+      },
+      {
         name: 'Public address',
         desc: "Your public IP address or domain, for players outside your home. Left empty, the link uses this computer's address on your local network.",
         aliases: ['online', 'ip', 'players', 'remote'],

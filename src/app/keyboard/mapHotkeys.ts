@@ -13,6 +13,8 @@ export const MAP_HOTKEYS = [
   { id: 'gmView', label: t('hotkey.gmView'), group: t('hotkey.group.map'), defaultKey: 'd', dmOnly: true },
   { id: 'sceneSwitcher', label: t('hotkey.sceneSwitcher'), group: t('hotkey.group.map'), defaultKey: 'g', dmOnly: true },
   { id: 'lightingPeek', label: t('hotkey.lightingPeek'), group: t('hotkey.group.map'), defaultKey: 'h', dmOnly: true, experimental: 'dynamicLighting' },
+  // Fork (online mode): English label, like the fork's other strings.
+  { id: 'online', label: 'Copy the player link', group: t('hotkey.group.map'), defaultKey: 'o', dmOnly: true },
   { id: 'fitMap', label: t('hotkey.fitMap'), group: t('hotkey.group.map'), defaultKey: 'Shift+1' },
   { id: 'fitToken', label: t('hotkey.fitToken'), group: t('hotkey.group.map'), defaultKey: 'Shift+2' },
   { id: 'move', label: t('hotkey.move'), group: t('hotkey.group.tools'), defaultKey: 'v' },

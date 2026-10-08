@@ -163,7 +163,7 @@ describe('the editor menu', () => {
     fireEvent.contextMenu(handle(harness.container, 'fog', 'tray'), { clientX: 10, clientY: 10 });
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Show on toolbar' }));
     expect(harness.settings.getToolbarLayout()).toEqual({});
-    expect(liveRegion(harness.container)).toBe('Fog of war is back on the toolbar, position 2 of 10.');
+    expect(liveRegion(harness.container)).toBe('Fog of war is back on the toolbar, position 2 of 11.');
   });
 
   it('opens Hide from a row of "More tools" instead of running the control', async () => {

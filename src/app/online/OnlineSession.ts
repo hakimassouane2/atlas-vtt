@@ -1,4 +1,4 @@
-import { Notice, type App, type EventRef } from 'obsidian';
+import { Notice, Platform, type App, type EventRef } from 'obsidian';
 import playerClient from 'virtual:atlas-player-client';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AtlasView } from '../atlas-view';
@@ -26,6 +26,8 @@ import { SceneReplicator, type ReplicatedSource } from './scene/SceneReplicator'
 
 export interface OnlineSessionState {
   isRunning: boolean;
+  /** The last start could not open the port; cleared by the next start or a stop. */
+  failed: boolean;
   /** Browsers currently connected with the player link. */
   playerCount: number;
   /** The profiles of the presented scene's collection that someone is connected as. */
@@ -35,6 +37,7 @@ export interface OnlineSessionState {
 /** Read by the dashboard; one session per plugin, like the player window. */
 export const onlineSessionStore: StoreApi<OnlineSessionState> = createStore<OnlineSessionState>(() => ({
   isRunning: false,
+  failed: false,
   playerCount: 0,
   players: [],
 }));
@@ -103,9 +106,18 @@ export class OnlineSession {
     return this.server !== null;
   }
 
+  /**
+   * Starts the server when Atlas loads, if the GM wants it and this device can run it. Silent: the
+   * link never changes, so nothing is copied, and a port in use shows on the toolbar's control.
+   */
+  async startAutomatically(): Promise<void> {
+    if (Platform.isMobile || this.isRunning() || !this.settingsService.getOnlineSessionSettings().autoStart) return;
+    await this.start(true);
+  }
+
   /** Starts the server if needed and copies the player link. */
   async startAndCopyLink(): Promise<void> {
-    if (!this.isRunning() && !(await this.start())) return;
+    if (!this.isRunning() && !(await this.start(false))) return;
     await navigator.clipboard.writeText(this.playerLink());
     const { publicHost } = this.settingsService.getOnlineSessionSettings();
     new Notice(publicHost
@@ -123,7 +135,7 @@ export class OnlineSession {
     this.connected.clear();
     if (this.collectionSettingsRef) this.app.workspace.offref(this.collectionSettingsRef);
     this.collectionSettingsRef = null;
-    onlineSessionStore.setState({ isRunning: false, playerCount: 0, players: [] });
+    onlineSessionStore.setState({ isRunning: false, failed: false, playerCount: 0, players: [] });
   }
 
   /**
@@ -205,7 +217,8 @@ export class OnlineSession {
     return true;
   }
 
-  private async start(): Promise<boolean> {
+  /** `quiet` leaves a failure to the toolbar's control instead of a notice. */
+  private async start(quiet: boolean): Promise<boolean> {
     let settings = this.settingsService.getOnlineSessionSettings();
     if (!settings.secret) {
       this.settingsService.setOnlineSessionSettings({ secret: crypto.randomUUID().replace(/-/g, '') });
@@ -238,8 +251,9 @@ export class OnlineSession {
       await server.listen(settings.port);
     } catch (error) {
       console.error('[OnlineSession] Could not start the player server:', error);
-      new Notice(`Could not open port ${settings.port} for players. Is another program using it?`);
+      if (!quiet) new Notice(`Could not open port ${settings.port} for players. Is another program using it?`);
       server.close();
+      onlineSessionStore.setState({ failed: true });
       return false;
     }
     this.server = server;
@@ -247,7 +261,7 @@ export class OnlineSession {
     this.follow(followedScene());
     // A renamed or recoloured player shows so on the dashboard at once
     this.collectionSettingsRef = this.app.workspace.on('atlas-vtt:collection-settings-changed', () => this.showConnected());
-    onlineSessionStore.setState({ isRunning: true, playerCount: 0, players: [] });
+    onlineSessionStore.setState({ isRunning: true, failed: false, playerCount: 0, players: [] });
     return true;
   }
 

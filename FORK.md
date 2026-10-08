@@ -82,8 +82,16 @@ vocabulaire : `CONTEXT.md`.
    (30002 par défaut, à ouvrir en TCP sur la box, comme le 30001 de Foundry). Sans adresse
    publique, le lien prend l'adresse de l'ordinateur sur le réseau local (`lanAddress.ts`) :
    un téléphone ou une tablette sur le même Wi-Fi peut le suivre.
-2. Accueil Atlas : tuile **Online Session**. Elle démarre le serveur et copie le lien joueur, puis
-   affiche les profils connectés.
+2. Le serveur démarre tout seul au chargement d'Atlas (réglage **Start automatically**, activé par
+   défaut, commun à tous les appareils, jamais sur mobile), sans copier le lien ni afficher de notice :
+   le lien ne change pas d'un lancement à l'autre et les pages des joueurs se reconnectent seules.
+   Barre d'outils du MJ : contrôle **Online session** (globe, avant la palette de commandes, raccourci
+   O). Un clic copie le lien (et démarre le serveur s'il est arrêté ou si son port était pris) ; la
+   flèche ou un clic droit ouvre son menu : joueurs connectés, Copy player link, Stop online session
+   (l'arrêt vaut jusqu'au prochain lancement). Le globe est grisé à l'arrêt, actif en marche avec le
+   nombre de pages connectées, rouge si le port est pris. Pas encore de capture pour la carte de
+   l'éditeur de barre (`toolbarScreenshots.ts` : `online: null`).
+   Accueil Atlas : tuile **Online Session**, qui fait la même chose et affiche les profils connectés.
    Commandes équivalentes : "Start online session and copy the player link", "Stop online session".
 3. Rien à présenter : les joueurs voient toujours la scène ouverte chez le MJ (l'onglet de scène
    actif). Changer d'onglet ou ouvrir une scène les y emmène ; ils gardent l'image de l'ancienne
@@ -210,7 +218,7 @@ vocabulaire : `CONTEXT.md`.
   `playerCommands.ts`, `playerHolds.ts`, `playerTokens.ts`, `PlayerDiceFeed.ts`, `playerPage.ts`,
   `pageTheme.ts`, `tokenImage.ts`, `onlineSessionSettingsSection.ts`, `playerClient.d.ts`,
   `connectedPlayers.ts`, `OnlineConnections.tsx`, `PlayerDiceLog.ts`, `rollStamps.ts`,
-  `PlayerRulers.ts`, et
+  `PlayerRulers.ts`, `onlineControl.ts`, `OnlineToolGroup.tsx`, `online-tool.scss`, et
   `scene/` (`sceneReplica.ts`, `sceneProtocol.ts`, `SceneReplicator.ts`).
 - `src/app/players/` : `playerProfiles.ts`, `PlayerDot.tsx`, `players.scss` ; onglet
   `react/components/collection-settings/PlayersTab.tsx`, sous-menu `context-menu/playersMenu.ts`.
@@ -279,6 +287,10 @@ doit rester vert.
 - `i18n/index.ts` : la langue est lue dans le `localStorage` (là où `getLanguage()` la lit), pas
   par l'import `obsidian`, que la page joueur n'a pas. Nos propres textes restent en anglais en dur.
 - `MainToolbar` : `isPlayerView` vient du store ; `toolbarControls.tsx` passe `roll` au plateau de dés.
+- Contrôle Online session : entrée `online` de `toolbarCatalog.ts` (avant `palette`) et du raccourci
+  `online` de `mapHotkeys.ts` (O), `ToolMenu` et `ToolbarContext.online` (`toolbarContext.ts`),
+  `toolbarControls.tsx`, `useToolbarHotkeys.ts`, `toolbarScreenshots.ts`, `MainToolbar`
+  (`useOnlineControl`), `styles/main.scss` ; `main.ts` appelle `startAutomatically` à `onLayoutReady`.
 - `vite.config.mts`, `vitest.config.mts` (alias `events` pour les tests GPU), `atlasSettings.ts` et
   `SettingsService` (`onlineSession`, synchronisé avec les réglages du plugin), `PlayerWindowPresenter`, `dashboard-view.tsx`, `CommandPalette.tsx`,
   `EditTokenModal` (section Players), `gmTokenMenu` (sous-menu Players), `CollectionSettingsModal`

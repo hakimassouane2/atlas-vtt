@@ -7,12 +7,15 @@ interface OnlineConnectionsProps {
   playerCount: number;
   /** The profiles someone at those pages chose. */
   players: readonly PlayerProfile[];
+  /** What a click does, after the players (the dashboard's tile). */
+  hint?: string;
 }
 
-/** Who is connected to the online session, for the dashboard: the players by name, else how many pages. */
-export function OnlineConnections({ playerCount, players }: OnlineConnectionsProps): React.ReactElement {
+/** Who is connected to the online session: the players by name, else how many pages. */
+export function OnlineConnections({ playerCount, players, hint }: OnlineConnectionsProps): React.ReactElement {
+  const suffix = hint ? ` · ${hint}` : '';
   if (players.length === 0) {
-    return <>{`${playerCount} player${playerCount === 1 ? '' : 's'} connected · copy link`}</>;
+    return <>{`${playerCount} player${playerCount === 1 ? '' : 's'} connected${suffix}`}</>;
   }
   return (
     <span className="atlas-online-connections">
@@ -22,7 +25,7 @@ export function OnlineConnections({ playerCount, players }: OnlineConnectionsPro
           {player.name || 'Unnamed player'}
         </span>
       ))}
-      <span>· copy link</span>
+      {hint && <span>{`· ${hint}`}</span>}
     </span>
   );
 }

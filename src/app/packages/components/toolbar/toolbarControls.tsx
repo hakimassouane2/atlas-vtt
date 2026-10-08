@@ -14,6 +14,7 @@ import { drawToolFace, fogToolFace, lightingToolFace, measureToolFace, moveToolF
 import { buttonItem, toolGroupItem, type ToolbarItemBody } from "./toolbarItems"
 import type { ToolbarContext } from "./toolbarContext"
 import { t } from "../../../i18n"
+import { onlineToolbarItem } from "../../../online/OnlineToolGroup"
 
 /** A tool without family members: pinned while in use. */
 function toolButtonItem(ctx: ToolbarContext, tool: Tool, icon: ToolFace["icon"], label: string, shortcut: string): ToolbarItemBody {
@@ -55,6 +56,7 @@ export const TOOLBAR_CONTROL_ITEMS = {
     icon: ImageIcon, label: t('toolbar.assetManager'), shortcut: hotkeyLabel('assets'),
     isActive: assets.open, pinned: false, onClick: assets.toggle,
   }),
+  online: onlineToolbarItem,
   // The way into the toolbar editor: always pinned, so it never moves into "More tools".
   palette: ({ palette, hotkeyLabel }) => buttonItem({
     icon: Command, label: t('toolbar.commandPalette'), shortcut: hotkeyLabel('palette'),

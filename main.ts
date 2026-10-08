@@ -149,6 +149,7 @@ export default class AtlasVTTPlugin extends Plugin {
       runInBackground(addStarterTokens(this.app, AssetService.getInstance(this.app), this.settingsService), 'Adding the starter tokens');
       runInBackground(this.carryOverTokenBars(), 'Carrying over the token bar settings');
       runInBackground(migrateLegacySnapshots(this.app, AssetService.getInstance(this.app)), 'Moving scene snapshots into their collections');
+      runInBackground(onlineSession.startAutomatically(), 'Starting the online session');
     });
   }
 
