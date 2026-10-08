@@ -12,6 +12,11 @@ $ring-preview-size: 48px;
   height: $ring-preview-size;
 }
 
+.atlas-csm-ring-field {
+  flex: 1;
+  min-width: 0;
+}
+
 .atlas-csm-ring-role {
   flex: 1;
   min-width: 0;

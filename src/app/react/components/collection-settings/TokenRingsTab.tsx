@@ -45,15 +45,18 @@ function RoleRow({ roleKey, ring, styles, onChange }: {
   const style = ring?.style && styles.some((option) => option.value === ring.style) ? ring.style : ATLAS_RING;
   return (
     <div className="atlas-csm-condition">
-      <div className="atlas-csm-condition-row atlas-csm-ring-row">
+      <div className="atlas-csm-condition-row">
         <TokenPortrait className="atlas-csm-ring-preview" src={fighterArt} alt="" ring={{ role: roleKey === 'none' ? undefined : roleKey }} />
-        <span id={labelId} className="atlas-csm-ring-role">{roleLabel(roleKey)}</span>
-        <Select
-          value={style}
-          options={styles}
-          labelledBy={labelId}
-          onChange={(next) => onChange({ ...ring, style: next || undefined })}
-        />
+        {/* The role's name stands over its ring, so a long name never runs under the select */}
+        <div className="atlas-csm-field atlas-csm-ring-field">
+          <span id={labelId} className="atlas-csm-label">{roleLabel(roleKey)}</span>
+          <Select
+            value={style}
+            options={styles}
+            labelledBy={labelId}
+            onChange={(next) => onChange({ ...ring, style: next || undefined })}
+          />
+        </div>
       </div>
       <DropdownSwatchGrid
         label={t('ring.colour')}
