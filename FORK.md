@@ -69,6 +69,14 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 `src/app/changelog/releases.json` : les restaurer avec
 `git checkout -- CHANGELOG.md src/app/changelog/releases.json`.
 
+## Retouches de l'interface du MJ
+
+- **Cadre de sélection des tokens** (`pixi/SelectionManager.ts`) : il suit exactement l'emprise du
+  token sur la grille (taille du token × case), trait à l'intérieur, comme Foundry ; les barres,
+  le nom et les roues restent dehors. L'original l'agrandissait de 12 px et y ajoutait les barres
+  (`getBarsReach`, retiré avec sa chaîne `UIManager` / `TokenRenderer` / `barsReachProvider`).
+  Les dessins et le brouillard gardent le cadre d'origine.
+
 ## Mode en ligne
 
 Le navigateur du joueur fait tourner **le moteur d'Atlas lui-même** (canvas PIXI, store, interactions)

@@ -154,28 +154,6 @@ describe('resource wheels on a token', () => {
     } finally { ui.destroy(); }
   });
 
-  it('reports how far the bars reach below the token, for the selection frame; the wheels are no part of it', () => {
-    const { ui } = tokenUI();
-    try {
-      ui.update(hero, 62);
-      expect(ui.getBarsReach()).toBeCloseTo(2 + 10 + 2 + 10);
-      // A token with wheels only has nothing below it for the frame to enclose
-      ui.update({ ...hero, resources: { ammo: { current: 4, max: 6 }, luck: { current: 2, max: 5 } } }, 62);
-      expect(ui.getBarsReach()).toBe(0);
-    } finally { ui.destroy(); }
-  });
-
-  it('reports the reach of the bars at the resting size, selected or not', () => {
-    const { ui } = tokenUI({ zoom: 0.25 });
-    try {
-      ui.update(hero, 62);
-      const atRest = ui.getBarsReach();
-      ui.setSelectionState(true);
-      expect(ui.getBarsReach()).toBe(atRest);
-      expect(atRest).toBeCloseTo(24);
-    } finally { ui.destroy(); }
-  });
-
   it('hangs a fifth and sixth resource on the token\'s left, as a mirror of the right side', () => {
     const { ui } = tokenUI({ zoom: 1 });
     ui.resourceDefsProvider = () => SIX;

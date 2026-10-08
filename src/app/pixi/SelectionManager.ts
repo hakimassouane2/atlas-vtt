@@ -9,11 +9,15 @@ import { getDrawingBounds, type DrawingBounds } from './drawingGeometry';
 import type { LayerVisibility } from './playerSafeFrame';
 import { MAP_LAYER_Z } from './mapLayerOrder';
 
+/** A selected token's frame: its stroke, inside the footprint, and corner, in world px. */
+const TOKEN_FRAME = { line: 3, radius: 4 } as const;
+/** The frame around drawings and fog shapes, which have no cell to fit. */
+const AREA_FRAME = { pad: 12, radius: 16 } as const;
+
 export class SelectionManager {
   private viewport: Viewport;
   private tokenRendererProvider: () => ({ [id: string]: Container });
   /** How far a selected token's bars reach below it, in world units; the frame encloses them. */
-  public barsReachProvider: (tokenId: string) => number = () => 0;
   private fogSpriteProvider: () => ({ [id: string]: Container });
   private hitTestTokensProvider?: (worldX: number, worldY: number) => string | null;
 
@@ -378,6 +382,7 @@ export class SelectionManager {
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     let foundSelectedSprite = false;
+    let onlyTokens = true;
 
     for (const id of selectedIds) {
       const tokenGroup = tokenSprites[id];
@@ -392,8 +397,8 @@ export class SelectionManager {
           const spriteLeft = tokenGroup.position.x - halfWidth;
           const spriteTop = tokenGroup.position.y - halfHeight;
           const spriteRight = tokenGroup.position.x + halfWidth;
-          // The selection reaches around the bars below the token; its wheels stand outside
-          const spriteBottom = tokenGroup.position.y + halfHeight + this.barsReachProvider(id);
+          // The token's footprint on the grid: its bars, nameplate and wheels stand outside
+          const spriteBottom = tokenGroup.position.y + halfHeight;
           
           minX = Math.min(minX, spriteLeft);
           minY = Math.min(minY, spriteTop);
@@ -411,6 +416,7 @@ export class SelectionManager {
         maxX = Math.max(maxX, drawingBounds.x + drawingBounds.width);
         maxY = Math.max(maxY, drawingBounds.y + drawingBounds.height);
         foundSelectedSprite = true;
+        onlyTokens = false;
       }
 
       // Check fog sprites
@@ -422,6 +428,7 @@ export class SelectionManager {
         maxX = Math.max(maxX, bounds.x + bounds.width);
         maxY = Math.max(maxY, bounds.y + bounds.height);
         foundSelectedSprite = true;
+        onlyTokens = false;
       }
     }
 
@@ -429,37 +436,39 @@ export class SelectionManager {
       return;
     }
 
-    const pad = 12; // Increased padding for a more spacious look
-    const finalMinX = minX - pad;
-    const finalMinY = minY - pad;
-    const finalMaxX = maxX + pad;
-    const finalMaxY = maxY + pad;
-    
+    const accentHex = cssColorToHexNumber(getObsidianAccentColor());
+    if (onlyTokens) this.drawTokenFrame(minX, minY, maxX - minX, maxY - minY, accentHex);
+    else this.drawAreaFrame(minX, minY, maxX - minX, maxY - minY, accentHex);
+  }
 
-    const width = finalMaxX - finalMinX;
-    const height = finalMaxY - finalMinY;
-    const radius = 16; // Larger radius for smoother corners
+  /** Tokens: their grid footprint exactly, the stroke inside it, so the frame stays in their cells. */
+  private drawTokenFrame(x: number, y: number, width: number, height: number, accent: number): void {
+    const { line, radius } = TOKEN_FRAME;
+    const inset = line / 2;
+    this.selectionOverlay.roundRect(x, y, width, height, radius);
+    this.selectionOverlay.fill({ color: accent, alpha: 0.08 });
+    this.selectionOverlay.roundRect(x + inset, y + inset, width - line, height - line, radius - inset);
+    this.selectionOverlay.stroke({ width: line, color: accent, alpha: 0.9 });
+    // A dark edge inside the accent keeps the frame readable on light maps
+    this.selectionOverlay.roundRect(x + line + 0.5, y + line + 0.5, width - 2 * line - 1, height - 2 * line - 1, Math.max(0, radius - line));
+    this.selectionOverlay.stroke({ width: 1, color: 0x000000, alpha: 0.35 });
+  }
 
-    const accent = getObsidianAccentColor();
-    const accentHex = cssColorToHexNumber(accent);
-
-    // Draw outer glow/shadow
-    this.selectionOverlay.roundRect(finalMinX - 2, finalMinY - 2, width + 4, height + 4, radius);
+  /** Drawings and fog shapes: padded around their bounds, with a soft glow. */
+  private drawAreaFrame(x: number, y: number, width: number, height: number, accent: number): void {
+    const { pad, radius } = AREA_FRAME;
+    const left = x - pad;
+    const top = y - pad;
+    const w = width + 2 * pad;
+    const h = height + 2 * pad;
+    this.selectionOverlay.roundRect(left - 2, top - 2, w + 4, h + 4, radius);
     this.selectionOverlay.fill({ color: 0x000000, alpha: 0.1 });
-
-    // Draw main selection box with gradient-like effect
-    this.selectionOverlay.roundRect(finalMinX, finalMinY, width, height, radius);
-    this.selectionOverlay.fill({ color: accentHex, alpha: 0.08 });
-    
-    // Draw inner stroke
-    this.selectionOverlay.roundRect(finalMinX + 1, finalMinY + 1, width - 2, height - 2, radius - 1);
-    this.selectionOverlay.stroke({ width: 1.5, color: accentHex, alpha: 0.8 });
-
-    // Draw outer stroke
-    this.selectionOverlay.roundRect(finalMinX, finalMinY, width, height, radius);
-    this.selectionOverlay.stroke({ width: 2.5, color: accentHex, alpha: 0.4 });
-
-    
+    this.selectionOverlay.roundRect(left, top, w, h, radius);
+    this.selectionOverlay.fill({ color: accent, alpha: 0.08 });
+    this.selectionOverlay.roundRect(left + 1, top + 1, w - 2, h - 2, radius - 1);
+    this.selectionOverlay.stroke({ width: 1.5, color: accent, alpha: 0.8 });
+    this.selectionOverlay.roundRect(left, top, w, h, radius);
+    this.selectionOverlay.stroke({ width: 2.5, color: accent, alpha: 0.4 });
   }
 
 

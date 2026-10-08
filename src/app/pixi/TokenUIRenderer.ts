@@ -369,15 +369,6 @@ export class TokenUIRenderer {
     ];
   }
 
-  /**
-   * How far this token's bars reach below it, in world units; the selection frame encloses
-   * them. The wheels stand outside the frame.
-   */
-  public getBarsReach(): number {
-    const bars = this.resources.view.visible ? this.resources.layout() : [];
-    return Math.max(0, ...bars.map((slot) => slot.top + slot.height)) * this.restingScale();
-  }
-
   private canAnimateValues(): boolean {
     return !prefersReducedMotion(document.body);
   }

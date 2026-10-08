@@ -1070,11 +1070,6 @@ export class TokenRenderer {
     return [...this.playerSight.frameLayers(perception), ...this.uiManager.getPlayerViewLayers(settings, isSeen), ...this.dragRuler.getPlayerViewLayers(isSeen)];
   }
 
-  /** How far a selected token's resources reach beyond its bottom, right and top edges, in world units. */
-  public barsReach(tokenId: string): number {
-    return this.uiManager.barsReach(tokenId);
-  }
-
   /** Tokens and their bars and nameplates as the GM view shows them, whatever view the canvas is in: for a picture of the scene. */
   public getGmViewLayers(): LayerVisibility[] {
     return [...gmTokenLayers(this.store.getState().objects.tokens, this.tokenSprites), ...this.uiManager.getGmViewLayers(), ...this.playerSight.gmLayers()];

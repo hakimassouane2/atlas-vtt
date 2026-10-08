@@ -385,11 +385,6 @@ export class UIManager implements ITokenUIManager {
     this.updateAllTokenSettings();
   }
 
-  /** How far a selected token's resources reach beyond its bottom, right and top edges, in world units. */
-  public barsReach(tokenId: string): number {
-    return this.tokenUIs[tokenId]?.getBarsReach() ?? 0;
-  }
-
   private updateAllTokenSettings(): void {
     // Update all token UIs when settings change
     for (const tokenId in this.tokenUIs) {
