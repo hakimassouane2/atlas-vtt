@@ -64,7 +64,7 @@ describe('entering the toolbar editor', () => {
     fireEvent.change(input, { target: { value: 'Customize toolbar' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(harness.store.getState().isToolbarEditing).toBe(true);
-    expect(document.activeElement).toBe(handle(harness.container, 'move'));
+    expect(document.activeElement).toBe(handle(harness.container, 'online'));
   });
 
   it('makes the tools inert under handles named after the catalog', () => {
@@ -75,7 +75,7 @@ describe('entering the toolbar editor', () => {
     expect(screen.getByRole('button', { name: 'Fog of war' })).toBe(handle(harness.container, 'fog'));
     expect(harness.container.querySelector('.atlas-main-toolbar')?.getAttribute('role')).toBe('toolbar');
     // One Tab stop for the bar's handles.
-    expect(handle(harness.container, 'move').tabIndex).toBe(0);
+    expect(handle(harness.container, 'online').tabIndex).toBe(0);
     expect(handle(harness.container, 'fog').tabIndex).toBe(-1);
   });
 
@@ -163,7 +163,7 @@ describe('the editor menu', () => {
     fireEvent.contextMenu(handle(harness.container, 'fog', 'tray'), { clientX: 10, clientY: 10 });
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Show on toolbar' }));
     expect(harness.settings.getToolbarLayout()).toEqual({});
-    expect(liveRegion(harness.container)).toBe('Fog of war is back on the toolbar, position 2 of 11.');
+    expect(liveRegion(harness.container)).toBe('Fog of war is back on the toolbar, position 3 of 11.');
   });
 
   it('opens Hide from a row of "More tools" instead of running the control', async () => {
@@ -186,9 +186,9 @@ describe('the keyboard path', () => {
     const fog = handle(harness.container, 'fog');
     act(() => fog.focus());
     expect(fireEvent.keyDown(fog, { key: 'ArrowRight', altKey: true })).toBe(false);
-    expect(harness.settings.getToolbarLayout().order?.slice(0, 4)).toEqual(['move', 'draw', 'fog', 'text']);
+    expect(harness.settings.getToolbarLayout().order?.slice(0, 5)).toEqual(['online', 'move', 'draw', 'fog', 'text']);
     expect(document.activeElement).toBe(handle(harness.container, 'fog'));
-    expect(liveRegion(harness.container)).toBe('Fog of war moved from position 2 to 3.');
+    expect(liveRegion(harness.container)).toBe('Fog of war moved from position 3 to 4.');
   });
 
   it('moves focus with the arrow keys and hides with Delete, focus going to the next tool', () => {

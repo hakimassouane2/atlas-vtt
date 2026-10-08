@@ -12,9 +12,9 @@ const BAR: ToolbarControlId[] = DEFAULT_TOOLBAR_ORDER.filter(id => id !== 'wall'
 describe('moving a bar control', () => {
   it('steps one place left or right among the bar controls', () => {
     const right = movedToolbarLayout(DEFAULT, BAR, 'fog', 'right');
-    expect(right && { from: right.from, to: right.to }).toEqual({ from: 2, to: 3 });
-    expect(right?.layout.order.slice(0, 4)).toEqual(['move', 'draw', 'fog', 'text']);
-    expect(movedToolbarLayout(DEFAULT, BAR, 'fog', 'left')?.layout.order.slice(0, 2)).toEqual(['fog', 'move']);
+    expect(right && { from: right.from, to: right.to }).toEqual({ from: 3, to: 4 });
+    expect(right?.layout.order.slice(0, 5)).toEqual(['online', 'move', 'draw', 'fog', 'text']);
+    expect(movedToolbarLayout(DEFAULT, BAR, 'fog', 'left')?.layout.order.slice(0, 3)).toEqual(['online', 'fog', 'move']);
   });
 
   it('moves to either end', () => {
@@ -25,22 +25,22 @@ describe('moving a bar control', () => {
   });
 
   it('goes nowhere past an end', () => {
-    expect(movedToolbarLayout(DEFAULT, BAR, 'move', 'left')).toBeNull();
+    expect(movedToolbarLayout(DEFAULT, BAR, 'online', 'left')).toBeNull();
     expect(movedToolbarLayout(DEFAULT, BAR, 'palette', 'right')).toBeNull();
-    expect(movedToolbarLayout(DEFAULT, BAR, 'move', 'start')).toBeNull();
+    expect(movedToolbarLayout(DEFAULT, BAR, 'online', 'start')).toBeNull();
   });
 
   it('steps over controls the view does not show, which keep their places', () => {
     // Lighting sits between measure and pin but is off here: pin moving left lands before measure.
     const moved = movedToolbarLayout(DEFAULT, BAR, 'pin', 'left');
-    expect(moved?.layout.order).toEqual(['move', 'fog', 'draw', 'text', 'pin', 'measure', 'wall', 'audio', 'dice', 'loot', 'assets', 'online', 'palette']);
+    expect(moved?.layout.order).toEqual(['online', 'move', 'fog', 'draw', 'text', 'pin', 'measure', 'wall', 'audio', 'dice', 'loot', 'assets', 'palette']);
   });
 
   it('counts hidden controls nowhere', () => {
     const hidden: ToolbarLayout = withControlHidden(DEFAULT, 'fog');
     const bar = BAR.filter(id => id !== 'fog');
     const moved = movedToolbarLayout(hidden, bar, 'draw', 'left');
-    expect(moved && { from: moved.from, to: moved.to }).toEqual({ from: 2, to: 1 });
+    expect(moved && { from: moved.from, to: moved.to }).toEqual({ from: 3, to: 2 });
     expect(moved?.layout.hidden.has('fog')).toBe(true);
   });
 });

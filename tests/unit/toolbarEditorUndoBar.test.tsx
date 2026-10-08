@@ -66,7 +66,7 @@ describe('the undo/redo bar in the toolbar editor', () => {
     act(() => undo.focus());
     expect(fireEvent.keyDown(undo, { key: 'Delete' })).toBe(false);
     expect(harness.settings.getToolbarLayout()).toEqual({ hidden: ['undo'] });
-    expect(document.activeElement).toBe(handle(harness.container, 'move'));
+    expect(document.activeElement).toBe(handle(harness.container, 'online'));
   });
 
   it('shows again with Enter on its tray face, at its own place', () => {
@@ -103,14 +103,14 @@ describe('the undo/redo bar in the toolbar editor', () => {
   it('is first of the bar\'s handles for the arrow keys, and keeps its place with Alt and the arrows', () => {
     const harness = renderToolbar({ undoBar: true });
     startEditing(harness);
-    const move = handle(harness.container, 'move');
-    act(() => move.focus());
-    fireEvent.keyDown(move, { key: 'ArrowLeft' });
+    const first = handle(harness.container, 'online');
+    act(() => first.focus());
+    fireEvent.keyDown(first, { key: 'ArrowLeft' });
     const undo = handle(harness.container, 'undo');
     expect(document.activeElement).toBe(undo);
     // Once focused last, it holds the bar group's one Tab stop.
     expect(undo.tabIndex).toBe(0);
-    expect(handle(harness.container, 'move').tabIndex).toBe(-1);
+    expect(handle(harness.container, 'online').tabIndex).toBe(-1);
     expect(fireEvent.keyDown(undo, { key: 'ArrowRight', altKey: true })).toBe(false);
     expect(harness.settings.getToolbarLayout()).toEqual({});
     expect(liveRegion(harness.container)).toBe('Undo and redo always stays left of the toolbar.');

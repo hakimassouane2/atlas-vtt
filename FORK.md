@@ -85,8 +85,7 @@ vocabulaire : `CONTEXT.md`.
 2. Le serveur démarre tout seul au chargement d'Atlas (réglage **Start automatically**, activé par
    défaut, commun à tous les appareils, jamais sur mobile), sans copier le lien ni afficher de notice :
    le lien ne change pas d'un lancement à l'autre et les pages des joueurs se reconnectent seules.
-   Barre d'outils du MJ : contrôle **Online session** (globe, avant la palette de commandes, raccourci
-   O). Un clic copie le lien (et démarre le serveur s'il est arrêté ou si son port était pris) ; la
+   Barre d'outils du MJ : contrôle **Online session** (globe, premier de la barre, raccourci O). Un clic copie le lien (et démarre le serveur s'il est arrêté ou si son port était pris) ; la
    flèche ou un clic droit ouvre son menu : joueurs connectés, Copy player link, Stop online session
    (l'arrêt vaut jusqu'au prochain lancement). Le globe est grisé à l'arrêt, actif en marche avec le
    nombre de pages connectées, rouge si le port est pris. Pas encore de capture pour la carte de
@@ -287,7 +286,7 @@ doit rester vert.
 - `i18n/index.ts` : la langue est lue dans le `localStorage` (là où `getLanguage()` la lit), pas
   par l'import `obsidian`, que la page joueur n'a pas. Nos propres textes restent en anglais en dur.
 - `MainToolbar` : `isPlayerView` vient du store ; `toolbarControls.tsx` passe `roll` au plateau de dés.
-- Contrôle Online session : entrée `online` de `toolbarCatalog.ts` (avant `palette`) et du raccourci
+- Contrôle Online session : entrée `online` de `toolbarCatalog.ts` (la première) et du raccourci
   `online` de `mapHotkeys.ts` (O), `ToolMenu` et `ToolbarContext.online` (`toolbarContext.ts`),
   `toolbarControls.tsx`, `useToolbarHotkeys.ts`, `toolbarScreenshots.ts`, `MainToolbar`
   (`useOnlineControl`), `styles/main.scss` ; `main.ts` appelle `startAutomatically` à `onLayoutReady`.

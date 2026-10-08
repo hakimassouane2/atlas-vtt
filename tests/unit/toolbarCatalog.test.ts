@@ -51,9 +51,9 @@ describe('toolbar catalog', () => {
     }
   });
 
-  // The fork's online session goes just before the Command palette.
+  // The fork's online session leads the bar.
   it('keeps the bar order the toolbar had before it could be arranged', () => {
-    expect(DEFAULT_TOOLBAR_ORDER).toEqual(['move', 'fog', 'draw', 'text', 'measure', 'wall', 'pin', 'audio', 'dice', 'loot', 'assets', 'online', 'palette']);
+    expect(DEFAULT_TOOLBAR_ORDER).toEqual(['online', 'move', 'fog', 'draw', 'text', 'measure', 'wall', 'pin', 'audio', 'dice', 'loot', 'assets', 'palette']);
   });
 
   it('looks controls up by id', () => {

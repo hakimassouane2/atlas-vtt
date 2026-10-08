@@ -24,6 +24,10 @@ export interface ToolbarControlDefinition {
 /** The main toolbar's controls in their default order. Never rename an id: stored layouts use them. */
 export const TOOLBAR_CONTROLS = [
   {
+    id: 'online', label: 'Online session', hotkey: 'online', dmOnly: true, hideable: true,
+    description: 'Copy the link your players join with, and see who is connected.',
+  },
+  {
     id: 'move', label: 'Move and select', hotkey: 'move', dmOnly: false, hideable: true,
     description: 'Select and move tokens, or point at the map with the laser pointer.',
   },
@@ -66,10 +70,6 @@ export const TOOLBAR_CONTROLS = [
   {
     id: 'assets', label: 'Asset manager', hotkey: 'assets', dmOnly: true, hideable: true,
     description: 'Find and place your maps, tokens, scenes and encounters.',
-  },
-  {
-    id: 'online', label: 'Online session', hotkey: 'online', dmOnly: true, hideable: true,
-    description: 'Copy the link your players join with, and see who is connected.',
   },
   {
     id: 'palette', label: 'Command palette', hotkey: 'palette', dmOnly: true, hideable: false,

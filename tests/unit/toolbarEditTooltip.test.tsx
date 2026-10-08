@@ -134,7 +134,7 @@ describe('the toolbar editor\'s card', () => {
     const input = screen.getByPlaceholderText('Search commands...');
     fireEvent.change(input, { target: { value: 'Customize toolbar' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(document.activeElement).toBe(handle(container, 'move'));
+    expect(document.activeElement).toBe(handle(container, 'online'));
     await sleep(100);
     expect(card().hidden).toBe(true);
   });
