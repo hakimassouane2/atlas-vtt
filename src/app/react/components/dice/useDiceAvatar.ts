@@ -2,11 +2,13 @@ import { useMemo } from 'react';
 import { useOptionalAtlasStore } from '../../ViewStoreContext';
 import type { DiceRollResult } from '../../../tools/DiceTool';
 import { useDiceEnvironment } from './diceEnvironment';
+import type { RingSubject, TokenRole } from '../../../tokenRings/tokenRingTypes';
 
 export interface DiceAvatar {
   src: string;
   showRing: boolean;
-  ringColor: string | undefined;
+  /** The map token's ring: its role, ring style and colour. */
+  ring: RingSubject;
 }
 
 /**
@@ -36,6 +38,14 @@ export function useDiceAvatar(source: DiceRollResult['source']): DiceAvatar | nu
     (state): string | undefined => (tokenId ? state.objects?.tokens?.[tokenId]?.ringColor : undefined),
     undefined,
   );
+  const role = useOptionalAtlasStore(
+    (state): TokenRole | undefined => (tokenId ? state.objects?.tokens?.[tokenId]?.role : undefined),
+    undefined,
+  );
+  const ringStyle = useOptionalAtlasStore(
+    (state): string | undefined => (tokenId ? state.objects?.tokens?.[tokenId]?.ringStyle : undefined),
+    undefined,
+  );
   // ponytail: read per render, so a re-link shows on the next re-render (the log
   // ticks every 10 s); subscribe to metadataCache 'changed' if that is too slow.
   const linkedImagePath = source?.statblockPath ? art?.statblockImage(source.statblockPath) ?? null : null;
@@ -45,5 +55,8 @@ export function useDiceAvatar(source: DiceRollResult['source']): DiceAvatar | nu
     ? mapShowRing !== false
     : !!imagePath && !!src && !!art?.libraryShowsRing(imagePath);
 
-  return useMemo((): DiceAvatar | null => (src ? { src, showRing, ringColor } : null), [src, showRing, ringColor]);
+  return useMemo(
+    (): DiceAvatar | null => (src ? { src, showRing, ring: { ringColor, role, ringStyle } } : null),
+    [src, showRing, ringColor, role, ringStyle],
+  );
 }

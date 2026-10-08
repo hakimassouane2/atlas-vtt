@@ -296,7 +296,8 @@
   }
 }
 
-.atlas-token-card__ring {
+// Over the shared ring's own placement (`token-portrait.scss`)
+.atlas-token-ring.atlas-token-card__ring {
   position: absolute;
   inset: 6%;
   width: 88%;

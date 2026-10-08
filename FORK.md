@@ -78,6 +78,39 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
   (`getBarsReach`, retiré avec sa chaîne `UIManager` / `TokenRenderer` / `barsReachProvider`).
   Les dessins et le brouillard gardent le cadre d'origine.
 
+## Anneaux des tokens et rôles PJ / PNJ
+
+L'original dessine un seul anneau (`src/app/assets/token-ring.webp`, teinté par `ringColor`).
+On ajoute des anneaux par collection et un rôle par token, à la façon de Tokenizer dans Foundry.
+
+- **Rôle** : `TokenAsset.role` / `BaseToken.role` (`pc`, `npc`, ou rien ; `tokenRings/tokenRingTypes.ts`).
+  Il se règle sur le token de bibliothèque (clic droit dans l'Asset Manager > Rôle, ou le rail du
+  créateur), et sur un token posé (menu MJ > Apparence > Rôle). Comme la taille, il vit sur le
+  token de bibliothèque : `CharacterSync` le donne à toutes ses poses, même sans fiche personnage
+  (`followLook`), et l'édition d'une pose l'écrit sur la bibliothèque (`LibraryLook`, `setCharacter`).
+- **Anneaux** : images carrées dans `collections/<c>/token-rings/` (dossier réservé, jamais d'asset ;
+  gabarit de `token-ring.webp`, 1024 px, trou à 90 %), déposées à la main ou importées depuis
+  l'onglet **Tokens** des réglages de collection. Un anneau gris se teinte, un anneau en couleurs
+  s'affiche tel quel (`ringTint.ts`, interrupteur pour forcer).
+- **Réglages** : `CollectionSettings.tokenRings` (anneau et couleur par rôle, plus « sans rôle »),
+  lus par `readTokenRingSettings`. Priorité (`ringChoiceOf`) : couleur du token, sinon celle du rôle,
+  sinon blanc ; style du token de bibliothèque (`ringStyle`), sinon celui du rôle, sinon l'anneau Atlas.
+  Calculé à l'affichage : changer la couleur PJ change tous les PJ.
+- **Rendu** : canvas par `pixi/token-renderer/tokenRingLooks.ts` (lit les fichiers par la source d'art,
+  donc la page joueur les charge depuis le MJ : `OnlineSession.mayLoadImage`) ; portraits par
+  `TokenRingContext` (`packages/components/shared/tokenRingContext.ts`), fourni par `MapTokenRings`
+  (carte), l'Asset Manager et le créateur, alimenté par `TokenRingLibrary` (`tokenRings/`).
+- **Bundles** : les anneaux voyagent (rôle `token-ring`, format 9 seulement quand il y en a,
+  `bundleRingFiles.ts`).
+- Points de contact : `SpriteFactory.createTokenRing` (texture en paramètre), `TokenRenderer`
+  (`refreshAllRings`, `ringChanged`), `TokenPortrait` (`ring`), `createTokenPortrait` (`ringImage`),
+  `PlayerInitiativePanel` (`InitiativeCollection.ringOf`), `gmTokenMenu` (palette dans
+  `tokenRings/ringColors.ts`), `assetContextMenu`, `TokenCreatorRail`, `TokenPreviewCard`,
+  `CollectionSettingsModal` (onglet `tokens`), `reservedPaths.ts`, `bundleFormat.ts`, `main.ts`.
+- Limites : l'aperçu de statblock au survol et les cartes de rencontre intégrées aux notes gardent
+  l'anneau Atlas (avec la couleur du token) ; un token déplacé vers une autre collection retombe sur
+  l'anneau de son rôle là-bas si son anneau n'y existe pas.
+
 ## Mode en ligne
 
 Le navigateur du joueur fait tourner **le moteur d'Atlas lui-même** (canvas PIXI, store, interactions)

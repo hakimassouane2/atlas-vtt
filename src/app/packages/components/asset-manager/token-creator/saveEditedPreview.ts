@@ -56,6 +56,7 @@ export async function saveEditedPreview(save: EditedPreviewSave): Promise<number
   const previousThumbnail = before?.type === 'token' || before?.type === 'map' ? before.thumbnailPath : undefined;
   await assetService.updateAsset(editToken.id, {
     name: preview.name, imagePath, showRing: preview.showRing !== false, size: preview.size, tags: preview.tags ?? tags,
+    role: preview.role, ringStyle: preview.ringStyle || undefined,
     ...(source && { thumbnailPath }),
   });
   // A new image path (an upload, or stored art renamed to .webp) gets a thumbnail of its own

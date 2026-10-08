@@ -20,6 +20,8 @@ import { useFrameProgress } from '../primitives/useFrameProgress';
 import { uvttFilesAmong, type ImportMaps } from './hooks/useUvttImport';
 import type { CreatorMode, EditTokenInput } from './token-creator/types';
 import { t } from '../../../i18n';
+import { TokenRingContext } from '../shared/tokenRingContext';
+import { usePortraitRings } from '../../../tokenRings/usePortraitRings';
 
 interface TokenCreatorProps {
   isOpen: boolean;
@@ -47,6 +49,8 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
   const usingStatblocks = mode === 'token' && !editToken && source === 'statblocks';
 
   const [collection, setCollection] = useState(selectedCollection);
+  // The cards show the ring the token will have in the collection it is saved to
+  const portraitRings = usePortraitRings(app, collection);
   const { tags: availableTags, createTag, isCreatingTag } = useAssetTags(assetService, isOpen, collection, mode === 'map' ? 'maps' : 'tokens');
   const selectedPreviews = previews.previews.filter(p => p.isSelected);
   const selectedTags = selectedPreviews[0]?.tags?.filter(tag => selectedPreviews.every(p => p.tags?.includes(tag))) ?? [];
@@ -187,6 +191,7 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
   const title = editToken ? t(`creator.${mode}.edit`) : t(`creator.${mode}.create`);
 
   return (
+    <TokenRingContext.Provider value={portraitRings}>
     <motion.div {...dialogOverlayMotion} className="atlas-vtt-plugin atlas-vtt-root atlas-token-creator" data-token-creator="true" onClick={() => { if (!isSubmitting) onClose(); }}>
       <motion.div
         ref={windowRef}
@@ -203,6 +208,7 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
         onDrop={handleDrop}
       >
         <TokenCreatorRail
+          app={app}
           source={source}
           onSourceChange={next => { if (next === 'statblocks') setImportController(new AbortController()); setSource(next); }}
           sourceDisabled={importRunning || isSubmitting}
@@ -273,5 +279,6 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
         )}
       </motion.div>
     </motion.div>
+    </TokenRingContext.Provider>
   );
 }

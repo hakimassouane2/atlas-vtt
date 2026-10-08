@@ -5,7 +5,8 @@ import type { TokenEntity } from '../types';
 import { AssetService } from '../services/AssetService';
 import { runUntracked } from '../stores/history';
 import { sameValue } from '../utils/sameValue';
-import { configOf, followRecord, recordOf, stateOf } from './characterRecord';
+import { configOf, followLook, followRecord, lookOf, recordOf, sameLook, stateOf, type LibraryLook } from './characterRecord';
+import type { TokenAsset } from '../services/AssetService';
 
 /**
  * Keeps a view's tokens the characters of the library they were placed from (recognised by
@@ -75,7 +76,9 @@ export class CharacterSync {
 
   private recordChanges(token: TokenEntity): ReturnType<typeof followRecord> {
     const asset = this.assets.findTokenAssetByImagePath(token.imagePath);
-    return asset?.character ? followRecord(token, asset.character, asset.size) : null;
+    if (!asset) return null;
+    // Without a record a placement still takes its library token's role and ring
+    return asset.character ? followRecord(token, asset.character, libraryLookOf(asset)) : followLook(token, libraryLookOf(asset));
   }
 
   private tokensChanged(state: ViewAtlasState, previous: ViewAtlasState): void {
@@ -97,14 +100,18 @@ export class CharacterSync {
     const asset = this.assets.findTokenAssetByImagePath(token.imagePath);
     if (!asset) return;
     const record = recordOf(token);
-    const size = token.size ?? 1;
-    if (asset.character && sameValue(asset.character, record) && (asset.size ?? 1) === size) return;
-    this.assets.setCharacter(asset.id, record, size);
+    const look = lookOf(token);
+    if (asset.character && sameValue(asset.character, record) && sameLook(libraryLookOf(asset), look)) return;
+    this.assets.setCharacter(asset.id, record, look);
   }
+}
+
+function libraryLookOf(asset: TokenAsset): LibraryLook {
+  return { size: asset.size, role: asset.role, ringStyle: asset.ringStyle };
 }
 
 /** Whether going from `old` to `token` changed what the character records: its settings, or its state while linked. */
 function changesCharacter(old: TokenEntity, token: TokenEntity): boolean {
-  if ((old.size ?? 1) !== (token.size ?? 1) || !sameValue(configOf(old), configOf(token))) return true;
+  if (!sameLook(lookOf(old), lookOf(token)) || !sameValue(configOf(old), configOf(token))) return true;
   return !!token.linked && !sameValue(stateOf(old), stateOf(token));
 }

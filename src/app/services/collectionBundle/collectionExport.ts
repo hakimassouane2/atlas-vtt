@@ -3,6 +3,7 @@ import { comparedBytes } from './recordPayload';
 import type { Asset, AssetService, CollectionMetadata } from '../AssetService';
 import { BUNDLE_MANIFEST, PRESET_ROLE, bundleFormatFor, zipPathFor, type BundleFile, type CollectionBundleManifest } from './bundleFormat';
 import { flushPresetEdits, packedPresetRecord, withSystemPresetFile } from './bundlePresetFiles';
+import { withTokenRingFiles } from './bundleRingFiles';
 import { rewriteContent } from './bundleContent';
 import { selectContent } from './bundleContents';
 import { withLootBases, withoutPlayers, withoutTableState } from './bundleSettings';
@@ -90,7 +91,7 @@ export async function prepareCollectionExport(app: App, assets: AssetService, co
   if (!collection) throw new Error(`Collection ${collectionId} not found`);
   const collectionAssets = (await assets.getAssets(collectionId)).filter((asset) => EXPORTED_TYPES.has(asset.type));
   const { files: referenced, missing } = await new CollectionReferenceCollector(app, assets).collect(collectionAssets, collection.settings.lootBases);
-  const files = withSystemPresetFile(app, withLinkedFiles(app, referenced), collection.settings);
+  const files = withTokenRingFiles(app, withSystemPresetFile(app, withLinkedFiles(app, referenced), collection.settings), collectionId);
   const fileSizes = new Map<string, number>();
   for (const file of files) fileSizes.set(file.vaultPath, await vaultFileSize(app, file.vaultPath));
   const publisher = await publisherOf(app, assets, collection);

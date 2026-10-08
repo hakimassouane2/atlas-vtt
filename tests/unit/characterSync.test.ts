@@ -5,7 +5,7 @@ import { createSceneStore, type ViewAtlasStore } from '../../src/app/storeFactor
 import { getHistoryStore } from '../../src/app/stores/history';
 import { AssetService, type TokenAsset } from '../../src/app/services/AssetService';
 import { CharacterSync } from '../../src/app/characters/CharacterSync';
-import type { CharacterRecord } from '../../src/app/characters/characterRecord';
+import type { CharacterRecord, LibraryLook } from '../../src/app/characters/characterRecord';
 import type { Character } from '../../src/app/types';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
@@ -31,9 +31,13 @@ function setup(tokensA: Character[], tokensB: Character[]) {
   const hero: TokenAsset = { id: 'hero', type: 'token', name: 'Hero', tags: [], collection: 'c', imagePath: 'hero.png', createdAt: 0, modifiedAt: 0 };
   vi.spyOn(assets, 'initialize').mockResolvedValue();
   vi.spyOn(assets, 'findTokenAssetByImagePath').mockImplementation((path) => (path === hero.imagePath ? hero : null));
-  vi.spyOn(assets, 'setCharacter').mockImplementation((_id: string, record: CharacterRecord, size: number) => {
+  vi.spyOn(assets, 'setCharacter').mockImplementation((_id: string, record: CharacterRecord, { size, role, ringStyle }: LibraryLook) => {
     hero.character = record;
-    hero.size = size;
+    if (size !== undefined) hero.size = size;
+    if (role) hero.role = role;
+    else delete hero.role;
+    if (ringStyle) hero.ringStyle = ringStyle;
+    else delete hero.ringStyle;
     app.workspace.trigger('atlas-vtt:character-changed', hero.imagePath);
   });
   const map = (tokens: Character[]): ViewAtlasStore => {
@@ -87,6 +91,26 @@ describe('CharacterSync', () => {
     b.setState({ objects: { ...b.getState().objects, tokens: { ...b.getState().objects.tokens, b2: placement('b2') } } });
     await settle();
     expect(tokenOf(b, 'b2')).toMatchObject({ ringColor: '#0f0', showNameplate: true });
+    syncs.forEach((sync) => sync.destroy());
+  });
+
+  it('gives every placement the role a placement is given, and records it on the library token', async () => {
+    const { a, b, hero, syncs } = setup([placement('a1')], [placement('b1')]);
+    a.getState().updateToken('a1', { role: 'pc' });
+    await settle();
+    expect(hero.role).toBe('pc');
+    expect(tokenOf(b, 'b1').role).toBe('pc');
+    syncs.forEach((sync) => sync.destroy());
+  });
+
+  it('gives a placement that appears its library token\'s role and ring, even without a record', async () => {
+    const { b, hero, syncs } = setup([], [placement('b1')]);
+    hero.role = 'npc';
+    hero.ringStyle = 'gold.webp';
+    b.setState({ objects: { ...b.getState().objects, tokens: { ...b.getState().objects.tokens, b2: placement('b2') } } });
+    await settle();
+    expect(tokenOf(b, 'b2')).toMatchObject({ role: 'npc', ringStyle: 'gold.webp' });
+    expect(hero.character).toBeUndefined();
     syncs.forEach((sync) => sync.destroy());
   });
 

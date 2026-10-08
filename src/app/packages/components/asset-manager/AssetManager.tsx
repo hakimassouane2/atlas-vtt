@@ -33,6 +33,8 @@ import { useFilterSearch, useSearchKeywords } from './hooks/useFilterSearch';
 import { ActiveFilterBar } from './components/search/ActiveFilterBar';
 import { DIALOG_EXIT_DURATION, dialogBackdropVariants, useDialogWindowVariants } from '../primitives/dialogMotion';
 import { t } from '../../../i18n';
+import { TokenRingContext } from '../shared/tokenRingContext';
+import { usePortraitRings } from '../../../tokenRings/usePortraitRings';
 
 const NO_ASSETS: AnyAsset[] = [];
 
@@ -57,6 +59,7 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
   const data = useAssetData(activeTab, selectedCollection, isOpen);
   useFollowSelectedCollection(data.collections, selectedCollection, setSelectedCollection);
   const settings = useAtlasSettings(SettingsService.forApp(data.app));
+  const portraitRings = usePortraitRings(data.app, selectedCollection);
 
   const visibleIds = useRef<VisibleIds>({ assets: [], folders: [] });
   const sel = useSelectionHandlers(visibleIds, data.folders, activeTab, isOpen);
@@ -172,7 +175,7 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
   const anyModalOpen = crud.isTokenCreatorOpen || crud.isMapCreatorOpen;
 
   return (
-    <>
+    <TokenRingContext.Provider value={portraitRings}>
       {/* Stays mounted while closed so the window can animate out. */}
       <AnimatePresence {...(onExitComplete ? { onExitComplete } : {})}>
         {isOpen && (
@@ -320,6 +323,6 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
         tags={tags}
         statblock={statblock}
       />
-    </>
+    </TokenRingContext.Provider>
   );
 }

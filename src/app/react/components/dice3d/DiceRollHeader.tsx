@@ -24,7 +24,7 @@ export function DiceRollHeader({ result, label }: DiceRollHeaderProps): React.Re
           src={avatar.src}
           alt={result.source?.tokenName ?? ''}
           showRing={avatar.showRing}
-          ringColor={avatar.ringColor}
+          ring={avatar.ring}
         />
       )}
       <span className="atlas-dice-roll__names">

@@ -2,7 +2,7 @@
  * CollectionSettingsModal
  *
  * Vertical-tabbed modal for configuring per-collection settings:
- *   Game System | Dice | Grid & Measurement | Vision | Default Widgets | Conditions | Resources | Players | Creature Filters | Loot
+ *   Game System | Dice | Grid & Measurement | Vision | Default Widgets | Conditions | Resources | Tokens | Players | Creature Filters | Loot
  *
  * Opens after collection creation and via a gear button in the sidebar.
  */
@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { Dice5, Dices, Eye, Gauge, Grid3X3, LayoutGrid, ListFilter, ShieldAlert, Users } from 'lucide-react';
+import { CircleDashed, Dice5, Dices, Eye, Gauge, Grid3X3, LayoutGrid, ListFilter, ShieldAlert, Users } from 'lucide-react';
 import { CoinIcon } from './CoinIcon';
 import { Button } from '../../packages/components/primitives/button';
 import { useAtlasUI } from '../root/AtlasUIContext';
@@ -32,6 +32,7 @@ import { ResourcesTab } from './collection-settings/ResourcesTab';
 import { discoverResourceFields } from '../../resources/resourceFields';
 import { LootTab } from './collection-settings/LootTab';
 import { PlayersTab } from './collection-settings/PlayersTab';
+import { TokenRingsTab } from './collection-settings/TokenRingsTab';
 import { SystemTab } from './collection-settings/SystemTab';
 import { DiceTab } from './collection-settings/DiceTab';
 import { collectionDiceRules, isValidDiceRules } from '../../gameSystems/diceRules';
@@ -59,7 +60,7 @@ interface CollectionSettingsModalProps {
   initialTab?: CollectionSettingsTab;
 }
 
-export type CollectionSettingsTab = 'system' | 'dice' | 'grid' | 'vision' | 'widgets' | 'conditions' | 'resources' | 'players' | 'creatureFilters' | 'loot';
+export type CollectionSettingsTab = 'system' | 'dice' | 'grid' | 'vision' | 'widgets' | 'conditions' | 'resources' | 'tokens' | 'players' | 'creatureFilters' | 'loot';
 
 interface TabDef {
   id: CollectionSettingsTab;
@@ -75,6 +76,7 @@ const TABS: TabDef[] = [
   { id: 'widgets', label: t('csm.tab.widgets'), icon: <LayoutGrid size={16} /> },
   { id: 'conditions', label: t('csm.tab.conditions'), icon: <ShieldAlert size={16} /> },
   { id: 'resources', label: 'Resources', icon: <Gauge size={16} /> },
+  { id: 'tokens', label: t('ring.tab'), icon: <CircleDashed size={16} /> },
   { id: 'players', label: 'Players', icon: <Users size={16} /> },
   { id: 'creatureFilters', label: t('csm.tab.creatureFilters'), icon: <ListFilter size={16} /> },
   { id: 'loot', label: t('csm.tab.loot'), icon: <CoinIcon size={16} /> },
@@ -280,6 +282,9 @@ export function CollectionSettingsModal({
                 onChange={draft.setResources}
                 fieldSuggestions={discoverResourceFields(collectionCreatures.creatures.map((creature) => creature.fields))}
               />
+            )}
+            {activeTab === 'tokens' && app && (
+              <TokenRingsTab app={app} collectionId={collectionId} settings={draft.tokenRings} onChange={draft.setTokenRings} />
             )}
             {activeTab === 'players' && (
               <PlayersTab players={draft.players} onChange={draft.setPlayers} />

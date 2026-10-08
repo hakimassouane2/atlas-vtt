@@ -21,6 +21,7 @@ import { mapVisionDefaults } from '../../../../gameSystems/visionDefaults';
 import { systemPresetsOf } from '../../../../services/mapCollectionRules';
 import type { TokenVision, TokenVisionDefaults } from '../../../../types/lightingTypes';
 import { placementVision } from '../../../../creatures/placementVision';
+import type { TokenRole } from '../../../../tokenRings/tokenRingTypes';
 
 // ─── Viewport helpers ───────────────────────────────────────────────
 
@@ -140,6 +141,8 @@ interface TokenSpawnData extends StatblockOverrides {
   statblockPath?: string;
   size?: number;
   showRing?: boolean;
+  role?: TokenRole;
+  ringStyle?: string;
   vision?: TokenVision;
 }
 
@@ -150,6 +153,8 @@ interface TokenSource {
   statblockPath: string | null;
   size?: number | undefined;
   showRing?: boolean | undefined;
+  role?: TokenRole | undefined;
+  ringStyle?: string | undefined;
 }
 
 /** Fields an asset-manager view model or stored token reference may carry. */
@@ -161,6 +166,8 @@ interface TokenSourceRef {
   statblockPath?: string;
   size?: number;
   showRing?: boolean;
+  role?: TokenRole;
+  ringStyle?: string;
 }
 
 /** Latest service record for the asset layered over the reference, so spawns use current paths and defaults. */
@@ -178,6 +185,8 @@ async function resolveTokenSource(ctx: SpawnContext, ref: TokenSourceRef): Promi
     statblockPath: record?.statblockPath ?? ref.statblockPath ?? null,
     size: record?.size ?? ref.size,
     showRing: record?.showRing ?? ref.showRing,
+    role: record ? record.role : ref.role,
+    ringStyle: record ? record.ringStyle : ref.ringStyle,
   };
 }
 
@@ -192,7 +201,7 @@ function spawnVisionDefaults(ctx: SpawnContext, target: SpawnTarget): TokenVisio
 async function buildTokenData(
   app: ObsidianApp,
   pos: { x: number; y: number },
-  { imagePath, name, statblockPath, size, showRing }: TokenSource,
+  { imagePath, name, statblockPath, size, showRing, role, ringStyle }: TokenSource,
   definitions: readonly ResourceDefinition[],
   visionDefaults: TokenVisionDefaults | undefined,
 ): Promise<TokenSpawnData> {
@@ -206,6 +215,8 @@ async function buildTokenData(
 
   if (size !== undefined) data.size = size;
   if (showRing !== undefined) data.showRing = showRing;
+  if (role) data.role = role;
+  if (ringStyle) data.ringStyle = ringStyle;
 
   if (statblockPath) {
     data.statblockPath = statblockPath;

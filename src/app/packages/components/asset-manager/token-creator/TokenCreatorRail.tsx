@@ -14,8 +14,11 @@ import type { CollectionMetadata } from '../../../../services/AssetService';
 import type { CreatorMode } from './types';
 import type { TokenPreviewsApi } from './useTokenPreviews';
 import { t } from '../../../../i18n';
+import type { App } from 'obsidian';
+import { TokenRingChoices } from './TokenRingChoices';
 
 interface TokenCreatorRailProps {
+  app: App | null;
   mode: CreatorMode;
   source: 'images' | 'statblocks';
   onSourceChange: (source: 'images' | 'statblocks') => void;
@@ -109,6 +112,8 @@ export function TokenCreatorRail(props: TokenCreatorRailProps): React.JSX.Elemen
         <div className="atlas-token-creator__section-title">{t('creator.collection')}</div>
         <CollectionSelect value={collection} options={collections} onChange={onCollectionChange} />
       </section>
+
+      {mode === 'token' && <TokenRingChoices app={props.app} collection={collection} targets={previews.previews.filter(p => p.isSelected)} onChange={previews.updateSelected} />}
 
       <p className="atlas-token-creator__empty-note">Tags apply to {selectedCount} selected {selectedCount === 1 ? 'preview' : 'previews'}.</p>
       <TagPicker available={availableTags} selected={selectedTags} onToggle={onToggleTag} onCreate={props.onCreateTag} disabled={props.tagsDisabled} />

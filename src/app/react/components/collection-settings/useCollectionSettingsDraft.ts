@@ -17,6 +17,8 @@ import type {
   PlayerProfile,
 } from '../../../types/collectionSettingsTypes';
 import { collectionPlayers, savedPlayers } from '../../../players/playerProfiles';
+import { readTokenRingSettings, savedTokenRingSettings } from '../../../tokenRings/tokenRingChoice';
+import type { TokenRingSettings } from '../../../tokenRings/tokenRingTypes';
 import type { CreatureFilterDefinition } from '../../../types/creatureFilterTypes';
 import type { DiceRules } from '../../../types/diceRulesTypes';
 import type { InitiativeRules } from '../../../types/initiativeRulesTypes';
@@ -64,6 +66,9 @@ export interface CollectionSettingsDraft {
   /** The people at the table; no game system sets them. */
   players: PlayerProfile[];
   setPlayers: (players: PlayerProfile[]) => void;
+  /** The ring and colour of each token role; no game system sets them. */
+  tokenRings: TokenRingSettings;
+  setTokenRings: (tokenRings: TokenRingSettings) => void;
   applyPreset: (preset: SystemPreset) => void;
   /** Leaves the collection without a game system, as if it had never been set up. */
   clearSystem: () => void;
@@ -97,6 +102,7 @@ export function useCollectionSettingsDraft(
   const [lootBases, setLootBases] = useState<string[]>([]);
   const [lootCurrency, setLootCurrency] = useState('');
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
+  const [tokenRings, setTokenRings] = useState<TokenRingSettings>({});
   const [customCreatureFilters, setCustomCreatureFilters] = useState<CreatureFilterDefinition[]>([]);
   const [hiddenCreatureFilters, setHiddenCreatureFilters] = useState<string[]>([]);
 
@@ -120,6 +126,7 @@ export function useCollectionSettingsDraft(
     setLootBases(settings.lootBases ?? []);
     setLootCurrency(settings.lootCurrency ?? '');
     setPlayers(collectionPlayers(settings));
+    setTokenRings(readTokenRingSettings(settings));
     setCustomCreatureFilters(parseCreatureFilters(settings.customCreatureFilters));
     setHiddenCreatureFilters(parseHiddenCreatureFilters(settings.hiddenCreatureFilters));
   }, [isOpen, collectionId, assetService]);
@@ -172,6 +179,7 @@ export function useCollectionSettingsDraft(
       lootBases,
       lootCurrency: lootCurrency.trim() || undefined,
       players: players.length > 0 ? savedPlayers(players) : undefined,
+      tokenRings: savedTokenRingSettings(tokenRings),
     };
   };
 
@@ -191,6 +199,7 @@ export function useCollectionSettingsDraft(
     lootBases, setLootBases,
     lootCurrency, setLootCurrency,
     players, setPlayers,
+    tokenRings, setTokenRings,
     applyPreset, clearSystem, toSettings,
   };
 }

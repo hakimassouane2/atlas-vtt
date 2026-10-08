@@ -20,8 +20,11 @@ export interface InitiativeCollection {
   /** Who the list is shown to, for `token`: a player, or one of the players it is given to. */
   viewerOf(token: TokenEntity): ResourceViewer;
   rules(mapPath: string | null): InitiativeRules;
+  /** How a combatant's portrait draws its ring, as the map's collection frames the token. */
+  ringOf(mapPath: string | null, token: TokenEntity): PortraitRing;
 }
 import { t } from '../i18n';
+import type { PortraitRing } from '../packages/components/shared/tokenRingContext';
 
 /** Separates token ids in `InitiativeScene.visibleTokenIds`. */
 const TOKEN_ID_SEPARATOR = '\n';
@@ -41,7 +44,9 @@ interface EntryToken {
   hp: ResourceValue | null;
   /** The map frames a token unless its ring is switched off. */
   showRing: boolean;
+  /** The ring as the map's collection frames the token (`TokenRingLibrary.portraitRing`). */
   ringColor?: string | undefined;
+  ringImage?: string | undefined;
   side: InitiativeSide;
   /** The number of the token's badge, as the map shows it (Goblin 2); null without one. */
   instance: number | null;
@@ -71,11 +76,13 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
       .join(TOKEN_ID_SEPARATOR);
     const entryTokens = JSON.stringify(entries.map((entry): EntryToken => {
       const token = tokens?.[entry.tokenId];
+      const ring = token ? this.collection.ringOf(mapPath ?? null, token) : {};
       return {
         // A token that hides its resources from these players hides its HP here too
         hp: token && seesResourcesOf(token.barsShownTo, this.collection.viewerOf(token)) ? token.resources?.hp ?? null : null,
         showRing: token?.showRing !== false,
-        ringColor: token?.ringColor,
+        ringColor: ring.color,
+        ringImage: ring.image,
         side: sideOf(token),
         instance: tokens ? shownInstanceNumber(tokens, entry.tokenId, tokenSettings?.showInstanceBadges) : null,
       };
@@ -148,7 +155,7 @@ export class PlayerInitiativePanel extends PlayerSceneOverlay<InitiativeScene> {
       const src = /^(?:https?:|data:|blob:|app:)/.test(entry.imagePath)
         ? entry.imagePath : this.app.vault.adapter.getResourcePath(entry.imagePath);
       const portrait = card.createDiv({ cls: 'atlas-player-initiative__portrait' });
-      createTokenPortrait(portrait, { src, alt: settings.showTokenNameplates ? entry.name : '', cls: 'atlas-player-initiative__avatar', showRing: token.showRing, ringColor: token.ringColor });
+      createTokenPortrait(portrait, { src, alt: settings.showTokenNameplates ? entry.name : '', cls: 'atlas-player-initiative__avatar', showRing: token.showRing, ringColor: token.ringColor, ringImage: token.ringImage });
       if (token.instance !== null) portrait.createSpan({ cls: 'atlas-player-initiative__instance-badge', text: String(token.instance) });
     }
     if (showValue) card.createSpan({ cls: 'atlas-player-initiative__value', text: String(entry.initiative) });

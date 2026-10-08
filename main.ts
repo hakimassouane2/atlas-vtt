@@ -41,6 +41,7 @@ import { runStartupMigration } from './src/app/plugin/startupMigration';
 import { migrateLegacySnapshots } from './src/app/snapshots/legacySnapshotMigration';
 import { migrateSettingsToPluginData } from './src/app/plugin/settingsMigration';
 import { SystemPresetFiles } from './src/app/services/systemPresets/SystemPresetFiles';
+import { TokenRingLibrary } from './src/app/tokenRings/TokenRingLibrary';
 import { registerStatusBarVisibility } from './src/app/plugin/statusBarVisibility';
 import { registerVaultSync } from './src/app/plugin/vaultSync';
 import { ChangelogService } from './src/app/changelog/ChangelogService';
@@ -86,6 +87,7 @@ export default class AtlasVTTPlugin extends Plugin {
     });
     // The user's game system presets are vault files; reading them needs no migration.
     const presetFiles = SystemPresetFiles.open(this.app);
+    TokenRingLibrary.open(this.app);
     // Settings carried over even when the data file migration failed, so they are not lost to the defaults.
     const settingsReady = storageReady.catch(() => undefined).then(async () => {
       await presetFiles.load();
@@ -176,6 +178,7 @@ export default class AtlasVTTPlugin extends Plugin {
     void this.settingsService?.saveSettingsNow();
     AssetService.getInstance(this.app).flushCharacters();
     SystemPresetFiles.release(this.app);
+    TokenRingLibrary.release(this.app);
     this.widgetSyncService?.destroy();
     this.widgetSyncService = undefined;
 

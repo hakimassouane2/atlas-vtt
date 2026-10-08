@@ -1,6 +1,9 @@
 import React from 'react';
 import { RevealImage } from '../primitives/RevealImage';
 import { Skeleton } from '../primitives/Skeleton';
+import { usePortraitRing } from './tokenRingContext';
+import { portraitRingStyle } from './tokenPortraitElement';
+import type { RingSubject } from '../../../tokenRings/tokenRingTypes';
 import './token-portrait.scss';
 
 interface TokenPortraitProps {
@@ -8,8 +11,10 @@ interface TokenPortraitProps {
   src: string;
   showRing?: boolean | undefined;
   alt: string;
-  /** Tints the ring like the canvas does; untinted (white) when omitted. */
+  /** Tints the ring like the canvas does; untinted (white) when omitted. Ignored with `ring`. */
   ringColor?: string | undefined;
+  /** The token whose ring is drawn, as its collection frames it (`TokenRingContext`): role, ring style and colour. */
+  ring?: RingSubject | undefined;
   className?: string | undefined;
   style?: React.CSSProperties | undefined;
   /** Defer loading until the portrait nears the viewport, for long lists. */
@@ -27,8 +32,9 @@ function Art({ src, alt, lazy, reveal, pending }: Pick<TokenPortraitProps, 'src'
 }
 
 /** Circular token art framed by the same ring image the canvas draws. */
-export function TokenPortrait({ src, alt, ringColor, showRing = true, className, style, lazy, reveal, pending }: TokenPortraitProps): React.JSX.Element {
-  const ringStyle = ringColor ? ({ '--atlas-token-ring-color': ringColor } as React.CSSProperties) : undefined;
+export function TokenPortrait({ src, alt, ringColor, ring, showRing = true, className, style, lazy, reveal, pending }: TokenPortraitProps): React.JSX.Element {
+  const look = usePortraitRing(ring) ?? { color: ringColor };
+  const ringStyle = portraitRingStyle(look.image, look.color) as React.CSSProperties | undefined;
 
   return (
     <div className={`atlas-token-portrait ${showRing ? '' : 'atlas-token-portrait--unframed'} ${className ?? ''}`} style={style}>

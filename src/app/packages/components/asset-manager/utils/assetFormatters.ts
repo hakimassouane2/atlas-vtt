@@ -11,6 +11,7 @@ import { assetJsonPath, primaryPath } from '../../../../services/vault-sync/asse
 import { folderIdOf } from './assetFolders';
 import { ENCOUNTER_PREVIEW_COUNT } from './encounterPreviewLayout';
 import { mapThumbnailPath } from '../../../../utils/dataFileMigration';
+import type { TokenRole } from '../../../../tokenRings/tokenRingTypes';
 
 /** The stored asset types the asset manager shows, one per tab. */
 export type TabServiceAsset = AssetOfType<'token' | 'map' | 'scene' | 'encounter'>;
@@ -33,6 +34,8 @@ export interface AssetsByTab {
 interface TokenPreviewSource {
   thumbnailPath?: string | undefined;
   showRing?: boolean | undefined;
+  role?: TokenRole | undefined;
+  ringStyle?: string | undefined;
 }
 
 /** Token asset preview data keyed by image path. */
@@ -94,7 +97,7 @@ export function partitionByTab(assets: readonly ServiceAsset[]): AssetsByTab {
 }
 
 export function tokenPreviewSources(tokens: readonly ServiceTokenAsset[]): TokenPreviewSources {
-  return new Map(tokens.map((token) => [token.imagePath, { thumbnailPath: token.thumbnailPath, showRing: token.showRing }]));
+  return new Map(tokens.map((token) => [token.imagePath, { thumbnailPath: token.thumbnailPath, showRing: token.showRing, role: token.role, ringStyle: token.ringStyle }]));
 }
 
 /**
@@ -112,10 +115,15 @@ function encounterTokenPreview(
   if (!url) return null;
   const showRing = ref.state ? ref.state.showRing : source?.showRing;
   const ringColor = ref.state?.ringColor;
+  // A placement follows its library token's role and ring, whatever the encounter saved
+  const role = source?.role ?? ref.state?.role;
+  const ringStyle = source?.ringStyle ?? ref.state?.ringStyle;
   return {
     url,
     ...(showRing !== undefined && { showRing }),
     ...(ringColor !== undefined && { ringColor }),
+    ...(role !== undefined && { role }),
+    ...(ringStyle !== undefined && { ringStyle }),
   };
 }
 
@@ -190,6 +198,8 @@ export function formatServiceAsset(
         imagePath: asset.imagePath,
         ...(asset.showRing !== undefined && { showRing: asset.showRing }),
         ...(asset.size !== undefined && { size: asset.size }),
+        ...(asset.role !== undefined && { role: asset.role }),
+        ...(asset.ringStyle !== undefined && { ringStyle: asset.ringStyle }),
         ...(asset.statblockPath !== undefined && { statblockPath: asset.statblockPath }),
       };
     }

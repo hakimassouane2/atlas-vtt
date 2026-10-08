@@ -1,10 +1,11 @@
 import { parseResourceDefinitions } from '../resources/resourceDefinitions';
+import type { TokenRole } from '../tokenRings/tokenRingTypes';
 import { wasTokenRegistrationSaved } from './assetRegistrationRecovery';
 import { SettingsService } from './SettingsService';
 import { App, Notice, TFile, TFolder } from 'obsidian';
 import { ensureAdapterFolder } from '../plugin/vaultFolders';
 import type { TokenStateSnapshot } from '../types';
-import type { CharacterRecord } from '../characters/characterRecord';
+import { changesLook, type CharacterRecord, type LibraryLook } from '../characters/characterRecord';
 import type { CellCoord, EncounterFormation } from '../encounters/encounterFormation';
 import { getDataFilePath } from '../utils/dataFileMigration';
 import { SerialLock } from '../utils/serialLock';
@@ -48,6 +49,10 @@ export interface TokenAsset extends BaseAsset {
   imagePath: string;
   /** Default footprint of spawned tokens as the size multiplier from `tokenSizing.ts`; missing means 1×1. */
   size?: number;
+  /** Player character or non-player character; its placements take it, as they take `size`. */
+  role?: TokenRole;
+  /** A ring file of the collection its placements are framed with instead of their role's ring. */
+  ringStyle?: string;
   /** Small preview written by AssetThumbnailService; regenerated when missing. */
   thumbnailPath?: string;
   statblockPath?: string; // Optional link to statblock note
@@ -1072,6 +1077,8 @@ export class AssetService {
 
     if (updatedAsset.type === 'token') {
       this.propagateTokenReferenceUpdate(updatedAsset);
+      // Placements on open maps take a new role or ring at once
+      if (changesLook(updates)) this.app.workspace.trigger('atlas-vtt:character-changed', updatedAsset.imagePath);
     }
 
     // The save writes the record file along with every other record that changed.
@@ -1642,11 +1649,17 @@ export class AssetService {
    * (`atlas-vtt:character-changed`). The index takes it at once; the disk shortly after the
    * edits settle, since each save writes the whole index and a fight changes hit points often.
    */
-  setCharacter(assetId: string, character: CharacterRecord, size: number): void {
+  setCharacter(assetId: string, character: CharacterRecord, { size, role, ringStyle }: LibraryLook): void {
     const asset = this.metadata?.assets[assetId];
     if (asset?.type !== 'token') return;
-    const { size: _size, ...rest } = asset;
-    this.metadata!.assets[assetId] = { ...rest, character, ...(size !== 1 && { size }) };
+    const { size: _size, role: _role, ringStyle: _ringStyle, ...rest } = asset;
+    this.metadata!.assets[assetId] = {
+      ...rest,
+      character,
+      ...(size !== undefined && size !== 1 && { size }),
+      ...(role && { role }),
+      ...(ringStyle && { ringStyle }),
+    };
     this.app.workspace.trigger('atlas-vtt:character-changed', asset.imagePath);
     if (this.characterSave !== null) window.clearTimeout(this.characterSave);
     this.characterSave = window.setTimeout(() => this.flushCharacters(), CHARACTER_SAVE_DELAY_MS);

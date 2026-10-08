@@ -1,0 +1,32 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Collection Settings: Tokens tab
+// The ring each role is framed with, and the collection's ring images
+// (TokenRingsTab.tsx).
+// ═══════════════════════════════════════════════════════════════════════════
+
+$ring-preview-size: 48px;
+
+.atlas-csm-ring-preview {
+  flex-shrink: 0;
+  width: $ring-preview-size;
+  height: $ring-preview-size;
+}
+
+.atlas-csm-ring-role {
+  flex: 1;
+  min-width: 0;
+  font-size: $font-ui-small;
+  color: var(--text-normal);
+}
+
+.atlas-csm-ring-file-image {
+  flex-shrink: 0;
+  width: $ring-preview-size;
+  height: $ring-preview-size;
+  object-fit: contain;
+}
+
+.atlas-csm-ring-file {
+  @include atlas-inset-surface;
+  padding: $spacing-s;
+}

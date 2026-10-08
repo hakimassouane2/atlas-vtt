@@ -4,6 +4,7 @@
 import type { InitiativeSide } from './types/initiativeRulesTypes';
 import type { LightEmission, TokenVision } from './types/lightingTypes';
 import type { BarsAudience } from './resources/resourceTypes';
+import type { TokenRole } from './tokenRings/tokenRingTypes';
 
 /**
  * Note pin object that links to an Obsidian note
@@ -40,8 +41,12 @@ export interface BaseToken {
   y: number;
   imagePath: string;
   tags?: string[];
-  /** Hex colour for the Atlas ring; undefined uses white. */
+  /** Hex colour for the ring; undefined takes the colour the collection gives the token's role, else white. */
   ringColor?: string;
+  /** Player character or non-player character, as its library token says (`TokenAsset.role`); frames the token with its role's ring. */
+  role?: TokenRole;
+  /** A ring file of the collection (`tokenRings/tokenRingFiles.ts`) the library token chose over its role's ring. */
+  ringStyle?: string;
   /** Active condition IDs referencing ConditionDefinition.id from collection settings */
   conditions?: string[];
   /** Numbers of active valued conditions, by condition id; a valued condition without one has 1. */

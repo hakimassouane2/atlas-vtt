@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Character } from '../../src/app/types';
-import { followRecord, recordOf } from '../../src/app/characters/characterRecord';
+import { changesLook, followLook, followRecord, recordOf } from '../../src/app/characters/characterRecord';
 import { visibleResources } from '../../src/app/resources/visibleResources';
 import { HP } from '../mocks/resourceFixtures';
 
@@ -24,20 +24,32 @@ describe('a character\'s record', () => {
 
   it('brings a placement in line with its settings, leaving where it stands on its map', () => {
     const goblin: Character = { ...hero, ringColor: undefined, controlledBy: undefined, resources: { hp: { current: 3, max: 20 } } };
-    expect(followRecord(goblin, recordOf(hero), undefined)).toEqual({ ringColor: '#f00', controlledBy: ['alice'] });
-    expect(followRecord(hero, recordOf(hero), undefined)).toBeNull();
-    expect(followRecord(hero, recordOf(hero), 2)).toEqual({ size: 2 });
+    expect(followRecord(goblin, recordOf(hero), {})).toEqual({ ringColor: '#f00', controlledBy: ['alice'] });
+    expect(followRecord(hero, recordOf(hero), {})).toBeNull();
+    expect(followRecord(hero, recordOf(hero), { size: 2 })).toEqual({ size: 2 });
+  });
+
+  it('gives a placement its library token\'s role and ring, and takes away what the library no longer says', () => {
+    expect(followRecord(hero, recordOf(hero), { role: 'pc', ringStyle: 'gold.webp' })).toEqual({ role: 'pc', ringStyle: 'gold.webp' });
+    expect(followLook({ ...hero, role: 'npc' }, {})).toEqual({ role: undefined });
+    expect(followLook({ ...hero, role: 'pc' }, { role: 'pc' })).toBeNull();
+  });
+
+  it('tells an edit of the library look from other edits', () => {
+    expect(changesLook({ role: undefined })).toBe(true);
+    expect(changesLook({ ringStyle: 'gold.webp' })).toBe(true);
+    expect(changesLook({ size: 2, name: 'Hero' })).toBe(false);
   });
 
   it('gives a linked placement the character\'s resources and conditions', () => {
     const elsewhere: Character = { ...hero, linked: true, resources: { hp: { current: 20, max: 20 } }, conditions: undefined };
-    expect(followRecord(elsewhere, recordOf({ ...hero, linked: true }), undefined))
+    expect(followRecord(elsewhere, recordOf({ ...hero, linked: true }), {}))
       .toEqual({ resources: { hp: { current: 7, max: 20 } }, conditions: ['prone'] });
   });
 
   it('applies a maximum set by hand to an unlinked placement, within which its current value stays', () => {
     const record = recordOf({ ...hero, overriddenMax: ['hp'], resources: { hp: { current: 5, max: 5 } } });
-    expect(followRecord(hero, record, undefined)).toEqual({ overriddenMax: ['hp'], resources: { hp: { current: 5, max: 5 } } });
+    expect(followRecord(hero, record, {})).toEqual({ overriddenMax: ['hp'], resources: { hp: { current: 5, max: 5 } } });
   });
 });
 

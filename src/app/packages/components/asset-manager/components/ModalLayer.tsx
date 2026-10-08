@@ -96,6 +96,8 @@ export function ModalLayer({
               tags: crud.editingToken.tags || [],
               showRing: (crud.editingToken as TokenAsset).showRing ?? true,
               size: (crud.editingToken as TokenAsset).size,
+              role: (crud.editingToken as TokenAsset).role,
+              ringStyle: (crud.editingToken as TokenAsset).ringStyle,
             } : null}
           />
         )}

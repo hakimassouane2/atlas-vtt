@@ -6,6 +6,8 @@ import type { ContextMenuEntry } from './AtlasContextMenu';
 import { openContextMenuGlobal, closeContextMenuGlobal } from '../../../ui/contextMenus';
 import { conditionsSubmenu } from './conditionsMenu';
 import { tokenSizeSubmenu } from './tokenSizeMenu';
+import { sharedRole, tokenRoleSubmenu } from './tokenRoleMenu';
+import { ringColors } from '../../../tokenRings/ringColors';
 import { tokenRotationSubmenu } from './tokenRotationMenu';
 import { playersSubmenu } from './playersMenu';
 import { mapPlayers } from '../../../players/playerProfiles';
@@ -27,19 +29,10 @@ import { DestructiveActionRow } from '../../../pixi/token-renderer/DestructiveAc
 import { resizedTokenCenter } from '../../../grid/gridPlacement';
 import { t } from '../../../i18n';
 
-const ringColors = (): ReadonlyArray<{ name: string; value: string | null }> => [
+/** The ring colours of the token menu; "Default" follows the colour the collection gives the token's role. */
+const menuRingColors = (): ReadonlyArray<{ name: string; value: string | null }> => [
   { name: t('color.default'), value: null },
-  { name: t('color.blue'), value: '#086ddd' },
-  { name: t('color.orange'), value: '#ec7500' },
-  { name: t('color.red'), value: '#e93147' },
-  { name: t('color.yellow'), value: '#e0ac00' },
-  { name: t('color.brown'), value: '#a97142' },
-  { name: t('color.purple'), value: '#7852ee' },
-  { name: t('color.green'), value: '#08b94e' },
-  { name: t('color.pink'), value: '#d53984' },
-  { name: t('color.cyan'), value: '#00bfbc' },
-  { name: t('color.gray'), value: '#ababab' },
-  { name: t('color.white'), value: '#ffffff' },
+  ...ringColors().map(({ label, value }) => ({ name: label, value })),
 ];
 
 /** The GM's token menu: everything Atlas can do to a token on the map. */
@@ -151,7 +144,7 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   return entries;
 }
 
-/** Size and rotation of the selection the token belongs to (one undo step each), and the clicked token's ring colour. */
+/** Size, rotation and role of the selection the token belongs to (one undo step each), and the clicked token's ring colour. */
 function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity, targets: string[]): ContextMenuEntry {
   const size = tokenSizeSubmenu(token.size, (newSize) => {
     const { grid, objects, updateTokens } = store.getState();
@@ -166,14 +159,19 @@ function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity, targe
     type: 'submenu',
     label: t('token.ringColor'),
     icon: 'circle',
-    children: ringColors().map((color) => ({
+    children: menuRingColors().map((color) => ({
       type: 'item' as const,
       label: color.name,
       checked: color.value === token.ringColor || (color.value === null && !token.ringColor),
       onClick: () => store.getState().setTokenRing(token.id, color.value),
     })),
   };
-  return { type: 'submenu', label: t('token.appearance'), icon: 'paintbrush', children: [size, tokenRotationSubmenu(store, targets), ringColor] };
+  // The role is the library character's: every placement of it follows (`CharacterSync`)
+  const tokens = store.getState().objects.tokens;
+  const role = tokenRoleSubmenu(sharedRole(targets.flatMap((id) => tokens[id] ?? [])), (next) => {
+    store.getState().updateTokens(targets.map((id) => ({ id, changes: { role: next } })));
+  });
+  return { type: 'submenu', label: t('token.appearance'), icon: 'paintbrush', children: [size, tokenRotationSubmenu(store, targets), role, ringColor] };
 }
 
 /** A linked statblock opens or unlinks from its own submenu; an unlinked token offers to link one. */

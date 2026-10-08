@@ -6,6 +6,7 @@ import type { TokenEntity } from '../../types';
 import type { InitiativeRules } from '../../types/initiativeRulesTypes';
 import { PageSettings, pageApp } from './pageStandIns';
 import type { PlayerCanvasContext } from '../scene/sceneProtocol';
+import { readTokenRingSettings, ringChoiceOf } from '../../tokenRings/tokenRingChoice';
 
 /** The local player window's initiative order on the canvas page, read from the page's own store. */
 export class InitiativeOverlay {
@@ -18,6 +19,11 @@ export class InitiativeOverlay {
       showsHp: (mapPath) => mapResources(collection, mapPath).some((definition) => definition.key === 'hp' && definition.visibleToPlayers),
       rules: () => this.rules,
       viewerOf: (token) => (controls(token) ? 'controller' : 'player'),
+      // The page draws Atlas' ring in the colour the token or its role has
+      ringOf: (mapPath, token) => {
+        const collectionId = mapPath ? collection.getCollectionForMap(mapPath) : null;
+        return { color: ringChoiceOf(token, readTokenRingSettings(collectionId ? collection.getCollectionSettings(collectionId) : null)).color };
+      },
     });
     panel.mount(container);
     panel.present(store);

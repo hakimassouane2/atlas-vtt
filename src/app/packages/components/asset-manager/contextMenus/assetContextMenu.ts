@@ -7,7 +7,9 @@ import type {
   Folder,
   InputModalState,
   Tag as TagType,
+  TokenAsset,
 } from '../types';
+import type { TokenRole } from '../../../../tokenRings/tokenRingTypes';
 import {
   spawnEncounterTokens,
   spawnSelectedTokens,
@@ -23,6 +25,7 @@ import { confirmAction } from '../../../../ui/confirmDialog';
 import type { AtlasView } from '../../../../atlas-view';
 import { applyTokenDeleteImpact, describeTokenDeleteImpact, findTokenDeleteImpact } from '../utils/tokenDeleteImpact';
 import { tokenSizeSubmenu } from '../../../../react/components/context-menu/tokenSizeMenu';
+import { sharedRole, tokenRoleSubmenu } from '../../../../react/components/context-menu/tokenRoleMenu';
 import type { TransferMode } from '../../../../services/assetTransfer/transferPlan';
 import type { CreateScenePrefill } from '../hooks/useAssetCrud';
 import { scenePrefillFromMap } from '../utils/sceneCreation';
@@ -57,6 +60,12 @@ export interface AssetContextMenuDeps {
   availableTags: TagType[];
   /** Collections the assets can be moved or copied to. */
   transferTargets: CollectionOption[];
+}
+
+/** `asset` with `role`, or without one. */
+function withRole(asset: TokenAsset, role: TokenRole | undefined): TokenAsset {
+  const { role: _role, ...rest } = asset;
+  return role ? { ...rest, role } : rest;
 }
 
 export function buildAssetContextMenuEntries(
@@ -198,6 +207,17 @@ export function buildAssetContextMenuEntries(
       if (!service) return;
       for (const id of tokenIds) {
         runInBackground(service.updateAsset(id, { size }), `Updating size of asset ${id}`);
+      }
+    }));
+
+    // Player character or not: its placements on every map follow, and its ring with it
+    const tokens = selectedAssets.filter((a) => a.type === 'tokens');
+    entries.push(tokenRoleSubmenu(sharedRole(tokens), (role) => {
+      deps.setAssets((prev) => prev.map((a) => (tokenIds.includes(a.id) && a.type === 'tokens' ? withRole(a, role) : a)));
+      const service = deps.assetService;
+      if (!service) return;
+      for (const id of tokenIds) {
+        runInBackground(service.updateAsset(id, { role }), `Updating role of asset ${id}`);
       }
     }));
   }

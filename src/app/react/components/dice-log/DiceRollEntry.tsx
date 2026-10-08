@@ -66,7 +66,7 @@ export function DiceRollEntry({ result, isNew, onRepeat }: DiceRollEntryProps): 
             src={avatar.src}
             alt={sourceTokenName}
             showRing={avatar.showRing}
-            ringColor={avatar.ringColor}
+            ring={avatar.ring}
           />
         ) : (
           <div className="dice-log-entry__avatar dice-log-entry__avatar--fallback">

@@ -15,6 +15,7 @@ import type { TokenVisionDefaults } from './lightingTypes';
 import type { SenseDefinition } from './senseTypes';
 import type { AnyWidget } from './widgetTypes';
 import type { WidgetIcon } from './widgetIcons';
+import type { TokenRingSettings } from '../tokenRings/tokenRingTypes';
 
 /** A user-defined abstract distance band for the measurement tool */
 export interface RangeBand {
@@ -110,6 +111,8 @@ export interface CollectionSettings {
   lootCurrency?: string | undefined;
   /** The people at the table, whom online players choose to be. Read with `collectionPlayers`. */
   players?: PlayerProfile[] | undefined;
+  /** The ring and colour each token role is framed with. Read with `readTokenRingSettings`. */
+  tokenRings?: TokenRingSettings | undefined;
 }
 
 /**

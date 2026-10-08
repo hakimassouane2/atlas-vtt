@@ -6,7 +6,9 @@ import { STATBLOCK_IMAGE_KEYS, type StatblockImageKey } from '../statblockImageK
 import { t } from '../../i18n';
 
 /** Bumped when the zip layout or manifest shape changes: the newest format this version reads and writes. */
-export const BUNDLE_FORMAT = 8;
+export const BUNDLE_FORMAT = 9;
+/** What a bundle with a user preset and no ring image says, so Atlas versions that stop at format 8 still import it. */
+const FORMAT_WITHOUT_RINGS = 8;
 /** What a bundle without a user preset says, so Atlas versions that stop at format 6 still import it. */
 const FORMAT_WITHOUT_PRESETS = 6;
 /** Oldest format this version still imports. */
@@ -21,23 +23,29 @@ export const BUNDLE_FILES_DIR = 'files';
  * `note-attachment` is an image or PDF one of those notes shows (format 5); `cover` is the collection's cover image (format 4).
  * `loot-base` is a `.base` file the collection's settings pick as a loot source and `loot-item` a file the base
  * holds (format 6). `system-preset` is the user game system preset the collection's settings name (format 8): it is
- * matched by its preset id and placed in the presets folder, never at its path.
+ * matched by its preset id and placed in the presets folder, never at its path. `token-ring` is a ring image of the
+ * collection's `token-rings` folder (format 9).
  */
 const BUNDLE_FILE_ROLES = [
   'asset-file', 'thumbnail', 'scene-map', 'scene-thumbnail', 'scene-snapshot', 'scene-snapshot-thumbnail', 'background', 'token-image', 'statblock-note', 'statblock-image',
   'linked-note', 'note-attachment', 'cover', 'loot-base', 'loot-item', 'system-preset',
+  'token-ring',
 ] as const;
 export type BundleFileRole = typeof BUNDLE_FILE_ROLES[number];
 
 /** A user game system preset, which is matched by its preset id and not by its path. */
 export const PRESET_ROLE = 'system-preset' satisfies BundleFileRole;
 
+/** A ring image of the collection. */
+export const TOKEN_RING_ROLE = 'token-ring' satisfies BundleFileRole;
+
 /** Files an import matches by the id inside them, never as files at a path. */
 export const ID_MATCHED_ROLES: ReadonlySet<BundleFileRole> = new Set<BundleFileRole>([PRESET_ROLE]);
 
-/** The format a manifest says: 8 only when the bundle packs a user preset. */
+/** The format a manifest says: 9 only when the bundle packs a ring image, 8 when it packs a user preset. */
 export function bundleFormatFor(files: readonly BundleFile[]): number {
-  return files.some((file) => file.role === PRESET_ROLE) ? BUNDLE_FORMAT : FORMAT_WITHOUT_PRESETS;
+  if (files.some((file) => file.role === TOKEN_RING_ROLE)) return BUNDLE_FORMAT;
+  return files.some((file) => file.role === PRESET_ROLE) ? FORMAT_WITHOUT_RINGS : FORMAT_WITHOUT_PRESETS;
 }
 
 /** Statblock notes and their artwork: files an importing vault may already have, and then reuses in place. */

@@ -1,6 +1,7 @@
 import { mapResources } from '../resources/collectionResources';
 import type { ResourceDefinition, ResourceDefsProvider } from '../resources/resourceTypes';
 import { fitTokenArtwork, syncTokenArtwork } from './token-renderer/tokenArtwork';
+import { TokenRingLooks, ringChanged } from './token-renderer/tokenRingLooks';
 import type { AtlasSettings } from '../services/SettingsService';
 import { HIDDEN_TOKEN_ALPHA, gmTokenLayers, type HideableLayer, type LayerVisibility } from './playerSafeFrame';
 import type { TokenPerception } from './lighting/playerLightingLayers';
@@ -64,6 +65,7 @@ export class TokenRenderer {
   /** The resources of the map's collection. */
   private resourceDefsProvider: ResourceDefsProvider = () => [];
   private spriteFactory: SpriteFactory;
+  private readonly ringLooks: TokenRingLooks;
   private textureCache: TextureCache;
   private readonly hiddenTokenIcon = new HiddenTokenIcon();
   private readonly downedTokenOverlay = new DownedTokenOverlay(
@@ -161,6 +163,8 @@ export class TokenRenderer {
 
     // Initialize sprite factory
     this.spriteFactory = new SpriteFactory(this.gridSystem, isPlayerView);
+    this.ringLooks = new TokenRingLooks(host.art, host.collections, () => this.store.getState().mapPath, () => this.refreshAllRings());
+    this.spriteFactory.setRingLookProvider((token) => this.ringLooks.lookOf(token));
     this.spriteFactory.setTokenRingTextureReadyCallback(() => {
       // Rebuild rings once the textured asset is available.
       this.updateAllTokenSizes();
@@ -443,15 +447,15 @@ export class TokenRenderer {
     tokenGroup.interactiveChildren = true;
   }
 
-  private updateTokenRing(tokenId: string, tokenGroup: TokenGroupContainer, size: number, ringColor?: string): void {
+  private updateTokenRing(tokenId: string, tokenGroup: TokenGroupContainer, size: number): void {
     const current = this.store.getState().objects.tokens[tokenId];
     if (current) tokenGroup.tokenData = current;
     const sizeWithMultiplier = size * (this.store.getState().tokenSettings?.tokenRingSize ?? 1);
-    const resolvedRingColor = ringColor || '#ffffff';
+    const look = current ? this.spriteFactory.ringLook(current) : { texture: null, color: '#ffffff' };
 
     // Route all ring redraws through SpriteFactory to keep visuals consistent
     // between initial create and subsequent updates (size/color changes).
-    const ring = this.spriteFactory.createTokenRing(tokenGroup, resolvedRingColor, sizeWithMultiplier);
+    const ring = this.spriteFactory.createTokenRing(tokenGroup, look.color, sizeWithMultiplier, look.texture);
     syncTokenArtwork(tokenGroup, size);
     this.downedTokenOverlay.refresh(tokenGroup);
     if (ring) {
@@ -698,7 +702,7 @@ export class TokenRenderer {
           this.uiManager.syncUIScale(token.id, tokenSize);
 
           // Always refresh ring, even when token has no explicit ringColor.
-          this.updateTokenRing(token.id, existingTokenGroup, tokenSize, token.ringColor);
+          this.updateTokenRing(token.id, existingTokenGroup, tokenSize);
         }
 
         if (!prevToken || token.imagePath !== prevToken.imagePath) {
@@ -718,14 +722,12 @@ export class TokenRenderer {
           this.requestSort();
         }
         
-        // Update ring color if it changed
-        const newRingColor = token.ringColor;
-        const prevRingColor = prevToken?.ringColor;
-        if (newRingColor !== prevRingColor || token.showRing !== prevToken?.showRing) {
+        // Update the ring if its colour, role or style changed
+        if (!prevToken || ringChanged(prevToken, token)) {
           // Calculate token size for ring update
           const tokenSize = computeTokenPixelSize(this.gridSystem.getOptions().size, token.size || 1);
           
-          this.updateTokenRing(token.id, existingTokenGroup, tokenSize, newRingColor);
+          this.updateTokenRing(token.id, existingTokenGroup, tokenSize);
         }
         
         // Update token UI with any state changes
@@ -891,8 +893,8 @@ export class TokenRenderer {
     // Size changes
     if (token.size !== prevToken.size) return true;
 
-    // Ring color changes
-    if (token.ringColor !== prevToken.ringColor || token.showRing !== prevToken.showRing) return true;
+    // Ring changes
+    if (ringChanged(prevToken, token)) return true;
 
     // Visibility/hidden state changes
     if (token.isHidden !== prevToken.isHidden) return true;
@@ -991,6 +993,8 @@ export class TokenRenderer {
     // Textures associated with sprites in tokenContainer should be handled by PixiAppManager.destroy
     // if they were not individually destroyed from the cache.
     destroyTree(this.tokenContainer);
+    // After the sprites, which drew with the rings' textures
+    this.ringLooks.destroy();
     
     // Destroy all cached textures using centralized method
     this.textureCache.destroyAll();
@@ -1009,6 +1013,18 @@ export class TokenRenderer {
     if (this.isDestroyed) return;
     this.uiManager.refreshConditions();
     this.uiManager.refreshResources();
+    // The collection frames each role with its own ring
+    this.refreshAllRings();
+  }
+
+  /** Draws every token's ring anew: the collection's rings or a ring file changed. */
+  private refreshAllRings(): void {
+    if (this.isDestroyed) return;
+    const tokens = this.store.getState().objects.tokens;
+    for (const [tokenId, token] of Object.entries(tokens)) {
+      const tokenGroup = this.tokenSprites[tokenId];
+      if (tokenGroup instanceof Container) this.updateTokenRing(tokenId, tokenGroup, computeTokenPixelSize(this.gridSystem.getOptions().size, token.size || 1));
+    }
   }
 
   /**
@@ -1619,8 +1635,7 @@ export class TokenRenderer {
         this.uiManager.syncUIScale(tokenId, tokenSize);
         
         // Always refresh ring, even when token has no explicit ringColor.
-        const ringColor = token.ringColor;
-        this.updateTokenRing(tokenId, tokenGroup, tokenSize, ringColor);
+        this.updateTokenRing(tokenId, tokenGroup, tokenSize);
       }
     }
 

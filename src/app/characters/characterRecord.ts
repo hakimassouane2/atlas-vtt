@@ -2,6 +2,7 @@ import type { TokenUpdates } from '../storeFactory';
 import type { TokenEntity } from '../types';
 import type { ResourceValue } from '../resources/resourceTypes';
 import { sameValue } from '../utils/sameValue';
+import type { TokenRole } from '../tokenRings/tokenRingTypes';
 
 /** The settings of a character that follow it to every map, whatever happens there. */
 const CONFIG_FIELDS = ['controlledBy', 'showNameplate', 'ringColor', 'vision', 'light', 'side', 'linked', 'barsShownTo'] as const;
@@ -31,6 +32,41 @@ export interface CharacterRecord {
   state?: CharacterState;
 }
 
+/**
+ * What the library token itself says of every placement: its footprint (unset is 1×1), its role and
+ * its ring. Placements take it as the record's settings, and a placement's edit writes it back.
+ */
+export interface LibraryLook {
+  size?: number | undefined;
+  role?: TokenRole | undefined;
+  ringStyle?: string | undefined;
+}
+
+/** Fields of the library look that every placement follows, record or not (`followLook`). */
+const LOOK_FIELDS = ['role', 'ringStyle'] as const;
+
+/** Whether `updates` change a field of the library look every placement follows. */
+export function changesLook(updates: object): boolean {
+  return LOOK_FIELDS.some((field) => field in updates);
+}
+
+/** The library look `token` has. */
+export function lookOf(token: TokenEntity): LibraryLook {
+  return { size: token.size ?? 1, role: token.role, ringStyle: token.ringStyle };
+}
+
+/** Whether two library looks say the same. */
+export function sameLook(a: LibraryLook, b: LibraryLook): boolean {
+  return (a.size ?? 1) === (b.size ?? 1) && a.role === b.role && a.ringStyle === b.ringStyle;
+}
+
+/** The changes that give `token` the role and ring of `look`; null when it has them. An unset field is removed. */
+export function followLook(token: TokenEntity, look: LibraryLook): TokenUpdates | null {
+  const updates: Record<string, unknown> = {};
+  for (const field of LOOK_FIELDS) if (token[field] !== look[field]) updates[field] = look[field];
+  return Object.keys(updates).length > 0 ? updates : null;
+}
+
 /** The character's settings as `token` has them. */
 export function configOf(token: TokenEntity): CharacterConfig {
   const config: Record<string, unknown> = {};
@@ -58,17 +94,18 @@ export function recordOf(token: TokenEntity): CharacterRecord {
   return config.linked ? { config, state: stateOf(token) } : { config };
 }
 
-/** Whether `token` already is what `record` and the library's `size` say. */
-export function followsRecord(token: TokenEntity, record: CharacterRecord, size: number | undefined): boolean {
-  return followRecord(token, record, size) === null;
+/** Whether `token` already is what `record` and the library's `look` say. */
+export function followsRecord(token: TokenEntity, record: CharacterRecord, look: LibraryLook): boolean {
+  return followRecord(token, record, look) === null;
 }
 
 /**
- * The changes that make `token` the character `record` describes, at the library's `size`
- * (unset is 1×1); null when it already is. A field the record leaves unset is removed.
+ * The changes that make `token` the character `record` describes, with the library's `look`
+ * (size unset is 1×1); null when it already is. A field the record leaves unset is removed.
  */
-export function followRecord(token: TokenEntity, record: CharacterRecord, size: number | undefined): TokenUpdates | null {
-  const updates: Record<string, unknown> = {};
+export function followRecord(token: TokenEntity, record: CharacterRecord, look: LibraryLook): TokenUpdates | null {
+  const { size } = look;
+  const updates: Record<string, unknown> = { ...followLook(token, look) };
   const { config, state } = record;
   for (const field of CONFIG_FIELDS) {
     if (!sameValue(token[field], config[field])) updates[field] = config[field];

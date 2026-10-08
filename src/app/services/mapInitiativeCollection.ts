@@ -3,6 +3,7 @@ import { mapResources } from '../resources/collectionResources';
 import { AssetService } from './AssetService';
 import { mapInitiativeRules } from './mapInitiativeRules';
 import type { InitiativeCollection } from './PlayerInitiativePanel';
+import { TokenRingLibrary } from '../tokenRings/TokenRingLibrary';
 
 /** What the collection holding a map tells the players' initiative order, read from the vault. */
 export function mapInitiativeCollection(app: App): InitiativeCollection {
@@ -12,5 +13,9 @@ export function mapInitiativeCollection(app: App): InitiativeCollection {
     rules: (mapPath) => mapInitiativeRules(app, mapPath),
     // The local player window is shared by the table: nobody in particular looks at it
     viewerOf: () => 'player',
+    ringOf: (mapPath, token) => {
+      const collectionId = mapPath ? AssetService.getInstance(app).getCollectionForMap(mapPath) : null;
+      return TokenRingLibrary.forApp(app)?.portraitRing(collectionId, token) ?? { color: token.ringColor };
+    },
   };
 }

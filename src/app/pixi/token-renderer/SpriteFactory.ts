@@ -13,6 +13,7 @@ import { destroyTree } from '../utils/destroyTree';
 import { getTokenRingOuterDiameter } from './tokenRingMetrics';
 import { loadedTokenRingTexture, loadTokenRingTexture } from './tokenRingTexture';
 import { computeTokenPixelSize, computeTokenStrokeWidth } from './tokenSizing';
+import type { TokenRingLook } from './tokenRingLooks';
 
 // Cached textures - generated once, reused for all tokens
 let cachedGlassTexture: Texture | null = null;
@@ -22,6 +23,8 @@ export class SpriteFactory implements ITokenSpriteFactory {
   public isPlayerView: boolean;
   private onTokenRingTextureReady: (() => void) | undefined;
   private ringTextureLoad: Promise<Texture | null> | null = null;
+  /** The ring each token is drawn with; Atlas' ring in the token's own colour until the renderer says otherwise. */
+  private ringLookOf: (token: TokenEntity) => TokenRingLook = (token) => ({ texture: null, color: token.ringColor || '#ffffff' });
 
   constructor(gridSystem: GridSystem, isPlayerView: boolean = false) {
     this.gridSystem = gridSystem;
@@ -88,10 +91,8 @@ export class SpriteFactory implements ITokenSpriteFactory {
     // Add glass dome overlay for polished look
     this.createGlassOverlay(tokenGroup, tokenSize);
 
-    // Create token ring with default or specified color
-    const defaultRingColor = '#ffffff';
-    const ringColor = token.ringColor || defaultRingColor;
-    this.createTokenRing(tokenGroup, ringColor);
+    const look = this.ringLookOf(token);
+    this.createTokenRing(tokenGroup, look.color, undefined, look.texture);
 
     return tokenGroup;
   }
@@ -155,6 +156,15 @@ export class SpriteFactory implements ITokenSpriteFactory {
     }
   }
 
+  setRingLookProvider(lookOf: (token: TokenEntity) => TokenRingLook): void {
+    this.ringLookOf = lookOf;
+  }
+
+  /** The ring `token` is drawn with. */
+  ringLook(token: TokenEntity): TokenRingLook {
+    return this.ringLookOf(token);
+  }
+
   setTokenRingTextureReadyCallback(callback: (() => void) | undefined): void {
     this.onTokenRingTextureReady = callback;
 
@@ -176,7 +186,8 @@ export class SpriteFactory implements ITokenSpriteFactory {
     return this.ringTextureLoad;
   }
 
-  createTokenRing(container: TokenGroupContainer, ringColor: string | null, tokenSizeOverride?: number): Sprite | Graphics | null {
+  /** Draws the token's ring in `ringColor` (white leaves it as drawn): `ringTexture`, else Atlas' own ring. */
+  createTokenRing(container: TokenGroupContainer, ringColor: string | null, tokenSizeOverride?: number, ringTexture: Texture | null = null): Sprite | Graphics | null {
     // Remove all existing ring layers before recreating.
     // This prevents stale/doubled shadows when a ring is refreshed.
     for (let i = container.children.length - 1; i >= 0; i--) {
@@ -201,13 +212,13 @@ export class SpriteFactory implements ITokenSpriteFactory {
     const ringSize = getTokenRingOuterDiameter(tokenSize, strokeWidth, ringScale);
     const parsedColor = Number.parseInt(ringColor.replace('#', ''), 16);
     const ringTint = Number.isFinite(parsedColor) ? parsedColor : 0xffffff;
-    const ringTexture = this.getTokenRingTexture();
+    const texture = ringTexture ?? this.getTokenRingTexture();
 
-    if (!ringTexture || ringTexture === Texture.EMPTY) {
+    if (!texture || texture === Texture.EMPTY) {
       return this.createFallbackRing(container, tokenSize, ringSize, ringTint);
     }
 
-    const ring = new Sprite(ringTexture);
+    const ring = new Sprite(texture);
     ring.label = 'tokenRing';
     ring.anchor.set(0.5);
     ring.width = ringSize;

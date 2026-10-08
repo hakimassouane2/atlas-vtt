@@ -23,6 +23,7 @@ import type { PlayerProfile } from '../types/collectionSettingsTypes';
 import { mapPlayers } from '../players/playerProfiles';
 import { ConnectedPlayers, parseProfileChoice } from './connectedPlayers';
 import { SceneReplicator, type ReplicatedSource } from './scene/SceneReplicator';
+import { isTokenRingPath } from '../tokenRings/tokenRingFiles';
 
 export interface OnlineSessionState {
   isRunning: boolean;
@@ -265,9 +266,9 @@ export class OnlineSession {
     return true;
   }
 
-  /** Images players may load: those of the scene they were sent, and of the rolls they saw. */
+  /** Images players may load: those of the scene they were sent, of the rolls they saw, and the rings of the collections. */
   private mayLoadImage(path: string): boolean {
-    return this.rollImages.has(path) || this.replicator.sentImages().has(path);
+    return this.rollImages.has(path) || this.replicator.sentImages().has(path) || isTokenRingPath(path);
   }
 
   private playerLink(): string {

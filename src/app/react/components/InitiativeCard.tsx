@@ -236,7 +236,7 @@ export const InitiativeCard: React.FC<InitiativeCardProps> = ({
             src={getImageUrl(entry.imagePath)}
             alt={entry.name}
             showRing={token?.showRing !== false}
-            ringColor={token?.ringColor}
+            ring={token}
           />
         ) : (
           <div className="atlas-initiative-card__avatar">

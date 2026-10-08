@@ -26,6 +26,7 @@ import { SceneSwitcher } from './components/scene-switcher/SceneSwitcher';
 import { canRunMapHotkeys, matchesMapHotkey } from '../keyboard/mapHotkeys';
 import { SettingsService } from '../services/SettingsService';
 import { HotkeyHelp } from '../keyboard/HotkeyHelp';
+import { MapTokenRings } from '../tokenRings/MapTokenRings';
 
 
 // Import the new context and hook
@@ -148,6 +149,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
   return (
     <AtlasUIContext.Provider value={contextValue}>
       <DiceEnvironmentContext.Provider value={diceEnvironment}>
+      <MapTokenRings app={app}>
       <ContextMenuProvider>
         {hotkeyHelpOpen && (
           <PanelBoundary name="the hotkey help">
@@ -243,6 +245,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
 
         </div>
       </ContextMenuProvider>
+      </MapTokenRings>
       </DiceEnvironmentContext.Provider>
     </AtlasUIContext.Provider>
   );

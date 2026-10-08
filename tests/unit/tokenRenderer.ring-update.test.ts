@@ -12,10 +12,13 @@ describe('TokenRenderer ring updates', () => {
     const tokenGroup = new Container();
     const createdRing = new Graphics();
     const createTokenRing = vi.fn(() => createdRing);
+    const ringTexture = Texture.WHITE;
+    // The ring of the token's role in its collection
+    const ringLook = vi.fn(() => ({ texture: ringTexture, color: '#00ff99' }));
 
     // Inherit the prototype so updateTokenRing reaches the badge helpers it delegates to
     const harness = Object.assign(Object.create(TokenRenderer.prototype) as object, {
-      spriteFactory: { createTokenRing },
+      spriteFactory: { createTokenRing, ringLook },
       downedTokenOverlay: { refresh: vi.fn() },
       store: {
         getState: () => ({
@@ -41,10 +44,10 @@ describe('TokenRenderer ring updates', () => {
       'tokenA',
       tokenGroup,
       120,
-      '#00ff99'
     );
 
-    expect(createTokenRing).toHaveBeenCalledWith(tokenGroup, '#00ff99', 168);
+    expect(ringLook).toHaveBeenCalledWith(expect.objectContaining({ id: 'tokenA' }));
+    expect(createTokenRing).toHaveBeenCalledWith(tokenGroup, '#00ff99', 168, ringTexture);
     expect(harness.tokenRings.tokenA).toBe(createdRing);
     expect(updateInstanceBadge).toHaveBeenCalledWith(tokenGroup, 2, 168, true);
   });
@@ -99,7 +102,7 @@ describe('TokenRenderer ring updates', () => {
 
     expect(updateTokenSize).toHaveBeenCalledTimes(1);
     expect(syncUIScale).toHaveBeenCalledTimes(1);
-    expect(updateTokenRing).toHaveBeenCalledWith(tokenId, tokenGroup, expect.any(Number), undefined);
+    expect(updateTokenRing).toHaveBeenCalledWith(tokenId, tokenGroup, expect.any(Number));
     expect(refreshInstanceBadges).toHaveBeenCalledTimes(1);
   });
 });
@@ -108,13 +111,15 @@ describe('TokenRenderer and the collection of its map', () => {
   const harness = (isDestroyed: boolean) => ({
     isDestroyed,
     uiManager: { refreshConditions: vi.fn(), refreshResources: vi.fn() },
+    refreshAllRings: vi.fn(),
   });
 
-  it('redraws conditions and resources once the collection\'s rules are known or change', () => {
+  it('redraws conditions, resources and rings once the collection\'s rules are known or change', () => {
     const renderer = harness(false);
     (TokenRenderer.prototype as any).refreshCollectionRules.call(renderer);
     expect(renderer.uiManager.refreshConditions).toHaveBeenCalledOnce();
     expect(renderer.uiManager.refreshResources).toHaveBeenCalledOnce();
+    expect(renderer.refreshAllRings).toHaveBeenCalledOnce();
   });
 
   it('does nothing after the view closed', () => {

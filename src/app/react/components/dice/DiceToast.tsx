@@ -66,7 +66,7 @@ export function DiceToast({ result, phase, onDismiss }: DiceToastProps): React.R
               src={avatar.src}
               alt={sourceTokenName}
               showRing={avatar.showRing}
-              ringColor={avatar.ringColor}
+              ring={avatar.ring}
             />
           ) : (
             <div className="atlas-dice-toast__avatar atlas-dice-toast__avatar--fallback">

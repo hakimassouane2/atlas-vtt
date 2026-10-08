@@ -1,10 +1,13 @@
 import type { ScaleDown } from '../../../../imageProcessing/imageJob';
+import type { TokenRole } from '../../../../tokenRings/tokenRingTypes';
 
 export type CreatorMode = 'token' | 'map';
 
 export interface EditTokenInput {
   showRing?: boolean;
   size?: number | undefined;
+  role?: TokenRole | undefined;
+  ringStyle?: string | undefined;
   id: string;
   name: string;
   imageUrl: string;
@@ -33,6 +36,10 @@ export interface TokenPreview {
   showRing?: boolean;
   /** Default footprint saved on the asset; undefined keeps 1×1. */
   size?: number | undefined;
+  /** Player character or not; frames the token with its role's ring. */
+  role?: TokenRole | undefined;
+  /** A ring file of the collection chosen over the role's ring. */
+  ringStyle?: string | undefined;
   id: string;
   /** Original upload; null when editing an existing asset without replacing its image. */
   file: File | null;
@@ -48,7 +55,7 @@ export interface TokenPreview {
   isOptimizing: boolean;
 }
 
-export type TokenPreviewPatch = Partial<Pick<TokenPreview, 'name' | 'imageScale' | 'imagePosition' | 'showRing' | 'size' | 'tags'>>;
+export type TokenPreviewPatch = Partial<Pick<TokenPreview, 'name' | 'imageScale' | 'imagePosition' | 'showRing' | 'size' | 'tags' | 'role' | 'ringStyle'>>;
 
 export const ZOOM_MIN = 0.5;
 export const ZOOM_MAX = 3;

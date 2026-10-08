@@ -43,7 +43,7 @@ function Artwork({ asset }: { asset: AnyAsset }): React.JSX.Element {
             src={preview.url}
             alt={`${asset.name} token ${index + 1}`}
             showRing={preview.showRing}
-            ringColor={preview.ringColor}
+            ring={preview}
             reveal
           />
         ))}
@@ -53,12 +53,12 @@ function Artwork({ asset }: { asset: AnyAsset }): React.JSX.Element {
   }
   if (asset.thumbnailPending) {
     return asset.type === 'tokens'
-      ? <TokenPortrait src="" alt={asset.name} showRing={asset.showRing} pending />
+      ? <TokenPortrait src="" alt={asset.name} showRing={asset.showRing} ring={asset} pending />
       : <Skeleton className="atlas-asset-card-art-skeleton" live />;
   }
   if (asset.thumbnailUrl) {
     return asset.type === 'tokens'
-      ? <TokenPortrait src={asset.thumbnailUrl} alt={asset.name} showRing={asset.showRing} reveal />
+      ? <TokenPortrait src={asset.thumbnailUrl} alt={asset.name} showRing={asset.showRing} ring={asset} reveal />
       : <RevealImage src={asset.thumbnailUrl} alt={asset.name} fallback={<ArtFallback asset={asset} />} />;
   }
   return <ArtFallback asset={asset} />;

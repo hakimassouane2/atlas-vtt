@@ -1,6 +1,8 @@
 import { TokenRingToggle } from './TokenRingToggle';
 import { TokenSizeSelect } from './TokenSizeSelect';
-import tokenRingImageUrl from '../../../../assets/token-ring.webp';
+import { usePortraitRing } from '../../shared/tokenRingContext';
+import { portraitRingStyle } from '../../shared/tokenPortraitElement';
+import '../../shared/token-portrait.scss';
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../../../../../utils/cn';
@@ -104,6 +106,8 @@ export const TokenPreviewCard = React.memo(function TokenPreviewCard({ preview, 
   onChangeRef.current = onChange;
 
   const isCropEditable = mode === 'token' && preview.showRing !== false;
+  // The ring the token will be framed with in its collection
+  const ring = usePortraitRing({ role: preview.role, ringStyle: preview.ringStyle });
   const aspect = useImageAspect(preview.previewUrl);
   const wellSize = useWellSize(artElement);
 
@@ -184,7 +188,7 @@ export const TokenPreviewCard = React.memo(function TokenPreviewCard({ preview, 
       />
       {/* The card never shows the upload itself: its place is held until the converted image is there. */}
       {preview.isOptimizing && <Skeleton className="atlas-token-card__pending" live />}
-      {isCropEditable && <><div className="atlas-token-card__mask" /><img className="atlas-token-card__ring" src={tokenRingImageUrl} alt="" /></>}
+      {isCropEditable && <><div className="atlas-token-card__mask" /><div className="atlas-token-ring atlas-token-card__ring" style={portraitRingStyle(ring?.image, ring?.color)} /></>}
 
       <LabelTooltip label={t('creator.select', { name: preview.name })}>
         <button

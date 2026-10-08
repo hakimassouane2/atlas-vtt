@@ -3,6 +3,7 @@ import type { KeyboardEvent, MouseEvent } from 'react';
 import type { CollectionMetadata, EncounterAsset as StoredEncounterAsset } from '../../../services/AssetService';
 import { ATLAS_NATIVE_MODAL_CLASSES } from '../../../ui/nativeModal';
 import { t } from '../../../i18n';
+import type { TokenRole } from '../../../tokenRings/tokenRingTypes';
 
 // ─── Tab / View Constants ───────────────────────────────────────────
 
@@ -49,6 +50,8 @@ export interface TokenAsset extends Asset {
   imageUrl: string;
   imagePath?: string;
   size?: number;
+  role?: TokenRole;
+  ringStyle?: string;
   statblockPath?: string;
 }
 
@@ -67,6 +70,8 @@ export interface EncounterTokenPreview {
   url: string;
   showRing?: boolean;
   ringColor?: string;
+  role?: TokenRole;
+  ringStyle?: string;
 }
 
 export interface EncounterAsset extends Asset {

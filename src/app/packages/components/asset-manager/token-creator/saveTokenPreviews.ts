@@ -111,6 +111,8 @@ async function savePreviews(options: SaveTokenPreviewsOptions): Promise<number> 
         : {
           type: 'token', showRing: preview.showRing !== false, name: preview.name, imagePath,
           ...(preview.size !== undefined && { size: preview.size }),
+          ...(preview.role && { role: preview.role }),
+          ...(preview.ringStyle && { ringStyle: preview.ringStyle }),
           ...(preview.statblockPath ? { statblockPath: preview.statblockPath } : {}), ...metadata,
         };
       return { id: preview.id, asset, discard: mode === 'token' ? [imagePath, thumbnailPath] : [thumbnailPath] };

@@ -24,6 +24,8 @@ export interface ImagePreset {
 export const IMAGE_PRESETS = {
   token: { maxWidth: 400, maxHeight: 400, quality: 0.85 },
   map: { maxWidth: 8192, maxHeight: 8192, quality: 0.8 },
+  /** A ring file (`tokenRings/tokenRingFiles.ts`), the size of Atlas' own ring. */
+  ring: { maxWidth: 1024, maxHeight: 1024, quality: 0.9 },
 } as const satisfies Record<string, ImagePreset>;
 
 export interface ProcessOptions {

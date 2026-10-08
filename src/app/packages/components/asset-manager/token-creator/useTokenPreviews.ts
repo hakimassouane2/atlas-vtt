@@ -65,6 +65,8 @@ function previewFromEdit(token: EditTokenInput): TokenPreview {
     tags: token.tags,
     showRing: token.showRing ?? true,
     ...(token.size !== undefined && { size: token.size }),
+    ...(token.role !== undefined && { role: token.role }),
+    ...(token.ringStyle !== undefined && { ringStyle: token.ringStyle }),
     file: null,
     previewUrl: token.imageUrl,
     name: token.name,
