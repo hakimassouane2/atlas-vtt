@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createSceneStore } from '../../src/app/storeFactory';
-import { sceneChanges, sceneOf, withSceneChanges, replicatedImagePaths } from '../../src/app/online/scene/sceneReplica';
+import { sceneChanges, sceneOf, withSceneChanges, replicatedImagePaths } from '../../src/app/selfhost/scene/sceneReplica';
 import type { TokenEntity } from '../../src/app/types';
 
 const token = (id: string, x: number, extra: Partial<TokenEntity> = {}): TokenEntity => ({ id, kind: 'token', imagePath: `${id}.png`, x, y: 0, ...extra } as TokenEntity);

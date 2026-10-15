@@ -1,4 +1,5 @@
-import { Notice, Platform, type App, type EventRef } from 'obsidian';
+import { Platform, type App, type EventRef } from 'obsidian';
+import { showNotice } from '../ui/notice';
 import playerClient from 'virtual:atlas-player-client';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AtlasView } from '../atlas-view';
@@ -121,7 +122,7 @@ export class OnlineSession {
     if (!this.isRunning() && !(await this.start(false))) return;
     await navigator.clipboard.writeText(this.playerLink());
     const { publicHost } = this.settingsService.getOnlineSessionSettings();
-    new Notice(publicHost
+    showNotice(publicHost
       ? 'Player link copied'
       : 'Player link copied. It works on your local network (same Wi-Fi); set your public address in the Atlas settings for players elsewhere.');
   }
@@ -260,7 +261,7 @@ export class OnlineSession {
       await server.listen(settings.port);
     } catch (error) {
       console.error('[OnlineSession] Could not start the player server:', error);
-      if (!quiet) new Notice(`Could not open port ${settings.port} for players. Is another program using it?`);
+      if (!quiet) showNotice(`Could not open port ${settings.port} for players. Is another program using it?`);
       server.close();
       onlineSessionStore.setState({ failed: true });
       return false;

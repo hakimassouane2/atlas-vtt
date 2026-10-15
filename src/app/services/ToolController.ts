@@ -11,7 +11,7 @@ import { AudioTool } from '../tools/AudioTool';
 import { offlineDiceInputs } from './offlineDiceInputs';
 import { mapDiceSet } from './diceSets/collectionDiceSets';
 import { SettingsService } from './SettingsService';
-import { dmRollStamp } from '../online/rollStamps';
+import { dmRollStamp } from '../selfhost/rollStamps';
 import type { App } from 'obsidian';
 
 export class ToolController {

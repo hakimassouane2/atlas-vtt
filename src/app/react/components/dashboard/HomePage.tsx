@@ -15,7 +15,7 @@ import type { CampaignParties } from './useCampaignParties';
 import type { RecentScene } from './useRecentScenes';
 import { GameIcon } from '../GameIcon';
 import { DASHBOARD_ICON_PATHS } from '../../../types/dashboardIconPaths';
-import { OnlineDashboardAction } from '../../../online/OnlineDashboardAction';
+import { OnlineDashboardAction } from '../../../selfhost/OnlineDashboardAction';
 
 export interface HomePageProps {
   app: App;

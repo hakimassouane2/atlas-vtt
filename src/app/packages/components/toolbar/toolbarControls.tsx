@@ -14,7 +14,7 @@ import { drawToolFace, fogToolFace, lightingToolFace, measureToolFace, moveToolF
 import { buttonItem, toolGroupItem, type ToolbarItemBody } from "./toolbarItems"
 import type { ToolbarContext } from "./toolbarContext"
 import { t } from "../../../i18n"
-import { onlineToolbarItem } from "../../../online/OnlineToolGroup"
+import { onlineToolbarItem } from "../../../selfhost/OnlineToolGroup"
 
 /** A tool without family members: pinned while in use. */
 function toolButtonItem(ctx: ToolbarContext, tool: Tool, icon: ToolFace["icon"], label: string, shortcut: string): ToolbarItemBody {

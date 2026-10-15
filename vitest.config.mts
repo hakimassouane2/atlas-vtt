@@ -32,7 +32,7 @@ export default defineConfig({
         // `yaml`, the app manager's test `pixi-viewport`, the dice morph test React's DOM.
         optimizeDeps: { include: ['yaml', 'pixi-viewport', 'eventemitter3', 'react-dom', 'react-dom/client', 'react/jsx-dev-runtime'] },
         // A browser has no Node `events`: the player canvas page bundles PIXI's emitter in its place
-        resolve: { alias: { ...alias, events: '/src/app/online/client/events.ts' } },
+        resolve: { alias: { ...alias, events: '/src/app/selfhost/client/events.ts' } },
         test: {
           name: 'gpu',
           setupFiles: ['./tests/setup/domHost.ts'],

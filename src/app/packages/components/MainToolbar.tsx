@@ -29,7 +29,7 @@ import type { Tool } from "./toolbar/toolFaces"
 import type { ToolbarContext, ToolMenu } from "./toolbar/toolbarContext"
 import type { ResponsiveToolbarItem } from "./toolbar/toolbarTypes"
 import { t } from '../../i18n';
-import { useOnlineControl } from '../../online/onlineControl';
+import { useOnlineControl } from '../../selfhost/onlineControl';
 
 interface MainToolbarProps {
   viewId?: string;

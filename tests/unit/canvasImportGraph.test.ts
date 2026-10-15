@@ -9,7 +9,7 @@ import { build, type Metafile } from 'esbuild';
  */
 const CANVAS_ENTRIES = ['src/app/PixiRendererOrchestrator.ts', 'src/app/storeFactory.ts'];
 /** The player page, which mounts Atlas' player overlays besides the canvas. */
-const PAGE_ENTRY = 'src/app/online/client/main.ts';
+const PAGE_ENTRY = 'src/app/selfhost/client/main.ts';
 
 /** What the canvas may not reach, by import path or source file. */
 interface Rule {

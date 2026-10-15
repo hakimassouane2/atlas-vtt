@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSceneStore, type ViewAtlasStore } from '../../src/app/storeFactory';
-import { SceneReplicator, type ReplicatedSource } from '../../src/app/online/scene/SceneReplicator';
+import { SceneReplicator, type ReplicatedSource } from '../../src/app/selfhost/scene/SceneReplicator';
 import type { SettingsService } from '../../src/app/services/SettingsService';
 import { DEFAULT_INITIATIVE_RULES } from '../../src/app/gameSystems/initiativeRules';
 

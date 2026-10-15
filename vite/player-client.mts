@@ -4,10 +4,10 @@ import path from 'node:path';
 
 const VIRTUAL_ID = 'virtual:atlas-player-client';
 const RESOLVED_ID = `\0${VIRTUAL_ID}`;
-const CLIENT_DIR = 'src/app/online/client';
+const CLIENT_DIR = 'src/app/selfhost/client';
 
 /**
- * Builds the online player page (`src/app/online/client/main.ts`) for the browser and exposes its
+ * Builds the online player page (`src/app/selfhost/client/main.ts`) for the browser and exposes its
  * script and stylesheet to the plugin as `virtual:atlas-player-client`, which the player server
  * sends. Atlas' canvas imports neither Obsidian nor Node (`tests/unit/canvasImportGraph.test.ts`),
  * so only Node's `events` is swapped, for PIXI's own emitter; component styles come from the DM's

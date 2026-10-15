@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { get, type IncomingMessage } from 'http';
-import { OnlineSessionServer, type OnlineSessionHandlers } from '../../src/app/online/OnlineSessionServer';
+import { OnlineSessionServer, type OnlineSessionHandlers } from '../../src/app/selfhost/OnlineSessionServer';
 
 // A new port per test: fetch would otherwise reuse a keep-alive socket of the previous server
 let port = 39_517;

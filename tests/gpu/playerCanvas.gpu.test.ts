@@ -1,9 +1,9 @@
 import { Rectangle } from 'pixi.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { installObsidianDom } from '../../src/app/online/client/obsidianDom';
-import { PlayerCanvas } from '../../src/app/online/client/PlayerCanvas';
-import { PagePlayer, SentCollection, pageCanvasHost } from '../../src/app/online/client/pageCanvasHost';
-import type { ReplicatedScene } from '../../src/app/online/scene/sceneReplica';
+import { installObsidianDom } from '../../src/app/selfhost/client/obsidianDom';
+import { PlayerCanvas } from '../../src/app/selfhost/client/PlayerCanvas';
+import { PagePlayer, SentCollection, pageCanvasHost } from '../../src/app/selfhost/client/pageCanvasHost';
+import type { ReplicatedScene } from '../../src/app/selfhost/scene/sceneReplica';
 import type { AtlasSettings } from '../../src/app/services/SettingsService';
 import type { TokenEntity } from '../../src/app/types';
 

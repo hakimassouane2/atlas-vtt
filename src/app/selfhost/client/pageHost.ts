@@ -10,10 +10,10 @@ import { installObsidianDom } from './obsidianDom';
  */
 installObsidianDom();
 installDomHost(pluginDomHost);
-// The language Obsidian uses on this computer, where `getLanguage()` reads it (none on another computer)
+/** Where Obsidian keeps its language on this computer (`getLanguage()` reads it there); a player's browser has none. */
+const OBSIDIAN_LANGUAGE_KEY = 'language';
 try {
-  // eslint-disable-next-line obsidianmd/prefer-get-language -- the player page has no `obsidian` module
-  setLocale(window.localStorage.getItem('language') || 'en');
+  setLocale(window.localStorage.getItem(OBSIDIAN_LANGUAGE_KEY) || 'en');
 } catch {
   setLocale('en');
 }

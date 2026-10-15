@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createServer, type Server } from 'net';
 import { Notice, Platform, type App } from 'obsidian';
-import { OnlineSession, onlineSessionStore } from '../../src/app/online/OnlineSession';
+import { OnlineSession, onlineSessionStore } from '../../src/app/selfhost/OnlineSession';
 import type { OnlineSessionSettings, SettingsService } from '../../src/app/services/SettingsService';
 
 vi.mock('obsidian', async (original) => ({ ...(await original<typeof import('obsidian')>()), Notice: vi.fn() }));

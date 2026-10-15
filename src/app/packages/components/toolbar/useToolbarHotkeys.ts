@@ -4,7 +4,7 @@ import { useMapHotkeys } from "../../../keyboard/useMapHotkeys"
 import { AMBIENT_AUDIO_ENABLED } from "../../../featureFlags"
 import { MEASURE_SHAPES, MEASURE_TOOLS, isMeasureTool, type Tool } from "./toolFaces"
 import { useEmitViewEvent } from "./useEmitViewEvent"
-import { OnlineSession } from "../../../online/OnlineSession"
+import { OnlineSession } from "../../../selfhost/OnlineSession"
 
 const MOVE_TOOLS: readonly Tool[] = ["move", "laser-pointer"]
 const FOG_TOOLS: readonly Tool[] = ["fog", "eraser"]

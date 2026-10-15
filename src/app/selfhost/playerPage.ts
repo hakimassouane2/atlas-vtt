@@ -1,7 +1,7 @@
 /**
  * The page served to players: Atlas' own canvas draws the scene the DM's Atlas sends. It takes the
  * DM's stylesheets and theme classes (`/styles.css`) and Atlas' style root (`atlas-vtt-plugin`), so
- * Atlas' controls look as in Obsidian, and runs `/client.js`, built from `src/app/online/client/`.
+ * Atlas' controls look as in Obsidian, and runs `/client.js`, built from `src/app/selfhost/client/`.
  */
 export function playerPageHtml(key: string, bodyClass: string): string {
   const query = `?k=${encodeURIComponent(key)}`;

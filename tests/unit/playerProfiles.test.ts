@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { collectionPlayers, controllersOf, newPlayerProfile, withController } from '../../src/app/players/playerProfiles';
-import { ConnectedPlayers, parseProfileChoice } from '../../src/app/online/connectedPlayers';
+import { ConnectedPlayers, parseProfileChoice } from '../../src/app/selfhost/connectedPlayers';
 
 const alice = { id: 'alice', name: 'Alice', color: '#3b82f6' };
 const bob = { id: 'bob', name: 'Bob', color: '#f59e0b' };

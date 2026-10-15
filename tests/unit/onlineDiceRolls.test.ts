@@ -5,10 +5,10 @@ import type { ViewAtlasState } from '../../src/app/storeFactory';
 import { DiceTool, type DiceRollResult, type RollStamp } from '../../src/app/tools/DiceTool';
 import { DEFAULT_DICE_RULES } from '../../src/app/gameSystems/diceRules';
 import { rollAuthor } from '../../src/app/tools/rollAuthor';
-import { playerRollStamp } from '../../src/app/online/rollStamps';
-import { parsePlayerCommand } from '../../src/app/online/playerCommands';
-import { PlayerDiceLog } from '../../src/app/online/PlayerDiceLog';
-import { PlayerControls, type CommandSource } from '../../src/app/online/PlayerControls';
+import { playerRollStamp } from '../../src/app/selfhost/rollStamps';
+import { parsePlayerCommand } from '../../src/app/selfhost/playerCommands';
+import { PlayerDiceLog } from '../../src/app/selfhost/PlayerDiceLog';
+import { PlayerControls, type CommandSource } from '../../src/app/selfhost/PlayerControls';
 import type { PlayerProfile } from '../../src/app/types/collectionSettingsTypes';
 import { RESOURCE_COLORS } from '../../src/app/resources/resourceColors';
 

@@ -3,9 +3,9 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { ViewAtlasState } from '../../src/app/storeFactory';
 import type { SharedRulers } from '../../src/app/canvas/sharedRulers';
 import { readRulerPath } from '../../src/app/canvas/sharedRulers';
-import { parsePlayerCommand } from '../../src/app/online/playerCommands';
-import { PlayerControls, type CommandSource } from '../../src/app/online/PlayerControls';
-import { DM_RULER, PlayerRulers } from '../../src/app/online/PlayerRulers';
+import { parsePlayerCommand } from '../../src/app/selfhost/playerCommands';
+import { PlayerControls, type CommandSource } from '../../src/app/selfhost/PlayerControls';
+import { DM_RULER, PlayerRulers } from '../../src/app/selfhost/PlayerRulers';
 import type { PlayerProfile } from '../../src/app/types/collectionSettingsTypes';
 
 const alice: PlayerProfile = { id: 'alice', name: 'Alice', color: '#3b82f6' };

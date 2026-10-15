@@ -1,5 +1,5 @@
 import './src/app/plugin/host/initializeHost';
-import { Notice, Platform, Plugin, setIcon } from 'obsidian';
+import { Platform, Plugin, setIcon } from 'obsidian';
 // Tailwind first, so the custom SCSS can override it.
 import './styles/index.css';
 import './styles/main.scss';
@@ -76,14 +76,15 @@ import { registerStatusBarVisibility } from './src/app/plugin/statusBarVisibilit
 import { registerVaultSync } from './src/app/plugin/vaultSync';
 import { ChangelogService } from './src/app/changelog/ChangelogService';
 import { setNoticePresenter } from './src/app/ui/notices';
+import { showNotice } from './src/app/ui/notice';
 import { runtimePlatform } from './src/app/keyboard/runtimePlatform';
 import { setIconRenderer } from './src/app/ui/icons';
 import { AtlasErrorLog } from './src/app/support/errorLog';
 import { IssueReporter } from './src/app/support/IssueReporter';
 import { runInBackground } from './src/app/utils/backgroundTask';
-import { OnlineSession } from './src/app/online/OnlineSession';
+import { OnlineSession } from './src/app/selfhost/OnlineSession';
 import { registerFollowedScene } from './src/app/services/followedScene';
-import { onlineSessionSettingsSection } from './src/app/online/onlineSessionSettingsSection';
+import { onlineSessionSettingsSection } from './src/app/selfhost/onlineSessionSettingsSection';
 import { TileDecoderClient } from './src/app/pixi/mapImage/TileDecoderClient';
 import { MapImageService } from './src/app/pixi/mapImage/MapImageService';
 
@@ -116,7 +117,7 @@ export default class AtlasVTTPlugin extends Plugin {
     // Record errors from the very start so startup problems can be reported too.
     const errorLog = new AtlasErrorLog();
     this.register(errorLog.attach());
-    this.register(setNoticePresenter((message, durationMs) => new Notice(message, durationMs)));
+    this.register(setNoticePresenter((message, durationMs) => showNotice(message, durationMs)));
     runtimePlatform.isMacOS = Platform.isMacOS;
     this.register(setIconRenderer(setIcon));
     const issueReporter = new IssueReporter(this.app, this.manifest, errorLog);

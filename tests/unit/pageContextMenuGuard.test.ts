@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { guardNativeContextMenu } from '../../src/app/online/client/pageContextMenuGuard';
+import { guardNativeContextMenu } from '../../src/app/selfhost/client/pageContextMenuGuard';
 
 function rightClick(target: HTMLElement): boolean {
   const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });

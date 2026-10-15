@@ -26,7 +26,7 @@ export interface PageTheme {
   bodyClass: string;
 }
 
-/** The player page's script and own stylesheet (`src/app/online/client/`), built with the plugin. */
+/** The player page's script and own stylesheet (`src/app/selfhost/client/`), built with the plugin. */
 export interface PlayerClient {
   script: string;
   styles: string;

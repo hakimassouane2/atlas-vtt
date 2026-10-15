@@ -1,4 +1,4 @@
-import { Notice } from 'obsidian';
+import { showNotice } from '../ui/notice';
 import type { SettingsService } from '../services/SettingsService';
 import type { AtlasSettingSection } from '../settings/settingSections';
 import { OnlineSession } from './OnlineSession';
@@ -57,7 +57,7 @@ export function onlineSessionSettingsSection(settingsService: SettingsService): 
             button.setButtonText('Reset link').onClick(() => {
               settingsService.setOnlineSessionSettings({ secret: '' });
               OnlineSession.getInstance()?.stop();
-              new Notice('Player link reset. Start the online session again to copy the new one.');
+              showNotice('Player link reset. Start the online session again to copy the new one.');
             });
           });
         },

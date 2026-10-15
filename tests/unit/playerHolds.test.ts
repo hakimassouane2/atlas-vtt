@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HOLD_MS, PlayerHolds } from '../../src/app/online/playerHolds';
+import { HOLD_MS, PlayerHolds } from '../../src/app/selfhost/playerHolds';
 
 describe('PlayerHolds', () => {
   it('keeps a dragged token for the player who drags it until they drop it', () => {

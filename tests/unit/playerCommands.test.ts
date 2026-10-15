@@ -3,8 +3,8 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { GridSystem } from '../../src/app/grid/GridSystem';
 import type { ViewAtlasState } from '../../src/app/storeFactory';
 import type { Character, TokenEntity } from '../../src/app/types';
-import { applyPlayerCommand, isSafeDiceFormula, parsePlayerCommand } from '../../src/app/online/playerCommands';
-import { isPlayerControlled } from '../../src/app/online/playerTokens';
+import { applyPlayerCommand, isSafeDiceFormula, parsePlayerCommand } from '../../src/app/selfhost/playerCommands';
+import { isPlayerControlled } from '../../src/app/selfhost/playerTokens';
 import { HP_RESOURCE, STRESS_RESOURCE } from '../../src/app/resources/resourceDefinitions';
 
 const hero: Character = {

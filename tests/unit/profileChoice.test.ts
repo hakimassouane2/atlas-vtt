@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ProfileChoice } from '../../src/app/online/client/profileChoice';
+import { ProfileChoice } from '../../src/app/selfhost/client/profileChoice';
 
 const alice = { id: 'alice', name: 'Alice', color: '#3b82f6' };
 const bob = { id: 'bob', name: 'Bob', color: '#f59e0b' };
