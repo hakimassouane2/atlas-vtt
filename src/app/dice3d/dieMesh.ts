@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { atlasLayout } from './atlasCell';
 import { buildTextures, diceArtworkReady, loadDiceArtwork } from './dieArtwork';
 import { dieGeometry, type DieSides } from './dieGeometry';
+import { colouredAssets, refreshColouredDice } from './dieColours';
 import { activeLook, type ResolvedLook } from './dieSkin';
 import { FACE_CELL_REACH, faceFrame } from './faceFrame';
 import { vAdd, vCross, vDot, vNormalize, vScale, vSub, type Vec3 } from './vectorMath';
@@ -158,9 +159,17 @@ export function chamferedGeometry(sides: DieSides): THREE.BufferGeometry {
   return geometry;
 }
 
-/** The body of a die, in `look` (a roll's own) or in the active look. */
-export function dieAssets(sides: DieSides, look?: ResolvedLook): DieAssets {
-  if (look === undefined || lookKey(look) === lookKey(activeLook())) return cachedAssets(assetCache, sides, sides);
+/**
+ * The body and material of a die of `sides`, shared by every die of its kind,
+ * in `look` (a roll's own) or in the active look; in `colour` (`#rrggbb`) its
+ * faces are painted in that colour (`dieColours.ts`), in the look's font.
+ */
+export function dieAssets(sides: DieSides, colour?: string, look?: ResolvedLook): DieAssets {
+  const ownLook = look !== undefined && lookKey(look) !== lookKey(activeLook());
+  if (colour !== undefined) {
+    return colouredAssets(dieAssets(sides, undefined, look), sides, colour, ownLook ? look.font : undefined);
+  }
+  if (!ownLook) return cachedAssets(assetCache, sides, sides);
   return cachedAssets(rollLookCache, `${sides}|${lookKey(look)}`, sides, look);
 }
 
@@ -202,6 +211,7 @@ function cachedAssets<K>(cache: Map<K, DieAssets>, key: K, sides: DieSides, look
 
 /** Redraws the faces of every cached body, or of one: when the artwork arrives or the look changes. */
 export function refreshDieArtwork(sides?: DieSides): void {
+  refreshColouredDice(sides);
   if (sides !== undefined) {
     assetCache.get(sides)?.redraw();
     return;

@@ -3,9 +3,12 @@ import type { Application, Texture } from 'pixi.js';
 import type { UnlitGrid } from '../../grid/gridLightingMark';
 import type { Viewport } from 'pixi-viewport';
 import type { MeasurementSettings } from '../../grid/measurementFormat';
-import type { ViewAtlasStore } from '../../storeFactory';
+import type { LightingQualitySource } from '../../lighting/lightingQuality';
+import type { SceneStore } from '../../lighting/shownTokens';
+import type { ViewAtlasState, ViewAtlasStore } from '../../storeFactory';
 import type { SightRules } from '../../vision/sightRules';
 import type { MapBounds } from '../../vision/visibility';
+import { requestRender } from '../RenderScheduler';
 import { usesCanvasRenderer } from '../utils/rendererType';
 import { CanvasLightingFallback } from './CanvasLightingFallback';
 import { StoredLightingAttempt } from './lightingAttempts';
@@ -31,21 +34,25 @@ export interface SceneLightingDeps {
   onSightChange?: () => void;
   /** Who shows the GM the engine's explored memory while it is edited. */
   exploredWatcher?: ExploredMemoryWatcher;
+  /** How much the engine may ask of the graphics device (Atlas' settings on this device); the default quality without one. */
+  quality?: LightingQualitySource;
+  /** The store as sight and light read it (`followShownPlaces`); the store itself without one. */
+  scene?: SceneStore<ViewAtlasState>;
 }
 
 /**
  * The scene lighting of a map view: the GPU engine where the graphics device runs it, the
  * line-of-sight fallback where it does not (`LightingViewHost` swaps them).
  */
-export function createSceneLighting({ viewport, app, store, obsApp, measurement, bounds, albedo, grid, rules, onSightChange, exploredWatcher }: SceneLightingDeps): LightingViewHost {
+export function createSceneLighting({ viewport, app, store, obsApp, measurement, bounds, albedo, grid, rules, onSightChange, exploredWatcher, quality, scene = store }: SceneLightingDeps): LightingViewHost {
   const attempt = new StoredLightingAttempt(obsApp, () => store.getState().mapPath);
   const sight = onSightChange ? { onSightChange } : {};
   const view = { ...sight, ...(rules && { rules }) };
   return new LightingViewHost({
     store,
     canvasRenderer: usesCanvasRenderer(app.renderer),
-    createEngineView: (onUnavailable) => new LightingRenderer({ viewport, app, store, measurement, bounds, albedo, attempt, onUnavailable, ...view, ...(grid && { grid }), ...(exploredWatcher && { exploredWatcher }) }),
-    createFallback: () => new CanvasLightingFallback({ viewport, store, measurement, bounds, ...view }),
+    createEngineView: (onUnavailable) => new LightingRenderer({ viewport, app, store: scene, measurement, bounds, albedo, attempt, onUnavailable, ...view, ...(grid && { grid }), ...(exploredWatcher && { exploredWatcher }), ...(quality && { quality }) }),
+    createFallback: () => new CanvasLightingFallback({ viewport, store: scene, measurement, bounds, requestRender: () => requestRender(app), ...view }),
     forgetAttempt: () => attempt.forget(),
     notify: showLightingUnavailableNotice,
     ...sight,

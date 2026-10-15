@@ -8,11 +8,11 @@ const NOTHING_SHOWN: PlayerSettings = {
   showToolbar: false,
   showTokenNameplates: false,
   showNotePreviews: false,
-  showGrid: false,
   showWidgets: false,
   showInitiative: false,
   showDiceRolls: false,
   showCommandPalette: false,
+  showCursors: false,
 };
 
 /**

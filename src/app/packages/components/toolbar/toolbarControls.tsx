@@ -1,7 +1,7 @@
 import React from "react"
 import { Command, Dices, ImageIcon, MapPin, Volume2 } from "lucide-react"
 import { CoinIcon } from "../../../react/components/CoinIcon"
-import { DiceDropdownMenu } from "../../../react/components/dice/DiceDropdownMenu"
+import { GmDiceDropdownMenu } from "../../../react/components/dice/GmDiceDropdownMenu"
 import type { ToolbarControlId } from "../../../toolbar/toolbarCatalog"
 import { ToolButton } from "../primitives/ToolButton"
 import { DrawToolGroup } from "./DrawToolGroup"
@@ -41,7 +41,7 @@ export const TOOLBAR_CONTROL_ITEMS = {
       <div ref={dice.buttonRef} className="relative flex items-center">
         <ToolButton icon={Dices} label={t('toolbar.rollDice')} shortcut={hotkeyLabel('diceTray')} isActive={dice.open} onClick={dice.toggle} />
         {dice.tool && (
-          <DiceDropdownMenu roll={(formula) => dice.tool?.rollDice(formula)} isOpen={dice.open} onToggle={dice.toggle} triggerRef={dice.buttonRef} />
+          <GmDiceDropdownMenu diceTool={dice.tool} isOpen={dice.open} onToggle={dice.toggle} triggerRef={dice.buttonRef} />
         )}
       </div>
     ),

@@ -14,7 +14,12 @@ export interface DiceSettingsSource {
 export interface DiceArt {
   /** The URL the image loads from; null for a path that names no image. */
   src(imagePath: string): string | null;
-  /** The artwork of the token linked to the statblock at `statblockPath`, if any. */
+  /**
+   * The artwork of the library token linked to the statblock at `statblockPath`: the one drawn
+   * with `recordedImagePath` where several are, else the first; null for none.
+   */
+  linkedTokenImage(statblockPath: string, recordedImagePath: string | undefined): string | null;
+  /** The statblock's own artwork (its `image` field), if any. */
   statblockImage(statblockPath: string): string | null;
   /** Whether the library token drawn with the image at `imagePath` shows a ring. */
   libraryShowsRing(imagePath: string): boolean;

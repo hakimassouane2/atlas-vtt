@@ -1,33 +1,51 @@
 /**
  * Click-to-roll dice notation, routed through Atlas' own dice tool (toast, roll
- * log).
+ * log) or, without a map on screen, the surface the statblock is drawn on
+ * (`statblockRolls.ts`).
  *
  * Two halves, deliberately separate:
  *
  * - `linkDiceIn` rewrites text nodes into clickable spans. It must ONLY be used
- *   on static DOM that Atlas produced and owns — currently the output of
- *   Obsidian's MarkdownRenderer, which is rebuilt wholesale on every render.
+ *   on static DOM that Atlas produced and owns — the output of Obsidian's
+ *   MarkdownRenderer and the DOM a layout's `javascript` block returns, both
+ *   rebuilt wholesale on every render.
  *   Never point it at DOM owned by React or Svelte: those frameworks hold
  *   references to the text nodes it replaces, and throw on their next update.
  * - `attachDiceRolling` only listens for clicks, so it is safe on any container.
+ *
+ * A click rolls; Shift-click rolls with advantage and Alt-click (Option) with
+ * disadvantage, both at once cancel. A right-click offers the three, the
+ * advantage ones only where the dice set has a rule for them and the roll
+ * holds its dice.
  */
 
 import type { App } from 'obsidian';
-import type { DiceRollResult } from '../tools/DiceTool';
-import { ATLAS_VIEW_TYPE } from '../atlas-view';
+import { rollStatblockDice, statblockRollingDice, type DiceRollSource, type OffMapRolls } from './statblockRolls';
+import { advantageSide, advantageSidesFor } from '../tools/diceAdvantage';
+import type { AdvantageSide } from '../types/diceSetTypes';
 import { t } from '../i18n';
 
 /**
- * Dice expressions (`2d8+3`) plus bare attack bonuses (`+4`, `ATK: +4`). A
- * bare sign must sit directly on its digits and must not open a dice term, so
- * the dash in "Very Close - 1d12+2" is punctuation rather than a -1 roll.
- *
- * Dice may carry the exploding notation (`1d6!i`, `1d6!3`, `1d6!!`). A single
- * `!` is left out: in running text it ends a sentence far more often than it
- * means a die that explodes once.
+ * One dice term: `2d8`, `d20`, with the exploding notation (`1d6!i`, `1d6!3`,
+ * `1d6!!`) and keep marks (`4d6kh3`). A single `!` is left out: in running
+ * text it ends a sentence far more often than it means a die that explodes once.
  */
-const DICE_PATTERN =
-  /((?<![a-z])\d*d\d+(?:!!?(?:\d+|i(?![a-z]))|!!)?(?:\s*[+-]\s*\d+)*|(?:ATK|Attack)\s*:\s*[+-]\d+|(?<!\w)[+-]\d+(?!\s*d\d))/gi;
+const DIE = String.raw`\d*d\d+(?:!!?(?:\d+|i(?![a-z]))|!!)?(?:k[hl]\d*(?![a-z]))?`;
+
+/** A further signed term: a die or a constant after `+`, `-`, a minus sign or an en dash, or after "+ -" (the 5e SRD's "3d6 + -1"). */
+const NEXT_TERM = String.raw`\s*(?:\+\s*-|[+\-−–])\s*(?:${DIE}|\d+)`;
+
+/**
+ * Dice expressions (`2d8+3`, `2d6 - 1d4`) plus bare bonuses (`+4`, `−1`,
+ * `ATK: +4`). Neither starts inside a word or a number ("x2d6" is no die);
+ * brackets are punctuation, so "(2d6 + 3)" links "2d6 + 3". A bare sign must
+ * sit directly on its digits and must not open a dice term, so the dash in
+ * "Very Close - 1d12+2" is punctuation rather than a -1 roll.
+ */
+const DICE_PATTERN = new RegExp(
+  String.raw`((?<!\w)${DIE}(?:${NEXT_TERM})*|(?:ATK|Attack)\s*:\s*[+-]\d+|(?<!\w)[+\-−]\d+(?!\s*d\d))`,
+  'gi',
+);
 
 const LINK_CLASS = 'atlas-dice-link';
 
@@ -37,69 +55,50 @@ const HIT_POINTS_SELECTOR = '[data-hit-points]';
 /** Elements whose text must never be rewritten. */
 const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'INPUT', 'TEXTAREA', 'BUTTON']);
 
-export interface DiceRollSource {
-  tokenId?: string | undefined;
-  statblockPath?: string | undefined;
-  tokenName?: string | undefined;
-  tokenImagePath?: string | undefined;
-  abilityName?: string | undefined;
-}
-
 /** Receives clicks on hit dice, in place of the ordinary roll. */
 export type HitPointsRollHandler = (formula: string, abilityName: string | undefined) => void;
 
-interface DiceToolLike {
-  rollDice(formula: string, source?: DiceRollResult['source']): DiceRollResult;
+/** One choice of a roll link's menu: a roll, with advantage, or with disadvantage (`side`). */
+export interface RollChoice {
+  label: string;
+  side: AdvantageSide | null;
+  roll: () => void;
 }
 
 /**
- * Resolves Atlas' dice tool from the open map view. Returns null when no map is
- * open, in which case dice are left as plain text.
+ * Opens a roll link's menu at a point in the link's document; `link` takes
+ * focus back where the menu was opened from the keyboard.
  */
-function resolveDiceTool(app: App): DiceToolLike | null {
-  for (const leaf of app.workspace.getLeavesOfType(ATLAS_VIEW_TYPE)) {
-    const view = leaf.view as unknown as {
-      serviceManager?: { getToolController?: () => { getDiceTool?: () => DiceToolLike } };
-    };
-    const diceTool = view?.serviceManager?.getToolController?.()?.getDiceTool?.();
-    if (diceTool) return diceTool;
-  }
-  return null;
-}
+export type RollMenuOpener = (choices: readonly RollChoice[], at: { x: number; y: number }, link: HTMLElement) => void;
 
-/**
- * Rolls through the dice tool of the open map, tagged with its statblock source.
- * Returns null when no map is open.
- */
-export function rollStatblockDice(app: App, formula: string, source: DiceRollSource): DiceRollResult | null {
-  const diceTool = resolveDiceTool(app);
-  if (!diceTool) return null;
-
-  const rollSource: NonNullable<DiceRollResult['source']> = { type: 'statblock' };
-  if (source.tokenId) rollSource.tokenId = source.tokenId;
-  if (source.statblockPath) rollSource.statblockPath = source.statblockPath;
-  if (source.tokenName) rollSource.tokenName = source.tokenName;
-  if (source.tokenImagePath) rollSource.tokenImagePath = source.tokenImagePath;
-  if (source.abilityName) rollSource.abilityName = source.abilityName;
-
-  return diceTool.rollDice(formula, rollSource);
-}
+const SIDE_LABELS: Record<AdvantageSide, () => string> = {
+  advantage: () => t('dice.rollWithAdvantage'),
+  disadvantage: () => t('dice.rollWithDisadvantage'),
+};
 
 /**
  * Turns matched display text into a formula the dice tool understands. A bare
  * bonus stays bare: the dice tool adds it to the collection's default roll.
  */
 export function toRollFormula(text: string): string {
-  return text.replace(/\s+/g, '').replace(/^(?:ATK|Attack):/i, '');
+  return text
+    .replace(/\s+/g, '')
+    .replace(/^(?:ATK|Attack):/i, '')
+    .replace(/[−–]/g, '-')
+    .replace(/\+-/g, '-');
 }
 
 /** Nearest heading-ish label above the roll, used to title the dice toast. */
 function abilityNameFor(node: Node): string | undefined {
+  // A table cell holds no label of its own: its column names the roll
+  const column = node.parentElement?.closest<HTMLElement>('[data-roll-name]')?.dataset.rollName;
+  if (column) return column;
+
   const el = node.parentElement?.closest<HTMLElement>(
-    '.atlas-sb-trait, .atlas-sb-property, li, p, tr',
+    '.atlas-sb-trait, .atlas-sb-property, .atlas-sb-labelled, li, p, tr',
   );
   const name = el?.querySelector<HTMLElement>(
-    '.atlas-sb-trait-name, .atlas-sb-property-name, strong, em, b, i',
+    '.atlas-sb-trait-name, .atlas-sb-property-name, .atlas-sb-label, strong, em, b, i',
   )?.textContent;
   return name?.trim().replace(/[:.]$/, '') || undefined;
 }
@@ -170,49 +169,80 @@ export function linkDiceIn(root: HTMLElement): void {
  * themselves are produced by the renderer (or by `linkDiceIn` on static DOM),
  * so this never mutates the container. Returns a disposer.
  *
- * Dice on the hit-points line go to `onRollHitPoints` when one is given.
+ * Dice on the hit-points line go to `onRollHitPoints` when one is given, and
+ * roll without advantage. `offMap` is read at each roll: where it shows rolls
+ * no map on screen shows. `openMenu` shows a roll link's right-click menu.
  */
 export function attachDiceRolling(
   el: HTMLElement,
   app: App,
   getSource: () => DiceRollSource,
   onRollHitPoints?: HitPointsRollHandler,
+  offMap?: () => OffMapRolls | null,
+  openMenu?: RollMenuOpener,
 ): () => void {
-  const roll = (link: HTMLElement): void => {
+  const hitDice = (link: HTMLElement, formula: string): boolean =>
+    onRollHitPoints !== undefined && /d\d/i.test(formula) && link.closest(HIT_POINTS_SELECTOR) !== null;
+
+  const roll = (link: HTMLElement, side: AdvantageSide | null): void => {
     const formula = link.dataset.formula;
     if (!formula) return;
 
     const abilityName = abilityNameFor(link);
-    if (onRollHitPoints && /d\d/i.test(formula) && link.closest(HIT_POINTS_SELECTOR)) {
-      onRollHitPoints(formula, abilityName);
+    if (hitDice(link, formula)) {
+      onRollHitPoints?.(formula, abilityName);
       return;
     }
 
-    rollStatblockDice(app, formula, { ...getSource(), abilityName });
+    rollStatblockDice(app, formula, { ...getSource(), abilityName }, offMap?.(), side);
   };
 
+  const linkOf = (event: Event): HTMLElement | null =>
+    (event.target as HTMLElement | null)?.closest<HTMLElement>(`.${LINK_CLASS}`) ?? null;
+
   const onClick = (event: MouseEvent): void => {
-    const link = (event.target as HTMLElement | null)?.closest<HTMLElement>(`.${LINK_CLASS}`);
+    const link = linkOf(event);
     if (!link) return;
     event.preventDefault();
     event.stopPropagation();
-    roll(link);
+    roll(link, advantageSide(event.shiftKey, event.altKey));
   };
 
+  // Enter and Space roll a focused die; the editing around it never sees the key.
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
-    const link = (event.target as HTMLElement | null)?.closest<HTMLElement>(`.${LINK_CLASS}`);
+    const link = linkOf(event);
     if (!link) return;
     event.preventDefault();
-    roll(link);
+    event.stopPropagation();
+    roll(link, advantageSide(event.shiftKey, event.altKey));
+  };
+
+  const onContextMenu = (event: MouseEvent): void => {
+    const link = linkOf(event);
+    const formula = link?.dataset.formula;
+    if (!openMenu || !link || !formula || hitDice(link, formula)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rules = statblockRollingDice(app, getSource(), offMap?.());
+    const sides = rules ? advantageSidesFor(formula, rules) : [];
+    const choices: RollChoice[] = [
+      { label: t('dice.roll'), side: null, roll: () => roll(link, null) },
+      ...sides.map((side): RollChoice => ({ label: SIDE_LABELS[side](), side, roll: () => roll(link, side) })),
+    ];
+    // A menu key or Shift+F10 is no right button: the menu hangs from the link.
+    const box = link.getBoundingClientRect();
+    openMenu(choices, event.button === 2 ? { x: event.clientX, y: event.clientY } : { x: box.left, y: box.bottom }, link);
   };
 
   el.addEventListener('click', onClick);
   el.addEventListener('keydown', onKeyDown);
+  el.addEventListener('contextmenu', onContextMenu);
 
   return () => {
     el.removeEventListener('click', onClick);
     el.removeEventListener('keydown', onKeyDown);
+    el.removeEventListener('contextmenu', onContextMenu);
   };
 }
 

@@ -8,6 +8,7 @@ import { t } from '../../i18n';
  * centered on a cell.
  */
 
+
 const REFERENCE_CELL_SIZE = 70;
 const REFERENCE_STROKE_WIDTH = 4;
 
@@ -41,6 +42,15 @@ export function tokenSizeFromCreatureSize(value: unknown): number | undefined {
 /** Side in pixels of the cells a token covers: its sprite plus the stroke inset around it. */
 export function tokenFootprintSize(gridSize: number, sizeInCells: number): number {
   return gridSize * tokenDiameterInCells(sizeInCells);
+}
+
+/**
+ * Size multiplier a statblock's size gives: the field its template means as the size first (`meanings.size`,
+ * as the statblock's `FieldMeanings` name it), then `size`.
+ */
+export function tokenSizeFromStatblock(fields: Readonly<Record<string, unknown>>, meanings: Readonly<{ size?: string | undefined }>): number | undefined {
+  const meant = meanings.size === undefined ? undefined : tokenSizeFromCreatureSize(fields[meanings.size]);
+  return meant ?? tokenSizeFromCreatureSize(fields.size);
 }
 
 /** Token sprite diameter in pixels for a token covering `sizeInCells` cells. */

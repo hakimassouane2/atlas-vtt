@@ -49,11 +49,11 @@ describe('TokenStatblockSync', () => {
     sync.destroy();
   });
 
-  it('clears the statblock data of every token with the artwork that was unlinked', () => {
+  it('clears the statblock data of every token with the artwork that was unlinked', async () => {
     const { sync, store, app } = setup();
     TokenStatblockLinkService.getInstance(app).emit('link-changed', { type: 'unlinked', tokenImagePath: goblin.imagePath });
-    const token = store.getState().objects.tokens.goblin as Character;
-    expect(token.statblockPath).toBeUndefined();
+    // Link changes are applied in the order they came, one after another
+    await vi.waitFor(() => expect((store.getState().objects.tokens.goblin as Character).statblockPath).toBeUndefined());
     sync.destroy();
   });
 

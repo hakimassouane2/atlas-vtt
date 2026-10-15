@@ -18,6 +18,9 @@ import type { TagsAndCollectionsState } from '../hooks/useTagsAndCollections';
 import type { StatblockLinkState } from '../hooks/useStatblockLink';
 import { useUvttImport } from '../hooks/useUvttImport';
 import { tagGroupOfTab } from '../utils/assetTags';
+import { newStatblockOption } from '../../../../statblocks/editor/create/entryPoints';
+import { openTemplateEditor } from '../../../../statblocks/editor/openTemplateEditor';
+import { isCharacterTab } from '../utils/tabKinds';
 
 export interface ModalLayerProps {
   isOpen: boolean;
@@ -83,10 +86,11 @@ export function ModalLayer({
           <TokenCreator
             isOpen={crud.isTokenCreatorOpen}
             selectedCollection={selectedCollection}
+            playerCharacters={activeTab === 'party'}
             onClose={() => {
               crud.setIsTokenCreatorOpen(false);
               crud.setEditingToken(null);
-              if (activeTab === 'tokens') void reloadAfterCreator();
+              if (isCharacterTab(activeTab)) void reloadAfterCreator();
             }}
             editToken={crud.editingToken ? {
               id: crud.editingToken.id,
@@ -176,6 +180,16 @@ export function ModalLayer({
             asset={statblock.linkingStatblockAsset}
             onLink={(statblockPath) => { void statblock.handleLinkStatblock(statblockPath); }}
             app={data.app}
+            newStatblock={newStatblockOption(data.app, {
+              collectionId: selectedCollection,
+              from: 'asset-manager',
+              token: {
+                imagePath: statblock.linkingStatblockAsset.imagePath ?? statblock.linkingStatblockAsset.imageUrl,
+                name: statblock.linkingStatblockAsset.name,
+              },
+              // The pair opens in the workspace this window covers.
+              onStart: onClose,
+            })}
           />
         )}
       </AnimatePresence>
@@ -224,6 +238,11 @@ export function ModalLayer({
             isOpen={true}
             onClose={() => crud.setSettingsModalCollectionId(null)}
             collectionId={crud.settingsModalCollectionId}
+            // The template opens in a tab, which the asset manager would cover.
+            onEditTemplate={(templateId, collectionId) => {
+              onClose();
+              void openTemplateEditor(data.app, { templateId, collectionId });
+            }}
           />
         )}
       </AnimatePresence>

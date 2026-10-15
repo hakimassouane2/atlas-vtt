@@ -22,6 +22,7 @@ vi.mock('../../src/app/pixi/lighting/createSceneLighting', () => ({
       modeLayer: { visible: false },
       isEnabled: () => deps.store.getState().lighting.enabled,
       currentSight: () => SEES_ALL,
+      sightIsCurrent: () => true,
       lightReaches: () => [],
       ambientLight: () => ({ ambient: 1 }),
       refreshBounds: vi.fn(),
@@ -114,7 +115,7 @@ export function setup(prepare?: (store: ViewAtlasStore) => void): Setup {
     setDoorMenuHandlers: vi.fn(),
     setDoorClickHandler: vi.fn(),
     setLightHandlers: (handlers: LightPointerHandlers) => { wired.light = handlers; },
-    setPlayerSightProvider: vi.fn(),
+    setPlayerSightProvider: vi.fn(), setGlideWay: vi.fn(),
     refreshPlayerSight: vi.fn(),
     getSensedOutlineLayer: () => ({ visible: false }),
   } as unknown as TokenRenderer);

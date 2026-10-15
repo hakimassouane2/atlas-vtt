@@ -7,7 +7,7 @@ import type { TokenRole } from '../../../tokenRings/tokenRingTypes';
 
 // ─── Tab / View Constants ───────────────────────────────────────────
 
-export const tabs = ['scenes', 'maps', 'encounters', 'tokens'] as const;
+export const tabs = ['scenes', 'maps', 'encounters', 'tokens', 'party'] as const;
 export type Tab = (typeof tabs)[number];
 
 const tabDisplayNames: Record<Tab, string> = {
@@ -15,6 +15,7 @@ const tabDisplayNames: Record<Tab, string> = {
   maps: t('am.tab.maps'),
   encounters: t('am.tab.encounters'),
   tokens: t('am.tab.tokens'),
+  party: t('am.tab.party'),
 };
 
 export const getTabDisplayName = (tab: Tab): string => tabDisplayNames[tab];
@@ -26,8 +27,9 @@ export type SortOrder = 'asc' | 'desc';
 // ─── Asset Types ────────────────────────────────────────────────────
 //
 // View models of the records stored by AssetService (the source of truth),
-// produced by `formatServiceAsset`: `type` is the tab the asset is shown on and
-// the `*Url` fields are resolved vault resource URLs.
+// produced by `formatServiceAsset`: `type` is the tab the asset is shown on
+// (tokens are `tokens` on the Player characters tab too) and the `*Url` fields
+// are resolved vault resource URLs.
 
 export interface Asset {
   id: string;
@@ -53,6 +55,8 @@ export interface TokenAsset extends Asset {
   role?: TokenRole;
   ringStyle?: string;
   statblockPath?: string;
+  /** One of the players' characters, listed on the Player characters tab (`characters/playerCharacters.ts`). */
+  playerCharacter?: true;
 }
 
 export interface MapAsset extends Asset {

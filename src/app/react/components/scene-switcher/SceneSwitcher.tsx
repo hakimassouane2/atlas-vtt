@@ -15,6 +15,8 @@ interface SceneSwitcherProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onSwitchTab: (tabId: string) => void;
+  /** Switches to the tab and shows it in the player window, opening that window if needed. */
+  onPresentTab: (tabId: string) => void;
 }
 
 interface SceneSwitcherPanelProps extends Omit<SceneSwitcherProps, 'isOpen' | 'onOpenChange'> {
@@ -22,13 +24,13 @@ interface SceneSwitcherPanelProps extends Omit<SceneSwitcherProps, 'isOpen' | 'o
 }
 
 /** The open-maps switcher; the scene switcher hotkey opens it as well. */
-export function SceneSwitcher({ isOpen, onOpenChange, onSwitchTab }: SceneSwitcherProps): React.ReactElement | null {
+export function SceneSwitcher({ isOpen, onOpenChange, onSwitchTab, onPresentTab }: SceneSwitcherProps): React.ReactElement | null {
   const store = useSceneTabStore();
   const close = useCallback((): void => onOpenChange(false), [onOpenChange]);
 
   useMapHotkeys({ sceneSwitcher: () => onOpenChange(store.getState().tabs.length > 0) });
 
-  return isOpen ? <SceneSwitcherPanel onSwitchTab={onSwitchTab} onClose={close} /> : null;
+  return isOpen ? <SceneSwitcherPanel onSwitchTab={onSwitchTab} onPresentTab={onPresentTab} onClose={close} /> : null;
 }
 
 function SceneName({ result }: { result: SceneSwitcherResult }): React.ReactElement {
@@ -43,7 +45,7 @@ function SceneName({ result }: { result: SceneSwitcherResult }): React.ReactElem
   );
 }
 
-function SceneSwitcherPanel({ onSwitchTab, onClose }: SceneSwitcherPanelProps): React.ReactElement {
+function SceneSwitcherPanel({ onSwitchTab, onPresentTab, onClose }: SceneSwitcherPanelProps): React.ReactElement {
   const store = useSceneTabStore();
   const tabs = useStore(store, (s) => s.tabs);
   const activeTabId = useStore(store, (s) => s.activeTabId);
@@ -71,9 +73,11 @@ function SceneSwitcherPanel({ onSwitchTab, onClose }: SceneSwitcherPanelProps): 
     listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, results]);
 
-  const choose = (tabId: string): void => {
+  /** With `showPlayers` the player view shows the map as well. */
+  const choose = (tabId: string, showPlayers = false): void => {
     onClose();
-    if (tabId !== activeTabId) onSwitchTab(tabId);
+    if (showPlayers) onPresentTab(tabId);
+    else if (tabId !== activeTabId) onSwitchTab(tabId);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
@@ -85,7 +89,7 @@ function SceneSwitcherPanel({ onSwitchTab, onClose }: SceneSwitcherPanelProps): 
     } else if (event.key === 'Enter') {
       event.preventDefault();
       const result = results[selectedIndex];
-      if (result) choose(result.tab.id);
+      if (result) choose(result.tab.id, event.shiftKey);
     } else if (!query && /^[1-9]$/.test(event.key) && !event.metaKey && !event.ctrlKey && !event.altKey) {
       event.preventDefault();
       const tab = tabs[Number(event.key) - 1];
@@ -141,7 +145,7 @@ function SceneSwitcherPanel({ onSwitchTab, onClose }: SceneSwitcherPanelProps): 
                 index === selectedIndex && 'atlas-scene-switcher__item--selected',
                 result.tab.id === activeTabId && 'atlas-scene-switcher__item--current',
               )}
-              onClick={() => choose(result.tab.id)}
+              onClick={(e) => choose(result.tab.id, e.shiftKey)}
               onMouseMove={() => setSelected(index)}
             >
               <span className="atlas-scene-switcher__number" aria-hidden>

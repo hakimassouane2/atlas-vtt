@@ -34,14 +34,14 @@ export interface AtlasSettings {
   laserPointer: LaserPointerSettings;
   /** How rolls show: a result card, or 3D dice at double or normal speed. Read with `getDiceDisplay`. */
   diceDisplay: DiceDisplay;
+  /** Whether a new scene looks for the grid of its map. Off for tables that play without one. Read with `detectsGridOnNewScenes`. */
+  detectGridOnNewScenes: boolean;
   /** Colour of the dice: card stock, dark or the accent colour. Read with `getDiceLook`. */
   diceColour: DiceColour;
   /** Face of the dice numerals and roll totals. Read with `getDiceLook`. */
   diceFont: DiceFont;
   /** Experimental features the GM switched on. Read with `isExperimentalOn`. */
   experimental: Partial<Record<ExperimentalFeatureId, boolean>>;
-  /** The statblock beside its note: whether its first-visit hint was dismissed. */
-  statblockPane: { hintDismissed: boolean };
   /** The GM's toolbar layout, only what differs from the default; read with `getToolbarLayout`. */
   toolbar: StoredToolbarLayout;
   localPlayerView: {
@@ -49,12 +49,13 @@ export interface AtlasSettings {
     showToolbar: boolean;
     showTokenNameplates: boolean;
     showNotePreviews: boolean;
-    showGrid: boolean;
     showWidgets: boolean;
     showInitiative: boolean;
     /** Show the DM's dice rolls to players as toasts in the player window. */
     showDiceRolls: boolean;
     showCommandPalette: boolean;
+    /** Online play: everyone at the table sees everyone else's cursor on the shared map. */
+    showCursors: boolean;
   };
   /** Players joining over the network (`src/app/online/`). */
   onlineSession: OnlineSessionSettings;
@@ -83,21 +84,21 @@ export const DEFAULT_SETTINGS: AtlasSettings = {
   navigation: { inputMode: defaultInputMode() },
   laserPointer: DEFAULT_LASER_POINTER_SETTINGS,
   diceDisplay: 'full',
+  detectGridOnNewScenes: true,
   diceColour: DEFAULT_DICE_LOOK.colour,
   diceFont: DEFAULT_DICE_LOOK.font,
   experimental: {},
-  statblockPane: { hintDismissed: false },
   toolbar: {},
   localPlayerView: {
     // UI element visibility defaults
     showToolbar: false, // Hide toolbar by default in player view
     showTokenNameplates: false, // Hide nameplates
     showNotePreviews: false, // Hide note previews
-    showGrid: true, // Show grid by default
     showWidgets: true,
     showInitiative: true,
     showDiceRolls: false,
-    showCommandPalette: false // Hide command palette
+    showCommandPalette: false, // Hide command palette
+    showCursors: false,
   },
   onlineSession: { port: 30002, publicHost: '', secret: '', autoStart: true },
 };

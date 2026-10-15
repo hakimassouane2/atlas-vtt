@@ -31,8 +31,11 @@ export function DiceRollLog({ isOpen, onClose }: DiceRollLogProps): React.ReactE
     }
   }, [view]);
 
-  const { history, clearHistory, repeatRoll } = useDiceHistory(getDiceTool, storeActions);
-  const repeatOf = useCallback((result: DiceRollResult) => () => repeatRoll(result.formula, result.source), [repeatRoll]);
+  const { history, clearHistory, repeatRoll } = useDiceHistory(getDiceTool, storeActions, view?.serviceManager?.getEventBus());
+  const repeatOf = useCallback(
+    (result: DiceRollResult) => () => repeatRoll(result.formula, result.source, result.advantage),
+    [repeatRoll],
+  );
 
   return <DiceRollLogPanel isOpen={isOpen} onClose={onClose} history={history} onClear={clearHistory} repeatOf={repeatOf} />;
 }

@@ -1,5 +1,5 @@
 import type { ConditionDefinition } from '../types/collectionSettingsTypes';
-import type { CollectionLookup } from '../resources/collectionResources';
+import type { CollectionLookup } from '../gameSystems/mapRules';
 
 /** The conditions the collection of the map at `mapPath` defines; none for a map outside any collection. */
 export function mapConditions(assetService: CollectionLookup, mapPath: string | null | undefined): ConditionDefinition[] {

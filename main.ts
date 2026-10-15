@@ -1,3 +1,4 @@
+import './src/app/plugin/host/initializeHost';
 import { Notice, Platform, Plugin, setIcon } from 'obsidian';
 // Tailwind first, so the custom SCSS can override it.
 import './styles/index.css';
@@ -8,13 +9,29 @@ import { DashboardView, DASHBOARD_VIEW_TYPE } from './src/app/dashboard-view';
 import { initializeAtlasStorage } from './src/app/atlasStorageInit';
 import { t } from './src/app/i18n';
 import { CreatureIndex } from './src/app/creatures/CreatureIndex';
+import { TemplateLibrary } from './src/app/statblocks/library/TemplateLibrary';
+import { registerStatblockFence } from './src/app/statblocks/render/statblockFence';
+import { registerNoteStatblockPanels } from './src/app/statblocks/editor/note-panel/noteStatblockPanels';
+import { TemplateEditorView } from './src/app/statblocks/editor/TemplateEditorView';
+import { TEMPLATE_EDITOR_VIEW_TYPE } from './src/app/statblocks/editor/templateEditorState';
+import { openTemplateEditor } from './src/app/statblocks/editor/openTemplateEditor';
+import { TEMPLATE_EXTENSION } from './src/app/statblocks/library/templateFiles';
+import { appPaneServices } from './src/app/statblocks/editor/paneServices';
+import { registerNoteWriterFlush } from './src/app/plugin/noteWriterFlush';
+import { followTemplateBodies } from './src/app/statblocks/library/templateBodyNotes';
+import { registerHostedDialogRelease } from './src/app/statblocks/editor/hostedDialog';
+import { editInStatblockPane } from './src/app/statblocks/editor/create/entryPoints';
+import { registerStatblockFileMenu } from './src/app/statblocks/editor/create/statblockCommands';
 import { disposeImageProcessing } from './src/app/imageProcessing/imageProcessing';
+import { disposeSpectralEngine } from './src/app/pixi/spectralEngine/spectralEngineService';
 import { registerLootQueryView } from './src/app/loot/lootQueryView';
 import { GlobalAssetManagerService } from './src/app/services/GlobalAssetManagerService';
+import { releaseOverlayBodyClass } from './src/app/packages/components/asset-manager/hooks/useOverlayBodyClass';
 import { ImageDisplayService } from './src/app/services/ImageDisplayService';
 import { PlayerLootDisplay } from './src/app/services/PlayerLootDisplay';
 import { LootHistoryStore } from './src/app/loot/LootHistoryStore';
 import { PlayerWindowService } from './src/app/services/PlayerWindowService';
+import { presentedSceneOf, type PresentedSceneSource } from './src/app/services/presentedScene';
 import { AssetService } from './src/app/services/AssetService';
 import { SettingsService } from './src/app/services/SettingsService';
 import { addStarterTokens } from './src/app/services/starterTokens';
@@ -26,7 +43,10 @@ import { changelogSettingsSection } from './src/app/settings/changelogSettingsSe
 import { hotkeySettingsSection, onboardingSettingsSection } from './src/app/settings/hotkeySettingsSection';
 import { navigationSettingsSection } from './src/app/settings/navigationSettingsSection';
 import { diceSettingsSection } from './src/app/settings/diceSettingsSection';
+import { lightingSettingsSections } from './src/app/settings/lightingSettingsSection';
+import { mapImageCacheSettingsSection } from './src/app/settings/mapImageCacheSettingsSection';
 import { registerDiceLookSync } from './src/app/plugin/diceLookSync';
+import { registerAccentColorSync } from './src/app/plugin/accentColorSync';
 import { registerDiceStageRelease } from './src/app/plugin/diceStageRelease';
 import { supportSettingsSection } from './src/app/settings/supportSettingsSection';
 import { registerAtlasLeafSync } from './src/app/plugin/atlasLeaves';
@@ -35,6 +55,15 @@ import { registerColorSwatchIcons } from './src/app/plugin/colorSwatchIcons';
 import { HeaderAutocompleteSuggest } from './src/app/plugin/HeaderAutocompleteSuggest';
 import { registerAtlasLinks } from './src/app/links/registerAtlasLinks';
 import { registerCommands } from './src/app/plugin/registerCommands';
+import { CampaignFiles } from './src/app/campaigns/CampaignFiles';
+import { releaseMapPictures } from './src/app/react/components/dashboard/mapPicture';
+import { PlayedRules } from './src/app/campaigns/playedRules';
+import { QuestIndex } from './src/app/campaigns/quests/QuestIndex';
+import { nameQuestCampaigns } from './src/app/campaigns/quests/nameQuestCampaigns';
+import { recordCampaignPlay } from './src/app/campaigns/recordCampaignPlay';
+import { registerPartySync } from './src/app/plugin/partySync';
+import { registerOnlinePlay, type OnlinePlay } from './src/app/plugin/onlinePlay';
+import type { TableChat } from './src/app/online/gm/tableChat';
 import { registerPlayerWindowReloadCleanup } from './src/app/plugin/playerWindowReload';
 import { registerReturnToAtlasOnClose } from './src/app/plugin/returnToAtlasOnClose';
 import { runStartupMigration } from './src/app/plugin/startupMigration';
@@ -42,6 +71,7 @@ import { migrateLegacySnapshots } from './src/app/snapshots/legacySnapshotMigrat
 import { migrateSettingsToPluginData } from './src/app/plugin/settingsMigration';
 import { SystemPresetFiles } from './src/app/services/systemPresets/SystemPresetFiles';
 import { TokenRingLibrary } from './src/app/tokenRings/TokenRingLibrary';
+import { DiceSetFiles } from './src/app/services/diceSets/DiceSetFiles';
 import { registerStatusBarVisibility } from './src/app/plugin/statusBarVisibility';
 import { registerVaultSync } from './src/app/plugin/vaultSync';
 import { ChangelogService } from './src/app/changelog/ChangelogService';
@@ -53,8 +83,9 @@ import { IssueReporter } from './src/app/support/IssueReporter';
 import { runInBackground } from './src/app/utils/backgroundTask';
 import { OnlineSession } from './src/app/online/OnlineSession';
 import { registerFollowedScene } from './src/app/services/followedScene';
-import { registerPlayerWindowFollow } from './src/app/services/PlayerWindowPresenter';
 import { onlineSessionSettingsSection } from './src/app/online/onlineSessionSettingsSection';
+import { TileDecoderClient } from './src/app/pixi/mapImage/TileDecoderClient';
+import { MapImageService } from './src/app/pixi/mapImage/MapImageService';
 
 declare const __ATLAS_RELEASE_BUILD__: boolean;
 
@@ -68,6 +99,18 @@ export default class AtlasVTTPlugin extends Plugin {
   public globalAssetManager!: GlobalAssetManagerService;
   private imageDisplayService!: ImageDisplayService;
   private changelogService: ChangelogService | undefined;
+
+  /** The scene presented to players on this device, whether or not the player window is open (read-only). */
+  get presentedScene(): PresentedSceneSource {
+    return presentedSceneOf(this.app);
+  }
+
+  /** The online table's log for other plugins (post, roll, prompt for rolls, hear entries); null while online play is switched off. */
+  get tableChat(): TableChat | null {
+    return this.onlinePlay?.chat() ?? null;
+  }
+
+  private onlinePlay: OnlinePlay | null = null;
 
   async onload(): Promise<void> {
     // Record errors from the very start so startup problems can be reported too.
@@ -88,6 +131,20 @@ export default class AtlasVTTPlugin extends Plugin {
     // The user's game system presets are vault files; reading them needs no migration.
     const presetFiles = SystemPresetFiles.open(this.app);
     TokenRingLibrary.open(this.app);
+    // So are campaigns: their folders are read once the storage is ready.
+    const campaignFiles = CampaignFiles.open(this.app);
+    // Every map plays by the system of the campaign this device plays, where it has one.
+    PlayedRules.open(this.app, campaignFiles);
+    // Quests are notes of the vault, read from Obsidian's metadata cache; a campaign typed by name is written as its id.
+    this.register(nameQuestCampaigns(this.app, campaignFiles, QuestIndex.open(this.app)));
+    const campaignsRead = storageReady.catch(() => undefined).then(() => campaignFiles.load());
+    void campaignsRead.catch((error: unknown) => console.error('[Atlas] Reading the campaigns failed:', error));
+    // The campaign this device plays records the scenes its map views open.
+    this.register(recordCampaignPlay(this.app, campaignFiles, campaignsRead));
+    // And keeps one set of values for each of its player characters, shared by every map view.
+    registerPartySync(this, campaignFiles, campaignsRead);
+    // The vault's dice sets are vault files too; collections and templates pick from them.
+    void DiceSetFiles.open(this.app).load().catch((error: unknown) => console.error('[Atlas] Reading the dice sets failed:', error));
     // Settings carried over even when the data file migration failed, so they are not lost to the defaults.
     const settingsReady = storageReady.catch(() => undefined).then(async () => {
       await presetFiles.load();
@@ -101,13 +158,23 @@ export default class AtlasVTTPlugin extends Plugin {
     // whose folder renames reach map files only through these vault events.
     registerVaultSync(this);
     registerDiceStageRelease(this);
+    registerAccentColorSync(this);
     // Views first, so workspace restore can resolve persisted Atlas tabs
     // before the slower startup path finishes.
     this.registerAtlasViews();
+    // Before the first await, so notes restored at startup draw their statblock fence.
+    registerStatblockFence(this, (path) => { editInStatblockPane(this.app, path, { collectionId: null, from: 'note' }); });
+    // Statblock edits reach their notes before a window closes or Obsidian quits.
+    registerNoteWriterFlush(this);
+    // A template's note moves and goes with its template file.
+    this.register(followTemplateBodies(this.app));
+    // The template gallery and the layout import report go with their window, and with Atlas.
+    registerHostedDialogRelease(this);
 
     await storageReady;
     await this.settingsService.initialize();
     registerDiceLookSync(this, this.settingsService);
+    this.registerStatblockPanels();
     const changelogService = new ChangelogService(this.app, this.settingsService, {
       installedVersion: this.manifest.version,
       existingInstallation: await existingInstallation,
@@ -122,26 +189,31 @@ export default class AtlasVTTPlugin extends Plugin {
     this.addCommand({ id: 'online-session-start', name: 'Start online session and copy the player link', callback: () => void onlineSession.startAndCopyLink() });
     this.addCommand({ id: 'online-session-stop', name: 'Stop online session', callback: () => onlineSession.stop() });
 
+    const onlinePlay = registerOnlinePlay(this, this.settingsService);
+    this.onlinePlay = onlinePlay;
     this.addSettingTab(new AtlasSettingTab(this.app, this, () => [
       navigationSettingsSection(this.settingsService),
       diceSettingsSection(this.settingsService),
       onlineSessionSettingsSection(this.settingsService),
+      ...lightingSettingsSections(this.settingsService),
+      mapImageCacheSettingsSection(() => TileDecoderClient.forApp(this.app)),
       hotkeySettingsSection(this.settingsService),
       onboardingSettingsSection(this.settingsService),
       changelogSettingsSection(this.settingsService, changelogService, this.manifest.version),
+      ...onlinePlay.settingsSections(),
       supportSettingsSection(issueReporter),
     ]));
     this.registerEditorSuggest(new HeaderAutocompleteSuggest(this.app));
     registerAtlasLinks(this);
     registerAtlasLeafSync(this);
     registerFollowedScene(this);
-    registerPlayerWindowFollow(this);
     registerReturnToAtlasOnClose(this);
     registerPlayerWindowReloadCleanup(this);
     registerCommands(this, {
       imageDisplay: this.imageDisplayService,
       assetManager: this.globalAssetManager,
     });
+    registerStatblockFileMenu(this);
 
     this.app.workspace.onLayoutReady(() => {
       registerColorSwatchIcons();
@@ -179,6 +251,10 @@ export default class AtlasVTTPlugin extends Plugin {
     AssetService.getInstance(this.app).flushCharacters();
     SystemPresetFiles.release(this.app);
     TokenRingLibrary.release(this.app);
+    PlayedRules.release(this.app);
+    CampaignFiles.release(this.app);
+    QuestIndex.release(this.app);
+    DiceSetFiles.release(this.app);
     this.widgetSyncService?.destroy();
     this.widgetSyncService = undefined;
 
@@ -188,8 +264,28 @@ export default class AtlasVTTPlugin extends Plugin {
     PlayerWindowService.getInstance()?.destroy(false);
     OnlineSession.getInstance()?.stop();
     this.globalAssetManager?.close();
+    // The asset manager only starts to close here; its overlay's class must not outlive the plugin.
+    releaseOverlayBodyClass();
+    releaseMapPictures(this.app);
     CreatureIndex.release(this.app);
+    TemplateLibrary.release(this.app);
+    TileDecoderClient.release(this.app);
+    MapImageService.release(this.app);
     disposeImageProcessing();
+    disposeSpectralEngine();
+  }
+
+  /** The statblock beside every native statblock note, in every window, while the statblock editor is switched on. */
+  private registerStatblockPanels(): void {
+    registerNoteStatblockPanels(this, {
+      services: appPaneServices,
+      actions: {
+        // In the note's own leaf (§8.4); Obsidian's Back returns to the note.
+        openTemplate: ({ templateId, path, blockId, collectionId, notePath }, leaf) => {
+          void openTemplateEditor(this.app, { templateId, path, collectionId, select: blockId, leaf, fromNote: notePath });
+        },
+      },
+    });
   }
 
   private registerAtlasViews(): void {
@@ -198,5 +294,7 @@ export default class AtlasVTTPlugin extends Plugin {
     this.registerView(LOCAL_PLAYER_VIEW_TYPE, (leaf) => new LocalPlayerView(leaf));
     this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
     registerLootQueryView(this);
+    this.registerView(TEMPLATE_EDITOR_VIEW_TYPE, (leaf) => new TemplateEditorView(leaf));
+    this.registerExtensions([TEMPLATE_EXTENSION], TEMPLATE_EDITOR_VIEW_TYPE);
   }
 }

@@ -11,7 +11,11 @@
 @use '../src/app/onboarding/onboarding';
 @use '../src/app/changelog/changelog';
 @use '../src/app/support/issue-report';
+@use '../src/app/online/gm/styles/dock';
+@use '../src/app/online/marks/styles/marks';
+@use '../src/app/online/tableLog/styles/table-log';
 @use './native-tooltips';
+@use './notices';
 
 // Registered so `atlas-scrollbar-while-scrolling` can fade the thumb. At-rules
 // must stay at the root: inside the scope block below they would be invalid.
@@ -21,8 +25,17 @@
   initial-value: transparent;
 }
 
-// The display face of the 3D dice panel's numbers (dice-roll.scss). At-rules
-// stay at the root, like @property above.
+/*! Fonts bundled below, unmodified:
+ *  Fantaisie Artistique by George Williams, released under the SIL Open Font License by its author
+ *  (https://fontforge.org/archive/sfds/toyfonts.html).
+ *  Oxanium, Copyright 2019 The Oxanium Project Authors (https://github.com/sevmeyer/oxanium),
+ *  licensed under the SIL Open Font License, Version 1.1.
+ *  Licence text: https://openfontlicense.org
+ *  Credits: https://github.com/atlas-vtt/atlas-vtt/blob/main/THIRD_PARTY_NOTICES.md
+ */
+
+// Atlas' display face: the 3D dice panel's numbers (dice-roll.scss) and the dashboard's
+// wordmark. At-rules stay at the root, like @property above.
 @font-face {
   font-family: 'Atlas Fantaisie Artistique';
   src: url('../src/app/assets/fonts/fantaisie-artistique.ttf') format('truetype');
@@ -94,8 +107,17 @@
   @import '../src/app/react/components/dm-screen.scss';
   @import '../src/app/react/components/linked-note-panel.scss';
   @import '../src/app/react/components/player-dashboard.scss';
-  @import '../src/app/react/components/dashboard.scss';
+  @import '../src/app/react/components/dashboard/dashboard.scss';
+  @import '../src/app/react/components/dashboard/dashboard-cards.scss';
+  @import '../src/app/react/components/dashboard/continue-hero.scss';
+  @import '../src/app/react/components/dashboard/campaigns.scss';
+  @import '../src/app/react/components/dashboard/campaign-page.scss';
+  @import '../src/app/react/components/dashboard/campaign-fields.scss';
+  @import '../src/app/react/components/dashboard/world-map-card.scss';
+  @import '../src/app/react/components/dashboard/world-map-picker.scss';
+  @import '../src/app/react/components/dashboard/quests/quests.scss';
   @import '../src/app/react/components/dice-log/dice-roll-log.scss';
+  @import '../src/app/react/components/dice/rolled-dice.scss';
   @import '../src/app/react/components/loot/loot-roller.scss';
   @import '../src/app/pixi/lighting/light-panel.scss';
   @import '../src/app/pixi/lighting/light-popover.scss';
@@ -104,6 +126,10 @@
   @import '../src/app/react/components/loot/loot-lists.scss';
   @import '../src/app/react/components/loot/loot-card.scss';
   @import '../src/app/react/components/loot/player-loot.scss';
+  @import '../src/app/react/components/randomTables/random-tables.scss';
+  @import '../src/app/react/components/randomTables/table-result-card.scss';
+  @import '../src/app/react/components/randomTables/paste-table-dialog.scss';
+  @import '../src/app/react/components/randomTables/file-table-import.scss';
   @import '../src/app/packages/components/asset-manager/tag-search-modal.scss';
   @import '../src/app/pixi/token-renderer/edit-token-modal.scss';
   @import '../src/app/react/components/collection-settings-modal.scss';
@@ -112,7 +138,16 @@
   @import '../src/app/react/components/collection-settings/conditions-tab.scss';
   @import '../src/app/react/components/collection-settings/vision-tab.scss';
   @import '../src/app/react/components/senses/senses-editor.scss';
+  @import '../src/app/react/components/collection-settings/fan/radial-fan.scss';
   @import '../src/app/react/components/collection-settings/resources-tab.scss';
+  @import '../src/app/react/components/collection-settings/random-tables/random-tables-tab.scss';
+  @import '../src/app/react/components/collection-settings/random-tables/item-rarities.scss';
+  @import '../src/app/react/components/collection-settings/statblock-field-chips.scss';
+  @import '../src/app/react/components/collection-settings/dice-lab/dice-lab.scss';
+  @import '../src/app/react/components/collection-settings/dice-lab/dice-lab-options.scss';
+  @import '../src/app/react/components/collection-settings/dice-lab/dice-tray.scss';
+  @import '../src/app/react/components/collection-settings/dice-lab/dice-set-picker.scss';
+  @import '../src/app/react/components/collection-settings/dice-lab/dice-step.scss';
   @import '../src/app/react/components/collection-settings/token-rings-tab.scss';
   @import '../src/app/players/players.scss';
   @import '../src/app/online/online-tool.scss';
@@ -665,8 +700,7 @@
 }
 
 // Hide Obsidian's native view header (forward/back nav) in Atlas views
-.workspace-leaf-content[data-type="atlas-vtt"],
-.workspace-leaf-content[data-type="atlas-vtt-player"] {
+.workspace-leaf-content[data-type="atlas-vtt"] {
   .view-header {
     display: none !important;
   }
@@ -690,15 +724,8 @@
   overflow: auto;
 }
 
-// Fallback for a player view whose leaf reported no size on open
-.workspace-leaf-content.atlas-player-view--fill {
-  width: 100%;
-  height: 100%;
-}
-
 // Atlas VTT view styles - scoped to our plugin views only
 .workspace-leaf-content[data-type="atlas-vtt"] .atlas-vtt-view,
-.workspace-leaf-content[data-type="atlas-vtt-player"] .atlas-vtt-view,
 .workspace-leaf-content[data-type="atlas-vtt-dashboard"] .atlas-vtt-view {
   // Ensure the view maintains proper dimensions
   min-width: 100%;
@@ -715,35 +742,6 @@
 
 // Note: Status bar visibility is now handled programmatically in main.ts
 // This ensures proper show/hide behavior when switching between views
-
-// Player view specific styles - properly scoped
-.atlas-vtt-view.atlas-player-view {
-  // Hide all UI elements that shouldn't be visible to players
-  .atlas-context-menu,
-  .atlas-dropdown-menu,
-  .atlas-note-preview,
-  .atlas-asset-manager {
-    display: none !important;
-  }
-  
-  // Hide any pin containers within the plugin
-  .atlas-vtt-plugin .pins {
-    display: none !important;
-  }
-  
-  // Hide selection overlays and tools
-  .selection-overlay,
-  .fog-tool,
-  .measure-tool,
-  .eraser-tool {
-    display: none !important;
-  }
-  
-  // Ensure widget bar is visible in player view
-  .atlas-widget-bar {
-    display: block !important;
-  }
-}
 
 // Header autocomplete suggestion styles - global for editor suggest
 .suggestion-item.atlas-header-suggestion {
@@ -942,8 +940,8 @@
 }
 
 // Obsidian menus opened from the asset manager must stack above its overlay.
-// Limited to while the overlay is open so other Obsidian menus are untouched.
-body:has(.atlas-asset-manager-modal) > .menu {
+// Limited to while the overlay is open (`useOverlayBodyClass`) so other Obsidian menus are untouched.
+body.atlas-asset-manager-open > .menu {
   z-index: $z-atlas-dropdown;
 }
 

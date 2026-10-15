@@ -17,6 +17,10 @@ export function obsidianDiceEnvironment(app: App): DiceEnvironment {
         const file = fileAt(imagePath);
         return file ? app.vault.getResourcePath(file) : null;
       },
+      linkedTokenImage: (statblockPath, recordedImagePath) => {
+        const linked = AssetService.getInstance(app).loadedTokenAssets().filter((asset) => asset.statblockPath === statblockPath);
+        return (linked.find((asset) => asset.imagePath === recordedImagePath) ?? linked[0])?.imagePath ?? null;
+      },
       statblockImage: (statblockPath) => {
         const file = fileAt(statblockPath);
         return file ? TokenStatblockLinkService.getInstance(app).readStatblockImage(file) : null;

@@ -8,7 +8,8 @@ import { FogTool, FogSettings } from '../tools/FogTool';
 import { NotePinTool } from '../tools/NotePinTool';
 import { DiceTool } from '../tools/DiceTool';
 import { AudioTool } from '../tools/AudioTool';
-import { mapDiceRules } from './mapDiceRules';
+import { offlineDiceInputs } from './offlineDiceInputs';
+import { mapDiceSet } from './diceSets/collectionDiceSets';
 import { SettingsService } from './SettingsService';
 import { dmRollStamp } from '../online/rollStamps';
 import type { App } from 'obsidian';
@@ -33,7 +34,12 @@ export class ToolController {
     this.measureTool = new MeasureTool(eventBus);
     this.fogTool = new FogTool(eventBus);
     this.notePinTool = new NotePinTool(eventBus, app, store);
-    this.diceTool = new DiceTool(eventBus, () => mapDiceRules(app, store.getState().mapPath), () => dmRollStamp(SettingsService.forApp(app), activeDocument));
+    this.diceTool = new DiceTool(
+      eventBus,
+      () => mapDiceSet(app, store.getState().mapPath),
+      offlineDiceInputs(),
+      () => dmRollStamp(SettingsService.forApp(app), activeDocument),
+    );
     this.audioTool = new AudioTool(eventBus);
   }
   

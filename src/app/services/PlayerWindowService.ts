@@ -1,4 +1,4 @@
-import { App, Notice } from 'obsidian';
+import { App } from 'obsidian';
 import type { ViewAtlasState } from '../storeFactory';
 import type { StoreApi } from 'zustand';
 import type { SettingsService } from './SettingsService';
@@ -12,7 +12,12 @@ import { PlayerWidgetBar } from './PlayerWidgetBar';
 import { LocalPlayerView, LOCAL_PLAYER_VIEW_TYPE, type PlayerCameraState } from '../local-player-view';
 import { freezeCanvasFrame, type SceneTransition } from '../pixi/sceneTransition';
 import { t } from '../i18n';
-import { PlayerFrameMirror, showsScene, type PlayerFrameSource } from './PlayerFrameMirror';
+import { cannotRender, PlayerFrameMirror, type PlayerFrameSource } from './PlayerFrameMirror';
+import { framedCamera } from './playerFrame';
+import type { Screen } from '../types/playerFrame';
+import type { PresentedScene } from './presentedScene';
+import { onMapRulesChange } from './mapRules';
+import { showNotice } from '../ui/notice';
 
 /** Scopes the rules in `player-window.scss` to the popout document. */
 const PLAYER_WINDOW_BODY_CLASS = 'atlas-player-window';
@@ -24,12 +29,15 @@ function getStyleNodeKey(node: Element): string {
   return node.instanceOf(HTMLLinkElement) ? `link:${node.href}` : `style:${node.textContent ?? ''}`;
 }
 
+/** What stands in for a map view that closed: it renders nothing, and players keep the frame they hold. */
+const CLOSED_SOURCE: PlayerFrameSource = { withPlayerSafeFrame: () => undefined };
+
 /**
- * Mirrors a DM map canvas into a popout window for players.
+ * Shows a DM map view's scene in a popout window for players.
  *
- * The window follows the DM: it shows the scene of the Atlas view's active tab
- * (`followedScene`), holds the last frame while a scene loads and crossfades into the
- * next one. With no scene open it keeps the last frame under the waiting message.
+ * The window shows one scene tab at a time, the presented scene (see `presentedScene.ts`).
+ * While the DM works on another tab the last frame is held so players never see
+ * the DM's navigation; `PlayerWindowPresenter` drives that hold/release cycle.
  * A camera freeze only pins the camera: the scene keeps updating (tokens, fog)
  * while the DM pans and zooms their own view.
  */
@@ -43,27 +51,23 @@ export class PlayerWindowService {
   private animationFrame: number | null = null;
   /** Camera the DM froze players on; the presented scene is still rendered live through it. */
   private frozenCamera: PlayerCameraState | null = null;
-  /** Last player frame, shown unchanged while no scene is open. */
+  /** The camera of the last frame players were shown of the presented scene; none until a frame of that scene came. */
+  private shownCamera: PlayerCameraState | null = null;
+  /** Last player frame, shown unchanged while the DM works on another scene tab. */
   private heldFrame: HTMLCanvasElement | null = null;
-  /** Crossfade from the previous map, still playing after the DM opened another scene. */
+  /** Crossfade from the previous map, still playing after the DM presented another scene. */
   private mapTransition: SceneTransition | null = null;
-  /** The map players see, and what stops watching its store for the next one. */
-  private shownMapPath: string | null = null;
-  private stopWatchingScene: (() => void) | null = null;
   private static instance: PlayerWindowService | null = null;
   private settingsUnsubscribe: (() => void) | null = null;
   /** Widget bar, initiative panel and dice rolls, drawn over the presented scene. */
   private sceneOverlays: PlayerOverlay[] = [];
-  private readonly boundHandleWindowResize = (): void => {
-    this.handleWindowResize();
-  };
   private readonly boundHandleBeforeUnload = (): void => {
     this.cleanup(false);
   };
   private isCleaningUp = false;
-  /** Copies the presented canvas into the window; exists while frames are being mirrored. */
+  /** Brings frames of the presented scene into the window; exists while frames are being mirrored. */
   private mirror: PlayerFrameMirror | null = null;
-  /** Identifies the running copy loop; a newer loop ends older ones. */
+  /** Identifies the running frame loop; a newer loop ends older ones. */
   private mirrorLoopId = 0;
 
   constructor(app: App, store: StoreApi<ViewAtlasState>, settingsService: SettingsService) {
@@ -77,23 +81,42 @@ export class PlayerWindowService {
     return PlayerWindowService.instance;
   }
 
-  /** Toggle the DM's camera freeze and return the new frozen state. */
+  /**
+   * Toggle the DM's camera freeze and return the new frozen state. Where players are not shown
+   * the presented scene yet there is nothing to freeze them on, and the DM is told so.
+   */
   public toggleCameraFreeze(): boolean {
     if (this.frozenCamera) {
       this.setFrozenCamera(null);
-    } else {
-      this.freezeCamera();
+      showNotice(t('player.unfrozen'));
+      return false;
     }
-    new Notice(this.isFrozen() ? t('player.frozen') : t('player.unfrozen'));
+    this.freezeCamera();
+    showNotice(this.isFrozen() ? t('player.frozen') : t('player.nothingToFreeze'));
     return this.isFrozen();
   }
 
   /**
-   * Keep players on `camera`, by default the camera they currently see. Map
-   * changes stay visible; only the DM's panning and zooming no longer reach them.
+   * Keep players on `camera`, by default the camera they currently see, and on the world
+   * rectangle it frames: map changes stay visible; the DM's panning and zooming, and the size
+   * of the DM's pane, no longer reach them.
    */
   public freezeCamera(camera?: PlayerCameraState): void {
-    this.setFrozenCamera(camera ?? this.playerView?.getState().camera ?? this.streamSource?.getCamera?.() ?? null);
+    this.setFrozenCamera(camera ?? this.cameraPlayersSee());
+  }
+
+  /**
+   * The camera players see the presented scene through now: that of its last frame, else the
+   * DM's own. Never a camera of another scene: the one players saw before this scene was
+   * presented frames a rectangle of that scene's map; while a frame is held the view shows the
+   * scene the DM browses, through its camera; and while the scene loads the view's camera is
+   * not the scene's yet. With none of its own, there is nothing to freeze on yet.
+   */
+  private cameraPlayersSee(): PlayerCameraState | null {
+    if (this.shownCamera) return this.shownCamera;
+    const source = this.streamSource;
+    if (!source || this.heldFrame || cannotRender(source)) return null;
+    return source.getCamera?.() ?? null;
   }
 
   public isFrozen(): boolean {
@@ -109,35 +132,24 @@ export class PlayerWindowService {
     return this.isWindowOpen() ? this.playerWindow : null;
   }
 
-  /**
-   * Show the scene players follow, already rendered into `source`; with none, keep the last
-   * frame under the waiting message until a scene opens again.
-   */
-  public follow(source: PlayerFrameSource | null): void {
-    if (!this.isWindowOpen() || source === this.streamSource) return;
-    if (!source) {
-      this.letGoOfScene();
-      return;
-    }
-    this.crossfadeToNextMap();
-    this.streamSource = source;
-    this.mirror?.markStale();
-    this.watchScene();
-    this.presentScene();
-    this.heldFrame = null;
-    this.setFrozenCamera(null);
-    this.setLive(true);
-    this.followSource();
+  /** Keep players on the current frame while the DM works on another scene tab. */
+  public holdCurrentFrame(): void {
+    if (!this.isWindowOpen()) return;
+    this.sceneOverlays.forEach((overlay) => overlay.hold());
+    if (this.heldFrame) return;
+    this.heldFrame = this.snapshotPlayerFrame();
+    this.updateFreezeIndicator();
   }
 
-  /** Keep players on the last frame and let go of the map view, which is closing. */
-  private letGoOfScene(): void {
-    this.sceneOverlays.forEach((overlay) => overlay.hold());
-    this.heldFrame ??= this.snapshotPlayerFrame();
-    const heldFrame = this.heldFrame ?? createEl('canvas');
-    this.streamSource = { canvas: heldFrame, withPlayerSafeFrame: (capture) => capture() };
-    this.watchScene();
-    this.setLive(false);
+  /**
+   * Keep players on the last frame and let go of the map view that owns `store`,
+   * which is closing. Presenting another scene resumes live mirroring.
+   */
+  public releaseSource(store: StoreApi<ViewAtlasState>): void {
+    if (!this.streamSource || this.streamSource.store !== store) return;
+    this.holdCurrentFrame();
+    this.sceneOverlays.forEach((overlay) => overlay.releaseSource?.());
+    this.streamSource = CLOSED_SOURCE;
     this.followSource();
   }
 
@@ -150,46 +162,73 @@ export class PlayerWindowService {
   }
 
   /**
-   * Crossfade into each new map the source's store loads. The mirror holds the last frame while
-   * it loads, so the window still shows the previous map when the load ends. A camera frozen on
-   * the previous map means nothing on the next one, so it is lifted.
+   * Resume live mirroring from `source` once the presented scene is rendered again.
+   * A camera freeze stays in place, so players return to the same framing.
    */
-  private watchScene(): void {
-    this.stopWatchingScene?.();
-    this.stopWatchingScene = null;
-    const store = this.streamSource?.store;
-    this.shownMapPath = store?.getState().mapPath ?? null;
-    if (!store) return;
-    this.stopWatchingScene = store.subscribe((state, previous) => {
-      if (!showsScene(state) || showsScene(previous) || state.mapPath === this.shownMapPath) return;
-      this.shownMapPath = state.mapPath;
-      this.crossfadeToNextMap();
-      this.setFrozenCamera(null);
-    });
+  public releaseHeldFrame(source: PlayerFrameSource): void {
+    if (!this.isWindowOpen()) return;
+    this.streamSource = source;
+    this.pinFrozenCamera();
+    this.mirror?.markStale();
+    this.presentScene();
+    this.heldFrame = null;
+    this.updateFreezeIndicator();
+    this.followSource();
   }
 
-  private setLive(live: boolean): void {
-    this.playerWindow?.document.body.classList.toggle(PLAYER_WINDOW_LIVE_CLASS, live);
+  /**
+   * Show the scene tab `tabId`, already rendered into `source`, to players.
+   * Any freeze is lifted because the DM explicitly chose what players see.
+   */
+  public presentCanvas(source: PlayerFrameSource, tabId: string, filePath?: string): void {
+    if (!this.isWindowOpen()) {
+      showNotice(t('player.notOpen'));
+      return;
+    }
+    const anotherScene = playerWindowStore.getState().shownTabId !== tabId;
+    if (anotherScene) this.crossfadeToNextMap();
+    this.streamSource = source;
+    this.mirror?.markStale();
+    this.presentScene();
+    this.heldFrame = null;
+    this.setFrozenCamera(null);
+    // The camera players saw the scene before through says nothing about this one
+    if (anotherScene) this.shownCamera = null;
+    playerWindowStore.setState({ shownTabId: tabId });
+    this.playerView?.updateSession({ tabId, ...(filePath ? { filePath } : {}), frozen: false, ...(anotherScene ? { camera: null } : {}) });
+    this.followSource();
   }
 
-  /** Opens a player window mirroring `source`, the scene players follow. */
-  public async openPlayerWindow(source: PlayerFrameSource): Promise<void> {
-    const leaf = this.app.workspace.getLeavesOfType(LOCAL_PLAYER_VIEW_TYPE)[0] ?? this.app.workspace.openPopoutLeaf();
-    await leaf.setViewState({ type: LOCAL_PLAYER_VIEW_TYPE, state: { frozen: false } });
-    if (leaf.view instanceof LocalPlayerView) this.attachToView(leaf.view, source);
+  /** The player window's view when its leaf is open, attached or not; null when there is none. */
+  public static openPlayerView(app: App): LocalPlayerView | null {
+    const view = app.workspace.getLeavesOfType(LOCAL_PLAYER_VIEW_TYPE)[0]?.view;
+    return view instanceof LocalPlayerView && !view.isClosed ? view : null;
+  }
+
+  /**
+   * Opens the player window's leaf in a popout (or reuses the one there is) on `scene`; the
+   * presenter then attaches it to the view that holds the scene. Null when Obsidian gave no player view.
+   */
+  public static async openLeaf(app: App, scene: PresentedScene): Promise<LocalPlayerView | null> {
+    const leaf = app.workspace.getLeavesOfType(LOCAL_PLAYER_VIEW_TYPE)[0] ?? app.workspace.openPopoutLeaf();
+    await leaf.setViewState({ type: LOCAL_PLAYER_VIEW_TYPE, state: { tabId: scene.tabId, filePath: scene.filePath, frozen: false } });
+    return leaf.view instanceof LocalPlayerView ? leaf.view : null;
   }
 
   public ownsView(view: LocalPlayerView): boolean {
     return this.playerView === view;
   }
 
-  public attachToView(view: LocalPlayerView, source: PlayerFrameSource): void {
+  public attachToView(view: LocalPlayerView, source: PlayerFrameSource, scene: PresentedScene): void {
     this.playerView = view;
     this.playerWindow = view.contentEl.win;
     this.streamSource = source;
+    this.shownCamera = null;
+    this.pinFrozenCamera();
     this.mirror?.markStale();
-    this.watchScene();
-    // Bind now: the popout may still be loading, and the DM can switch scenes before it has
+    playerWindowStore.setState({ shownTabId: scene.tabId });
+    view.updateSession({ tabId: scene.tabId, filePath: scene.filePath });
+    // Bind now: the popout may still be loading, and the DM can switch tabs before it has
     this.destroySceneOverlays();
     this.sceneOverlays = [
       new PlayerWidgetBar(this.settingsService),
@@ -201,11 +240,24 @@ export class PlayerWindowService {
   }
 
   private setFrozenCamera(camera: PlayerCameraState | null): void {
-    this.frozenCamera = camera ? { ...camera } : null;
+    this.frozenCamera = camera ? framedCamera({ ...camera }, this.streamSource?.getScreen?.()) : null;
     this.mirror?.markStale();
     this.updateFreezeIndicator();
     playerWindowStore.setState({ isFrozen: this.isFrozen() });
-    this.playerView?.updateSession({ frozen: this.isFrozen(), ...(camera ? { camera: { ...camera } } : {}) });
+    this.playerView?.updateSession({ frozen: this.isFrozen(), ...(this.frozenCamera ? { camera: { ...this.frozenCamera } } : {}) });
+  }
+
+  /**
+   * A frozen camera that came without the world rectangle it frames (one an older Atlas saved,
+   * or one frozen before a scene was attached) takes what the DM's screen shows through it now,
+   * and keeps that.
+   */
+  private pinFrozenCamera(): void {
+    if (!this.frozenCamera) return;
+    const pinned = framedCamera(this.frozenCamera, this.streamSource?.getScreen?.());
+    if (pinned === this.frozenCamera) return;
+    this.frozenCamera = pinned;
+    this.playerView?.updateSession({ camera: { ...pinned } });
   }
 
   private updateFreezeIndicator(): void {
@@ -221,14 +273,14 @@ export class PlayerWindowService {
     const targetCanvas = this.playerWindow?.document.getElementById('atlas-player-canvas');
     if (!targetCanvas?.instanceOf(HTMLCanvasElement)) return;
     // A 2D canvas keeps its pixels, so the frame on screen can be copied at any time.
-    // The player canvas is drawn with crisp-edges, so players get the crossfade without the scale settle.
+    // Players get the crossfade without the scale settle, which would resample a frame of the window's own pixels at every step.
     this.mapTransition = freezeCanvasFrame(
       targetCanvas, (context) => context.drawImage(targetCanvas, 0, 0), this.mapTransition, { settle: false },
     );
     this.mapTransition?.play();
   }
 
-  /** Copy the frame players currently see so it can be held while no scene is open. */
+  /** Copy the frame players currently see so it can be held while the DM is elsewhere. */
   private snapshotPlayerFrame(): HTMLCanvasElement | null {
     if (!this.streamSource || !this.playerWindow || this.playerWindow.closed) return null;
 
@@ -281,7 +333,7 @@ export class PlayerWindowService {
       // Double-check we have the right window
       if (this.playerWindow === window) {
         console.error('[PlayerWindowService] ERROR: Player window is the same as main window!');
-        new Notice(t('player.isMain'));
+        showNotice(t('player.isMain'));
         return;
       }
       
@@ -303,15 +355,15 @@ export class PlayerWindowService {
       this.sceneOverlays.forEach((overlay) => overlay.mount(content));
       this.settingsUnsubscribe?.();
       // Player view settings decide which layers players see
-      // So do the collection's settings: which resources they see
-      const collectionChanged = this.app.workspace.on('atlas-vtt:collection-settings-changed', () => {
+      // So do the rules the scene plays by: which resources they see
+      const stopRules = onMapRulesChange(this.app, 'any', () => {
         this.mirror?.markStale();
         this.sceneOverlays.forEach((overlay) => overlay.refresh?.());
       });
       const unsubscribeSettings = this.settingsService.onChange(() => this.mirror?.markStale());
       this.settingsUnsubscribe = () => {
         unsubscribeSettings();
-        this.app.workspace.offref(collectionChanged);
+        stopRules();
       };
 
       // Create freeze indicator
@@ -352,22 +404,20 @@ export class PlayerWindowService {
       this.startMirroring();
       playerWindowStore.setState({ isOpen: true });
 
-      // Handle window resize
-      this.playerWindow.addEventListener('resize', this.boundHandleWindowResize);
-
       // Cleanup on close
       this.playerWindow.addEventListener('beforeunload', this.boundHandleBeforeUnload);
 
     } catch (error) {
       console.error('[PlayerWindowService] Error setting up player window:', error);
-      new Notice(t('player.setupFailed'));
+      showNotice(t('player.setupFailed'));
     }
   }
 
   /** Bind the overlays to the view store that now holds the presented scene. */
   private presentScene(): void {
     const store = this.streamSource?.store ?? this.store;
-    this.sceneOverlays.forEach((overlay) => overlay.present(store));
+    const source = this.streamSource;
+    this.sceneOverlays.forEach((overlay) => overlay.present(store, source?.diceEvents, source?.rollSources));
   }
 
   private destroySceneOverlays(): void {
@@ -375,16 +425,7 @@ export class PlayerWindowService {
     this.sceneOverlays = [];
   }
 
-  /**
-   * Handle window resize
-   */
-  private handleWindowResize(): void {
-    // No need to do anything - canvas maintains its aspect ratio with object-fit: contain
-  }
-
-  /**
-   * Starts mirroring the canvas content
-   */
+  /** Starts the loop that brings frames of the presented scene onto the window's canvas, one check per display frame. */
   private startMirroring(): void {
     if (!this.playerWindow || !this.streamSource) return;
 
@@ -401,6 +442,7 @@ export class PlayerWindowService {
     this.mirror?.stop();
     const mirror = new PlayerFrameMirror(targetCanvas, targetCtx, {
       source: () => this.streamSource,
+      window: () => this.windowScreen(targetCanvas),
       heldFrame: () => this.heldFrame,
       frozenCamera: () => this.frozenCamera,
       settings: () => this.settingsService.getLocalPlayerViewSettings(),
@@ -408,27 +450,37 @@ export class PlayerWindowService {
     });
     this.mirror = mirror;
 
-    const copyCanvas = (): void => {
+    const mirrorFrame = (): void => {
       if (loopId !== this.mirrorLoopId) return;
       if (!this.playerWindow || this.playerWindow.closed || !this.streamSource) {
         this.cleanup();
         return;
       }
 
-      this.animationFrame = this.playerWindow.requestAnimationFrame(copyCanvas);
+      this.animationFrame = this.playerWindow.requestAnimationFrame(mirrorFrame);
       mirror.frame();
     };
 
-    // Start the copy loop
-    copyCanvas();
+    mirrorFrame();
+  }
+
+  /**
+   * The player window as the frames are rendered for it: the canvas fills it, so the canvas'
+   * size is the window's, and the pixel ratio is that of the screen the window is on now.
+   */
+  private windowScreen(canvas: HTMLCanvasElement): Screen | null {
+    if (!this.playerWindow || this.playerWindow.closed) return null;
+    return { width: canvas.clientWidth, height: canvas.clientHeight, resolution: this.playerWindow.devicePixelRatio || 1 };
   }
 
   /** Persist the camera players see so a restored window reopens on the same framing. */
   private recordPlayerCamera(camera: PlayerCameraState | undefined): void {
+    if (!camera) return;
+    this.shownCamera = camera;
     const previous = this.playerView?.getState().camera;
-    if (camera && (camera.centerX !== previous?.centerX || camera.centerY !== previous.centerY || camera.scale !== previous.scale)) {
-      this.playerView?.updateSession({ camera });
-    }
+    const changed = camera.centerX !== previous?.centerX || camera.centerY !== previous.centerY || camera.scale !== previous.scale
+      || camera.width !== previous.width || camera.height !== previous.height;
+    if (changed) this.playerView?.updateSession({ camera });
   }
 
   /**
@@ -451,16 +503,11 @@ export class PlayerWindowService {
 
     this.settingsUnsubscribe?.();
     this.settingsUnsubscribe = null;
-    this.stopWatchingScene?.();
-    this.stopWatchingScene = null;
     this.destroySceneOverlays();
     this.mapTransition?.cancel();
     this.mapTransition = null;
 
-    if (this.playerWindow) {
-      this.playerWindow.removeEventListener('resize', this.boundHandleWindowResize);
-      this.playerWindow.removeEventListener('beforeunload', this.boundHandleBeforeUnload);
-    }
+    this.playerWindow?.removeEventListener('beforeunload', this.boundHandleBeforeUnload);
     
     if (closeWindow && this.playerWindow && !this.playerWindow.closed) {
       this.playerWindow.close();
@@ -471,6 +518,7 @@ export class PlayerWindowService {
     this.streamSource = null;
     this.heldFrame = null;
     this.frozenCamera = null;
+    this.shownCamera = null;
     resetPlayerWindowStore();
     // The window is gone: drop the singleton so the next present binds to the presenting view's store.
     if (PlayerWindowService.instance === this) {

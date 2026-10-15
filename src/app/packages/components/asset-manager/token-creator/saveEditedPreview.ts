@@ -1,14 +1,16 @@
-import { Notice, type App } from 'obsidian';
+import { type App } from 'obsidian';
 import type { AssetService } from '../../../../services/AssetService';
 import type { AssetThumbnailService } from '../../../../services/AssetThumbnailService';
 import { writeAssetImage } from '../../../../services/assetImageFiles';
 import { transferAssets } from '../../../../services/assetTransfer/assetTransfer';
 import type { ProcessedImage } from '../../../../imageProcessing/imageProcessing';
+import { prebuildMapImageAt } from '../../../../pixi/mapImage/prebuildMapImage';
 import { STORED_IMAGE_SCALE } from './cropMath';
 import { prepareSaveImage, type SaveImageContext } from './prepareSaveImages';
 import { overwriteStoredImage, storedImageFile } from './storedTokenImage';
 import type { EditTokenInput, TokenPreview } from './types';
 import { t } from '../../../../i18n';
+import { showNotice } from '../../../../ui/notice';
 
 export interface EditedPreviewSave extends SaveImageContext {
   app: App;
@@ -45,12 +47,13 @@ export async function saveEditedPreview(save: EditedPreviewSave): Promise<number
       prepared = await prepareSaveImage(source, preview, save);
     } catch (error) {
       console.error(`[TokenCreator] Failed to optimize ${preview.name}:`, error);
-      new Notice(t(`creator.${mode}.optimizeFailed`, { name: preview.name }));
+      showNotice(t(`creator.${mode}.optimizeFailed`, { name: preview.name }));
       return 0;
     }
     const data = await prepared.image.arrayBuffer();
     imagePath = await overwriteStoredImage(app, editToken.imagePath, data) ?? await writeAssetImage(app, preview.name, data);
     thumbnailPath = await thumbnails.tryThumbnailForImage(imagePath, prepared.thumbnail);
+    if (mode === 'map') prebuildMapImageAt(app, imagePath);
   }
   const before = await assetService.getAssetById(editToken.id);
   const previousThumbnail = before?.type === 'token' || before?.type === 'map' ? before.thumbnailPath : undefined;

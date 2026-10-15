@@ -1,23 +1,38 @@
 import { App, TFile, normalizePath } from 'obsidian';
-import { Assets, Texture } from 'pixi.js';
 import type { MapFile } from './services/MapPersistence';
 import { migrateMapFile, parseSceneFile } from './services/MapPersistence';
 import { SceneFileError } from './services/sceneFileProblems';
 import { AssetValidationService, type MissingAsset } from './services/AssetValidationService';
-import { backgroundTextureCache } from './pixi/backgroundTextureCache';
-import { mapPlaceholderTexture } from './pixi/mapDisplay';
+import type { MapImageSource } from './pixi/mapImage/mapImageTypes';
 
 export interface LoadedMap {
   mapData: MapFile;
-  texture: InstanceType<typeof Texture>;
-  hasBackground: boolean; // Indicate if this is a real background or placeholder
-  /** URL acquired from the background texture cache; the caller releases it when the map is left. */
-  backgroundUrl: string | null;
+  /** What the scene shows under its tokens; nothing of it is decoded yet. */
+  image: MapImageSource;
   missingAssets?: MissingAsset[]; // Track missing assets for reporting
 }
 
+/** Cells a side of the empty world of a scene without a map image. */
+const EMPTY_MAP_CELLS = 20;
+
 /**
- * Pure helper that reads the .atlasmap JSON and preloads the background image as a PIXI texture.
+ * What a scene whose background is `background` shows: the image file, the
+ * missing-image placeholder when the file is gone, or an empty world of 20 × 20
+ * cells without a background.
+ */
+export function mapImageSourceFor(app: App, background: string | null | undefined, gridSize: number | undefined): MapImageSource {
+  if (!background) {
+    const side = (gridSize || 70) * EMPTY_MAP_CELLS;
+    return { kind: 'none', width: side, height: side };
+  }
+  const file = app.vault.getAbstractFileByPath(normalizePath(background));
+  if (file instanceof TFile) return { kind: 'file', file };
+  console.error(`[MapLoader] Background image not found: ${background}`);
+  return { kind: 'placeholder' };
+}
+
+/**
+ * Pure helper that reads the .atlasmap JSON and finds its map image.
  * All vault / IO logic lives here so AtlasView remains an orchestrator only.
  */
 export class MapLoader {
@@ -40,41 +55,15 @@ export class MapLoader {
     // Apply migration to convert app:// URLs to relative paths
     const mapData = migrateMapFile(parseSceneFile(raw).state);
 
-    let texture: Texture;
-    let hasBackground = false;
-    let backgroundUrl: string | null = null;
-
     const validationResult = await assetValidationService.validateMapAssets(mapData);
     if (!validationResult.valid) {
       assetValidationService.showMissingAssetsNotice(validationResult.missingAssets);
     }
-    
-    if (mapData.background) {
-      // Preload background image as a PIXI texture
-      const imgFile = app.vault.getAbstractFileByPath(normalizePath(mapData.background));
-      if (!(imgFile instanceof TFile)) {
-        console.error(`[MapLoader] Background image not found: ${mapData.background}`);
-        const placeholder = assetValidationService.getMissingAssetPlaceholder();
-        texture = placeholder ? await Assets.load<Texture>(placeholder) : mapPlaceholderTexture(mapData.grid?.size || 70);
-        hasBackground = false;
-      } else {
-        const url = app.vault.adapter.getResourcePath(imgFile.path);
-        texture = await backgroundTextureCache.acquire(url);
-        backgroundUrl = url;
-        hasBackground = true;
-      }
-    } else {
-      // Create a placeholder texture for maps without backgrounds
-      texture = mapPlaceholderTexture(mapData.grid?.size || 70);
-      hasBackground = false;
-    }
 
-    return { 
-      mapData, 
-      texture, 
-      hasBackground,
-      backgroundUrl,
-      missingAssets: validationResult.missingAssets
+    return {
+      mapData,
+      image: mapImageSourceFor(app, mapData.background, mapData.grid?.size),
+      missingAssets: validationResult.missingAssets,
     };
   }
 }

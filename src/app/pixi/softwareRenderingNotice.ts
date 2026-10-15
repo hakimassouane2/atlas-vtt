@@ -1,5 +1,6 @@
 import { showNotice } from '../ui/notices';
 
+
 let shown = false;
 
 /** Tells the user once per session that maps are drawn without the GPU, and how to get it back. */

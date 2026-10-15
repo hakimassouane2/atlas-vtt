@@ -1,4 +1,4 @@
-import type { TokenUpdates } from '../storeFactory';
+import type { TokenUpdates } from '../types/viewState';
 import type { TokenEntity } from '../types';
 import type { ResourceValue } from '../resources/resourceTypes';
 import { sameValue } from '../utils/sameValue';

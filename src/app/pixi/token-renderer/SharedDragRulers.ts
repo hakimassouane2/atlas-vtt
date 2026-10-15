@@ -61,7 +61,7 @@ export class SharedDragRulers {
         continue;
       }
       const landing = snapRulerPoint(state, this.gridSystem, token.id, { x: token.x, y: token.y });
-      drawRuler(view, this.gridSystem, settings, [...ruler.waypoints, landing], ruler.color);
+      drawRuler(view, this.gridSystem, settings, state, token.id, [...ruler.waypoints, landing], ruler.color);
     }
   }
 }

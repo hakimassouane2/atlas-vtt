@@ -1,24 +1,51 @@
-import { Sprite, Texture } from 'pixi.js';
+import { Ticker } from 'pixi.js';
 import type { PixiRendererOrchestrator } from '../PixiRendererOrchestrator';
 import type { GridOptions } from '../grid/GridSystem';
-import type { GridState } from '../services/MapPersistence';
+import type { GridState } from '../types/gridTypes';
 import { parseGridColor } from '../grid/gridContrastColor';
 import { cellNumberStyleOfGrid } from '../grid/cellNumbering';
+import { readMapStretch, sameStretch } from '../grid/mapStretch';
+import type { ViewAtlasStore } from '../storeFactory';
+import { prefersReducedMotion } from '../utils/motion';
+import type { MapImage } from './mapImage/MapImage';
+import type { MapImageDeps, MapImageOpener } from './mapImage/mapImageTypes';
+import { requestRender } from './RenderScheduler';
+
+/** The part of the renderer a map is shown through. */
+export type MapRenderer = Pick<
+  PixiRendererOrchestrator,
+  'getMapImage' | 'setMapImage' | 'getAppInstance' | 'getViewportInstance' | 'getGridSystem' | 'initGrid'
+>;
 
 /**
- * Puts the map image `texture` on the canvas and lays the scene's grid over it. The grid starts
- * enabled; a grid the renderer already shows keeps its offset (an alignment in progress).
+ * What the map image of the view `renderer` draws is made with; `service` opens and reads its files
+ * (the vault's in Obsidian). The image itself is made by its owner and handed to `setMapImage`.
  */
-export function showMapImage(renderer: PixiRendererOrchestrator, texture: Texture, grid: Partial<GridState> | null | undefined): Sprite {
-  const sprite = Sprite.from(texture);
-  if (texture.width > 0 && texture.height > 0) {
-    sprite.width = texture.width;
-    sprite.height = texture.height;
-  }
-  renderer.setBackgroundSprite(sprite);
+export function viewMapImageDeps(renderer: MapRenderer, service: MapImageOpener, picture?: { width: number; height: number }): MapImageDeps | null {
+  const viewport = renderer.getViewportInstance();
+  if (!viewport) return null;
+  const pixi = renderer.getAppInstance();
+  return {
+    service,
+    viewport,
+    // Not the app's ticker: a load stops that one to hold the last frame (`bindMapLoadingFrameHold`)
+    // and waits for the tiles in view, which arrive on this one.
+    ticker: Ticker.shared,
+    renderer: pixi.renderer,
+    requestRender: () => requestRender(pixi),
+    // While a load holds the last frame, the crossfade from it shows the tiles, so they do not fade in too.
+    drawAtOnce: () => !pixi.ticker.started || prefersReducedMotion(pixi.canvas),
+    ...(picture && { picture }),
+  };
+}
 
+/**
+ * The grid a scene's `grid` lays over its map. It starts enabled; a grid the renderer already
+ * shows keeps its offset (an alignment in progress).
+ */
+export function mapGridOptions(renderer: Pick<MapRenderer, 'getGridSystem'>, grid: Partial<GridState> | null | undefined): GridOptions {
   const currentGrid = renderer.getGridSystem()?.getOptions();
-  const gridOptions: GridOptions = {
+  return {
     type: grid?.type ?? 'square',
     size: grid?.size ?? 70,
     offsetX: currentGrid ? currentGrid.offsetX ?? 0 : grid?.offsetX ?? 0,
@@ -28,42 +55,26 @@ export function showMapImage(renderer: PixiRendererOrchestrator, texture: Textur
     cellNumbers: cellNumberStyleOfGrid(grid),
     enabled: true,
   };
-  renderer.initGrid(gridOptions, sprite);
-  return sprite;
 }
 
-/** Centers the viewport on the map and zooms so the whole map fits, with some room around it. */
-export function centerAndFitMap(renderer: PixiRendererOrchestrator, backgroundSprite: Sprite): void {
-  const viewport = renderer.getViewportInstance();
-  if (!viewport) {
-    console.warn('[MapController] Cannot center map: viewport not available');
-    return;
-  }
-  const padding = 0.9; // 90% of viewport size
-  const scale = Math.min(
-    (viewport.screenWidth * padding) / backgroundSprite.width,
-    (viewport.screenHeight * padding) / backgroundSprite.height,
-  );
-  // Clamp the scale to the viewport's zoom limits
-  viewport.setZoom(Math.max(0.1, Math.min(scale, 5)));
-  viewport.moveCenter(backgroundSprite.width / 2, backgroundSprite.height / 2);
+/** Lays the scene's `grid` over `mapImage` (`mapGridOptions`). */
+export function showMapGrid(renderer: MapRenderer, mapImage: MapImage, grid: Partial<GridState> | null | undefined): GridOptions {
+  const options = mapGridOptions(renderer, grid);
+  renderer.initGrid(options, mapImage);
+  return options;
 }
 
 /**
- * Transparent placeholders by grid size, shared by every map without a background.
- * Nothing unloads a placeholder when the scene changes, so a new one per load leaked its canvas.
+ * Draws the map image with the stretch of the store's grid whenever that changes outside a load
+ * (an alignment applied, its undo or redo), and says so with `onFollowed`. Returns the unsubscribe.
  */
-const placeholderTextures = new Map<number, Texture>();
-
-/** A transparent texture of 20x20 cells of `gridSize`, for maps without a background image. */
-export function mapPlaceholderTexture(gridSize: number): Texture {
-  const cached = placeholderTextures.get(gridSize);
-  if (cached && !cached.destroyed) return cached;
-  const canvas = createEl('canvas');
-  canvas.width = gridSize * 20;
-  canvas.height = gridSize * 20;
-  if (!canvas.getContext('2d')) return Texture.EMPTY;
-  const texture = Texture.from(canvas);
-  placeholderTextures.set(gridSize, texture);
-  return texture;
+export function followStretch(store: ViewAtlasStore, mapImage: MapImage, onFollowed: () => void): () => void {
+  return store.subscribe((state) => readMapStretch(state.grid?.mapStretch), (stretch) => {
+    const state = store.getState();
+    // A load shows its image with the stretch of its file.
+    if (!state.mapLoaded || state.isMapLoading) return;
+    mapImage.setStretch(stretch);
+    // The image may have been drawn this way already, as an alignment's preview: nothing changed on it then.
+    onFollowed();
+  }, { equalityFn: sameStretch });
 }

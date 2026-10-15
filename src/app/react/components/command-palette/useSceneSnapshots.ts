@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Notice, TFile } from 'obsidian';
+import { TFile } from 'obsidian';
 import { useAtlasUI } from '../../root/AtlasUIContext';
 import { useAtlasStore } from '../../ViewStoreContext';
 import { SceneSnapshotService, nextSnapshotName, type SceneSnapshotEntry } from '../../../snapshots/SceneSnapshotService';
@@ -10,6 +10,7 @@ import { confirmSnapshotRestore, restoreSnapshotInView } from '../../../snapshot
 import { copyAtlasLink } from '../../../links/atlasLinkText';
 import { SNAPSHOT_THUMBNAIL_SIZE } from '../../../services/MapThumbnailService';
 import { t } from '../../../i18n';
+import { showNotice } from '../../../ui/notice';
 
 export interface SceneSnapshotsController {
   entries: SceneSnapshotEntry[];
@@ -60,7 +61,7 @@ export function useSceneSnapshots(onRestore: () => void): SceneSnapshotsControll
       await task();
     } catch (error: unknown) {
       console.error(`[Atlas] ${failure}:`, error);
-      new Notice(failure);
+      showNotice(failure);
     } finally {
       setIsBusy(false);
       await refresh();
@@ -74,7 +75,7 @@ export function useSceneSnapshots(onRestore: () => void): SceneSnapshotsControll
 
     await run(async () => {
       await view.saveMap();
-      await service.create(folder, mapFile, name, view.serviceManager.renderMapThumbnail(SNAPSHOT_THUMBNAIL_SIZE));
+      await service.create(folder, mapFile, name, await view.serviceManager.renderMapThumbnailWhenDrawn(SNAPSHOT_THUMBNAIL_SIZE));
     }, t('snapshots.saveFailed'));
   }, [entries, folder, run, service, view]);
 
@@ -101,7 +102,7 @@ export function useSceneSnapshots(onRestore: () => void): SceneSnapshotsControll
 
     await run(async () => {
       await view.saveMap();
-      await service.overwrite(entry, mapFile, view.serviceManager.renderMapThumbnail(SNAPSHOT_THUMBNAIL_SIZE));
+      await service.overwrite(entry, mapFile, await view.serviceManager.renderMapThumbnailWhenDrawn(SNAPSHOT_THUMBNAIL_SIZE));
     }, t('snapshots.overwriteFailed'));
   }, [run, service, view]);
 

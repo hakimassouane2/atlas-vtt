@@ -1,3 +1,4 @@
+import type { FogCoverage } from '../../fog/fogCoverage';
 import type { EventEmitter } from 'events';
 import type { App } from 'obsidian';
 import type { Application, Texture } from 'pixi.js';
@@ -11,7 +12,8 @@ import { heldForSight } from '../../lighting/sightOnDrop';
 import { CreatureIndex } from '../../creatures/CreatureIndex';
 import { tokenSensesResolver, type TokenSensesResolver } from '../../creatures/tokenSensesResolver';
 import { mapSenseRulesSource } from '../../services/mapSenseRules';
-import type { ViewAtlasStore } from '../../storeFactory';
+import { rulesLookup } from '../../services/mapRules';
+import type { ViewAtlasState, ViewAtlasStore } from '../../storeFactory';
 import type { SightRules } from '../../vision/sightRules';
 import type { MapBounds } from '../../vision/visibility';
 import type { HideableLayer, LayerVisibility } from '../playerSafeFrame';
@@ -29,11 +31,16 @@ import { LightRangeRings } from './LightRangeRings';
 import { LightingModes } from './LightingModes';
 import { showExploredTravelNotice, showZonesFullNotice } from './lightingNotices';
 import { closeStalePopovers } from './popoverGuards';
-import { PerceptionMemo, playerDoorSight, playerLightingLayers, playerTokenSight, type GmOverlays, type TokenPerception } from './playerLightingLayers';
+import { playerDoorSight, playerLightingLayers, playerTokenSight, type GmOverlays } from './playerLightingLayers';
+import { PerceptionMemo, type TokenPerception } from '../../vision/tokenPerception';
 import type { SceneLightingView } from './sceneLightingView';
 import { SessionLighting } from './SessionLighting';
 import { SightRulesWatch } from './SightRulesWatch';
 import { WallEditor } from './WallEditor';
+import type { LightingQualitySource } from '../../lighting/lightingQuality';
+import { glideWayIsClear } from '../../lighting/glideWay';
+import type { ShownPlaces } from '../../lighting/shownPlaces';
+import { followShownPlaces } from '../../lighting/shownTokens';
 
 export interface LightingControllerDeps {
   viewport: Viewport;
@@ -49,6 +56,12 @@ export interface LightingControllerDeps {
   grid?: () => UnlitGrid | null;
   /** How each token perceives; unset, by its own vision and its linked statblock (`tokenSensesResolver`). */
   senses?: TokenSensesResolver;
+  /** Committed fog for the current map; null when its geometry is invalid. */
+  fogCoverage?: () => FogCoverage | null;
+  /** How much the lighting may ask of the graphics device; the default quality without one. */
+  quality?: LightingQualitySource;
+  /** Where gliding tokens are drawn: sight and light read them there. */
+  shown?: ShownPlaces;
 }
 
 /**
@@ -85,7 +98,9 @@ export class LightingController {
   constructor(private readonly deps: LightingControllerDeps) {
     const { viewport, app, store, eventBus, obsApp } = deps;
     const assetService = AssetService.getInstance(obsApp);
-    const measurement = (): MeasurementSettings => mapMeasurementSettings(assetService, store.getState());
+    const measurement = (): MeasurementSettings => mapMeasurementSettings(rulesLookup(obsApp), store.getState());
+    // Sight and light read a gliding token where it is drawn, so its light and footprint never run ahead of it.
+    const scene = deps.shown ? followShownPlaces<ViewAtlasState>(store, deps.shown) : store;
     this.rules = new SightRulesWatch({
       obsApp,
       store,
@@ -103,9 +118,11 @@ export class LightingController {
       rules: () => this.sightRules(),
       onSightChange: () => this.onSightChange(),
       exploredWatcher: this.modes.memory,
+      ...(deps.quality && { quality: deps.quality }),
+      scene,
     });
     this.sightAids = new GmSightAids({
-      viewport, store, measurement, bounds: deps.bounds,
+      viewport, store: scene, measurement, bounds: deps.bounds,
       rules: () => this.sightRules(),
       perception: () => this.playerSight(),
       frames: () => this.frames(),
@@ -113,7 +130,7 @@ export class LightingController {
     this.lightMarkers = new LightMarkers(viewport, store);
     this.rangeRings = new LightRangeRings(viewport, store, measurement);
     this.editor = new WallEditor(viewport, store, eventBus, (lightIds) => this.lightMarkers.setSelected(lightIds), () => mapLightPresets(obsApp, store.getState()));
-    this.doors = new DoorIcons(store, app.canvas, () => playerDoorSight(this.renderer, store.getState().objects.walls));
+    this.doors = new DoorIcons(store, app.canvas, () => playerDoorSight(this.renderer, store.getState().objects.walls, deps.fogCoverage?.()));
     viewport.addChild(this.doors.view, this.doors.playerView);
     this.lights = new LightInteraction({
       viewport,
@@ -144,7 +161,8 @@ export class LightingController {
   /** Routes the pointer from the token renderer's dispatch: lights and door badges with any tool, walls with the lighting tool. */
   wire(tokens: TokenRenderer): void {
     this.tokens = tokens;
-    tokens.setPlayerSightProvider(() => (this.session.active ? this.playerSight() : undefined));
+    tokens.setPlayerSightProvider(() => (this.session.active ? this.playerSight() : undefined), () => this.session.active, () => this.renderer.sightIsCurrent());
+    tokens.setGlideWay((from, to) => glideWayIsClear(this.deps.store.getState(), this.deps.bounds(), from, to));
     wireLightingPointer(tokens, {
       lights: this.lights, editor: this.editor, modes: this.modes, doors: this.doors,
       wallMenu: (x, y, screenX, screenY) => showWallMenu(this.menuContext(), x, y, screenX, screenY),

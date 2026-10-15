@@ -12,6 +12,7 @@ import { folderIdOf } from './assetFolders';
 import { ENCOUNTER_PREVIEW_COUNT } from './encounterPreviewLayout';
 import { mapThumbnailPath } from '../../../../utils/dataFileMigration';
 import type { TokenRole } from '../../../../tokenRings/tokenRingTypes';
+import { isPlayerCharacter } from '../../../../characters/playerCharacters';
 
 /** The stored asset types the asset manager shows, one per tab. */
 export type TabServiceAsset = AssetOfType<'token' | 'map' | 'scene' | 'encounter'>;
@@ -22,9 +23,10 @@ export function isTabAsset(asset: ServiceAsset): asset is TabServiceAsset {
   return TAB_ASSET_TYPES.has(asset.type);
 }
 
-/** Stored assets grouped by the tab that shows them. */
+/** Stored assets grouped by the tab that shows them; tokens are split between the characters and the party. */
 export interface AssetsByTab {
   tokens: AssetOfType<'token'>[];
+  party: AssetOfType<'token'>[];
   maps: AssetOfType<'map'>[];
   scenes: AssetOfType<'scene'>[];
   encounters: AssetOfType<'encounter'>[];
@@ -83,10 +85,10 @@ export function assetFolderId(asset: TabServiceAsset, tabBasePath: string): stri
 
 /** Groups stored assets by the tab that shows them; other asset types are left out. */
 export function partitionByTab(assets: readonly ServiceAsset[]): AssetsByTab {
-  const byTab: AssetsByTab = { tokens: [], maps: [], scenes: [], encounters: [] };
+  const byTab: AssetsByTab = { tokens: [], party: [], maps: [], scenes: [], encounters: [] };
   for (const asset of assets) {
     switch (asset.type) {
-      case 'token': byTab.tokens.push(asset); break;
+      case 'token': (isPlayerCharacter(asset) ? byTab.party : byTab.tokens).push(asset); break;
       case 'map': byTab.maps.push(asset); break;
       case 'scene': byTab.scenes.push(asset); break;
       case 'encounter': byTab.encounters.push(asset); break;
@@ -169,11 +171,12 @@ export function withThumbnails(assets: AnyAsset[], updates: readonly ThumbnailUp
 
 /**
  * Converts a single AssetService record into the UI-layer AnyAsset shape,
- * resolving vault resource paths for thumbnails / images.
+ * resolving vault resource paths for thumbnails / images. A tab without
+ * folders passes no base path: its assets all lie at its top level.
  */
 export function formatServiceAsset(
   asset: TabServiceAsset,
-  tabBasePath: string,
+  tabBasePath: string | null,
   app: ObsidianApp,
   previewSources: TokenPreviewSources = NO_PREVIEW_SOURCES,
   thumbnailOf?: ThumbnailLookup,
@@ -182,7 +185,7 @@ export function formatServiceAsset(
     id: asset.id,
     name: asset.name,
     tags: asset.tags,
-    folderId: assetFolderId(asset, tabBasePath),
+    folderId: tabBasePath === null ? null : assetFolderId(asset, tabBasePath),
     modifiedAt: asset.modifiedAt,
     ...(asset.filePath !== undefined && { filePath: asset.filePath }),
   };
@@ -201,6 +204,7 @@ export function formatServiceAsset(
         ...(asset.role !== undefined && { role: asset.role }),
         ...(asset.ringStyle !== undefined && { ringStyle: asset.ringStyle }),
         ...(asset.statblockPath !== undefined && { statblockPath: asset.statblockPath }),
+        ...(isPlayerCharacter(asset) && { playerCharacter: true as const }),
       };
     }
     case 'map': {

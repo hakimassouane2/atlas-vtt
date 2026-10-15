@@ -1,6 +1,7 @@
+// First: Obsidian's DOM helpers, the DOM host and the language, before other modules load
+import './pageHost';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { installObsidianDom } from './obsidianDom';
 import { byId } from './dom';
 import { announceProfile, currentPlayerId, post } from './session';
 import { connectToScene } from './sceneConnection';
@@ -27,7 +28,6 @@ import './playerPage.css';
  * tokens there as the GM does.
  */
 async function start(): Promise<void> {
-  installObsidianDom();
   guardPageZoom();
   guardNativeContextMenu();
   installPageMenus();

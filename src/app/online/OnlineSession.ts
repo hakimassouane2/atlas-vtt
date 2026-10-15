@@ -15,7 +15,7 @@ import { tokenImage } from './tokenImage';
 import { pageTheme } from './pageTheme';
 import { lanAddress } from './lanAddress';
 import { AssetService } from '../services/AssetService';
-import { mapConditions } from '../services/mapConditions';
+import { mapRules, onMapRulesChange, rulesLookup } from '../services/mapRules';
 import { mapInitiativeRules } from '../services/mapInitiativeRules';
 import { mapResources } from '../resources/collectionResources';
 import type { TokenEntity } from '../types';
@@ -153,7 +153,7 @@ export class OnlineSession {
 
   /** Players act on and see the scene of `presented`; none while no scene is open. */
   private setSource(presented: FollowedScene | null): void {
-    const store = presented?.source.store;
+    const store = presented?.store;
     // The log follows the scene while the DM browses other tabs, as the rolls do
     this.diceLog.setStore(store ?? null);
     this.rulers.setStore(store ?? null);
@@ -173,8 +173,8 @@ export class OnlineSession {
     return {
       store,
       grid: () => view.serviceManager.getRendererService().getRenderer()?.getGridSystem() ?? null,
-      conditions: () => mapConditions(assets, store.getState().mapPath),
-      resources: () => mapResources(assets, store.getState().mapPath),
+      conditions: () => mapRules(view.app, store.getState().mapPath).settings?.conditions ?? [],
+      resources: () => mapResources(rulesLookup(view.app), store.getState().mapPath),
       players: () => mapPlayers(assets, store.getState().mapPath),
       updateProfile: (profileId, changes) => {
         const mapPath = store.getState().mapPath;
@@ -201,12 +201,20 @@ export class OnlineSession {
       collection: () => {
         const mapPath = store.getState().mapPath;
         const id = mapPath ? assets.getCollectionForMap(mapPath) : null;
-        return id ? { id, settings: assets.getCollectionSettings(id) } : null;
+        if (!id) return null;
+        // The rules the map plays by (a played campaign's system wins), with the collection's own players and rings
+        const rules = mapRules(view.app, mapPath).settings;
+        const settings = assets.getCollectionSettings(id);
+        return { id, settings: rules ? { ...settings, ...rules } : settings };
       },
       initiativeRules: () => mapInitiativeRules(view.app, store.getState().mapPath),
       onCollectionChanged: (listener) => {
         const ref = view.app.workspace.on('atlas-vtt:collection-settings-changed', listener);
-        return () => view.app.workspace.offref(ref);
+        const stopRules = onMapRulesChange(view.app, () => store.getState().mapPath, listener);
+        return () => {
+          view.app.workspace.offref(ref);
+          stopRules();
+        };
       },
     };
   }

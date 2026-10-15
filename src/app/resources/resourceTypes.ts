@@ -34,8 +34,12 @@ export interface ResourceValue {
   max: number;
 }
 
-/** Who looks at a token: the GM, a player, or a player the token is given to (`controlledBy`). */
-export type ResourceViewer = 'dm' | 'player' | 'controller';
+/**
+ * Who looks at a token's resources: the GM, players at large (`visibleToPlayers` decides), the
+ * player who plays the token as their character (`owner`), who sees all of its own values, or an
+ * online player the token is given to (`controller`, `controlledBy`; this fork's, FORK.md).
+ */
+export type ResourceViewer = 'dm' | 'player' | 'owner' | 'controller';
 
 /** Which players see a token's resources: all, only those it is given to, or none. Unset is everyone. */
 export type BarsAudience = 'everyone' | 'controllers' | 'nobody';

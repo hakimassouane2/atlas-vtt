@@ -1,13 +1,13 @@
 import type { Plugin } from 'obsidian';
+import type { StoreApi } from 'zustand';
 import type { AtlasView } from '../atlas-view';
 import { getLoadedAtlasView } from '../plugin/atlasLeaves';
-import { rendersOnChange, requestRender, setBeforeRender } from '../pixi/RenderScheduler';
-import { showsScene, type PlayerFrameSource } from './PlayerFrameMirror';
+import type { ViewAtlasState } from '../storeFactory';
 
-/** The scene every player screen shows: the Atlas view, whose active scene tab it is, and its canvas. */
+/** The scene online players see: the Atlas view, whose active scene tab it is, and its store. */
 export interface FollowedScene {
   view: AtlasView;
-  source: PlayerFrameSource;
+  store: StoreApi<ViewAtlasState>;
 }
 
 type Listener = (scene: FollowedScene | null) => void;
@@ -20,8 +20,7 @@ const listeners = new Set<Listener>();
 const viewsReleasingOnClose = new WeakSet<AtlasView>();
 
 /**
- * Players follow the GM: online players and the local player window always show the scene of
- * the Atlas view's active tab. All tabs share one store and one canvas, so a scene switch reaches
+ * Players follow the GM: online players always show the scene of the Atlas view's active tab. All tabs share one store and one canvas, so a scene switch reaches
  * them through that store, held while it loads; nothing is presented by hand. Closing the view
  * leaves players without a scene until one opens again.
  */
@@ -72,9 +71,7 @@ function followView(view: AtlasView | null): void {
     });
   }
   void untilSceneShown(view).then(() => {
-    if (followedView !== view) return;
-    const source = frameSourceOf(view);
-    if (source) setCurrent({ view, source });
+    if (followedView === view) setCurrent({ view, store: view.atlasStore });
   });
 }
 
@@ -82,6 +79,11 @@ function setCurrent(scene: FollowedScene | null): void {
   if (scene === current) return;
   current = scene;
   listeners.forEach((listener) => listener(scene));
+}
+
+/** Whether the store holds a scene completely: loaded, and its tokens drawn. */
+function showsScene(state: ViewAtlasState): boolean {
+  return state.mapLoaded && !state.isMapLoading;
 }
 
 /** Resolves once the view's store first holds a whole scene, then after two drawn frames. */
@@ -97,30 +99,6 @@ async function untilSceneShown(view: AtlasView): Promise<void> {
     });
   }
   await nextAnimationFrames(2);
-}
-
-/** What the player window mirrors and the online session reads: the view's canvas and store. */
-function frameSourceOf(view: AtlasView): PlayerFrameSource | null {
-  const renderer = view.serviceManager.getRendererService().getRenderer();
-  const app = renderer?.getAppInstance();
-  const canvas = app?.canvas;
-  if (!renderer || !app || !canvas?.instanceOf(HTMLCanvasElement)) return null;
-  return {
-    canvas,
-    store: view.atlasStore,
-    withPlayerSafeFrame: (capture, settings, camera) => renderer.withPlayerSafeFrame(capture, settings, camera),
-    ...(rendersOnChange(app) ? {
-      beforeRender: {
-        listen: (listener) => setBeforeRender(app, listener),
-        requestRender: () => requestRender(app),
-        withPlayerSafeFrame: (capture, settings, camera) => renderer.withPlayerSafeFrame(capture, settings, camera, true),
-      },
-    } : {}),
-    getCamera: () => {
-      const viewport = view.serviceManager.getRendererService().getViewport();
-      return viewport ? { centerX: viewport.center.x, centerY: viewport.center.y, scale: viewport.scale.x } : undefined;
-    },
-  };
 }
 
 function nextAnimationFrames(count: number): Promise<void> {

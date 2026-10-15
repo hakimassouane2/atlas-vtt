@@ -27,14 +27,23 @@ interface GameSystemListProps {
   onApply: (preset: SystemPreset) => void;
   /** Deletes a user preset; the collections that use it, this one included, lose their game system. */
   onDeletePreset: (preset: SystemPreset) => Promise<void>;
+  /** A choice of no game system at all, first in the list, for rules that may have none (a campaign's). */
+  none?: NoSystemChoice;
+}
+
+export interface NoSystemChoice {
+  summary: string;
+  isActive: boolean;
+  onSelect: () => void;
 }
 
 type PendingEdit = { kind: 'rename' | 'delete'; presetId: string };
 
 export function GameSystemList({
-  service, presets, rules, active, isEdited, onApply, onDeletePreset,
+  service, presets, rules, active, isEdited, onApply, onDeletePreset, none,
 }: GameSystemListProps): React.ReactElement {
   const [pending, setPending] = useState<PendingEdit | null>(null);
+  const hasNone = none?.isActive === true;
 
   const rename = (preset: SystemPreset, name: string): void => {
     service.rename(preset.id, name);
@@ -93,6 +102,7 @@ export function GameSystemList({
       )}
 
       <div className="atlas-csm-preset-list" role="radiogroup" aria-label={t('csm.system.group')}>
+        {none && <SystemPresetRow name={t('csm.system.none')} summary={none.summary} isActive={hasNone} onSelect={none.onSelect} />}
         {presets.map((preset) => (
           <SystemPresetRow
             key={preset.id}
@@ -108,7 +118,7 @@ export function GameSystemList({
             replacement={replacementFor(preset)}
           />
         ))}
-        {!active && <SystemPresetRow name={t('csm.system.custom')} rules={rules} isActive />}
+        {!active && !hasNone && <SystemPresetRow name={t('csm.system.custom')} rules={rules} isActive />}
       </div>
     </>
   );

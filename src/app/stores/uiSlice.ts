@@ -7,33 +7,12 @@
  */
 
 import { DEFAULT_EXPLORED_BRUSH, type ExploredBrushOptions } from '../lighting/exploredEdits';
-import type { HeldTokens } from '../lighting/sightOnDrop';
+import type { HeldTokens, ViewUIState } from '../types/viewUIState';
 import type { RulerPath, SharedRulers } from '../canvas/sharedRulers';
 import type { LaserPiece, SharedLaserPieces, SharedLasers } from '../canvas/sharedLasers';
 
 /** State fields added to ViewAtlasState */
-export interface UISlice {
-  // Panel visibility
-  isGridSettingsOpen: boolean;
-  isDMScreenOpen: boolean;
-  isGridAlignmentOpen: boolean;
-  isDiceLogOpen: boolean;
-  isAssetManagerOpen: boolean;
-  assetManagerInitialTab?: 'scenes' | 'maps' | 'encounters' | 'tokens' | undefined;
-  isCommandPaletteOpen: boolean;
-  isDiceTrayOpen: boolean;
-  /** The placed light whose popover is open, with its range rings on the map. */
-  lightPopover: string | null;
-  /** The light zone whose popover is open; never together with a light's. */
-  lightZonePopover: string | null;
-  /** The scene lighting settings panel, opened from the lighting tool's menu. */
-  isSceneLightingPanelOpen: boolean;
-  /** The tokens the pointer holds (pressed or dragged), each where it stood when taken; set through `holdTokens`. */
-  heldTokens: HeldTokens;
-  /** What the lighting tool's explored-memory mode does with a stroke: the one place the menu and the tool read it from. */
-  exploredBrush: ExploredBrushOptions;
-  /** The toolbar editor is open in this view: tray, hide and show, inert tools. Never saved. */
-  isToolbarEditing: boolean;
+export interface UISlice extends ViewUIState {
   /** The drag ruler this view draws now, shared with the other people at an online table. */
   localRuler: RulerPath | null;
   /** The drag rulers of the others at an online table, drawn over the map (`SharedDragRulers`). */

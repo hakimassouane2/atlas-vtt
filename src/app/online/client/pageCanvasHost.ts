@@ -13,9 +13,7 @@ import { sceneImageUrl } from './session';
 export class SentCollection implements CanvasCollections {
   private id: string | null = null;
   private settings: CollectionSettings | null = null;
-  private readonly listeners = new Set<(collectionId: string) => void>();
-  private markReady!: () => void;
-  private readonly isReady = new Promise<void>((resolve) => { this.markReady = resolve; });
+  private readonly listeners = new Set<() => void>();
 
   /** The page shows one scene: whatever map is asked about is the presented one. */
   getCollectionForMap(): string | null {
@@ -27,11 +25,12 @@ export class SentCollection implements CanvasCollections {
     return this.settings;
   }
 
-  ready(): Promise<void> {
-    return this.isReady;
+  /** The DM's Atlas sends the rules the scene plays by as its collection's settings. */
+  playedSystem(): null {
+    return null;
   }
 
-  onChanged(listener: (collectionId: string) => void): () => void {
+  onRulesChanged(_mapPath: () => string | null | undefined, listener: () => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
@@ -39,8 +38,7 @@ export class SentCollection implements CanvasCollections {
   set(id: string | null, settings: CollectionSettings | null): void {
     this.id = id && settings ? id : null;
     this.settings = settings;
-    this.markReady();
-    if (this.id) this.listeners.forEach((listener) => listener(this.id!));
+    this.listeners.forEach((listener) => listener());
   }
 }
 

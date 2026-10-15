@@ -2,20 +2,50 @@ import React, { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import { Button } from '../../../packages/components/primitives/button';
+import { DropdownToggleRow } from '../../../packages/components/primitives/DropdownToggleRow';
+import { SegmentedControl } from '../../../packages/components/primitives/SegmentedControl';
+import type { AdvantageSide } from '../../../types/diceSetTypes';
 import { LabelTooltip } from '../../../packages/components/primitives/tooltip';
 import { DieFace } from './DieFace';
+import { t } from '../../../i18n';
 import {
   MAX_DICE, MAX_MODIFIER, MAX_PER_DIE, TRAY_DICE,
   addDie, clampModifier, removeDie, trayDiceCount, trayFormula, type TrayPool,
 } from './diceTrayPool';
 
-interface DiceTrayProps {
-  /** The finished formula goes up to whoever rolls it. */
-  onRoll: (formula: string) => void;
+/** The GM's switch for whether players see their rolls (`useShareRolls`). */
+export interface ShareRolls {
+  shown: boolean;
+  onToggle: () => void;
 }
 
 /** Keys that take a die back from the focused body, for those without a right button. */
 const TAKE_BACK_KEYS = new Set(['Backspace', 'Delete', '-']);
+
+/** What advantage the collection's dice set offers the tray. */
+export interface TrayAdvantage {
+  /** The sides the set has a rule for. */
+  sides: readonly AdvantageSide[];
+  /** Whether a roll of `formula` holds the set's dice, which advantage changes. */
+  applies: (formula: string) => boolean;
+}
+
+type AdvantageChoice = AdvantageSide | 'normal';
+
+interface DiceTrayProps {
+  /** The finished formula goes up to whoever rolls it, with the side of advantage chosen for it. */
+  onRoll: (formula: string, advantage: AdvantageSide | null) => boolean | void;
+  /** The GM's switch for whether players see their rolls; left out where nobody else watches. */
+  shareRolls?: ShareRolls;
+  /** Left out where the set has no rule for either side. */
+  advantage?: TrayAdvantage | undefined;
+}
+
+const SIDE_LABEL: Record<AdvantageChoice, () => string> = {
+  normal: () => t('dice.normal'),
+  advantage: () => t('dice.advantage'),
+  disadvantage: () => t('dice.disadvantage'),
+};
 
 /**
  * Seven bodies to click, a modifier and a throw. Every die is a surface: a
@@ -23,24 +53,29 @@ const TAKE_BACK_KEYS = new Set(['Backspace', 'Delete', '-']);
  * from the keyboard). Mixed dice are thrown together, `2d6 + 1d20 + 3`, as
  * three kinds held in one hand.
  */
-export function DiceTray({ onRoll }: DiceTrayProps): React.ReactElement {
+export function DiceTray({ onRoll, shareRolls, advantage }: DiceTrayProps): React.ReactElement {
   const [pool, setPool] = useState<TrayPool>({});
   const [modifier, setModifier] = useState(0);
+  const [side, setSide] = useState<AdvantageChoice>('normal');
 
   const formula = trayFormula(pool, modifier);
   const empty = formula === '' && modifier === 0;
   const total = trayDiceCount(pool);
+  // Advantage changes a roll of the set's dice only: for other dice it stands, shown off.
+  const helps = advantage !== undefined && formula !== '' && advantage.applies(formula);
+  const rollSide = helps && side !== 'normal' ? side : null;
 
   const clear = (): void => {
     setPool({});
     setModifier(0);
+    setSide('normal');
   };
 
-  // After the throw the tray lies empty again, the modifier too: a modifier
+  // After the throw the tray lies empty again, the modifier and advantage too: one
   // left standing is the mistake nobody sees, carried into the next roll.
   const throwDice = (): void => {
     if (formula === '') return;
-    onRoll(formula);
+    if (onRoll(formula, rollSide) === false) return;
     clear();
   };
 
@@ -79,6 +114,21 @@ export function DiceTray({ onRoll }: DiceTrayProps): React.ReactElement {
         })}
       </div>
 
+      {advantage && (
+        <SegmentedControl<AdvantageChoice>
+          className="atlas-segmented--fit atlas-dice-tray__advantage"
+          ariaLabel={t('dice.trayAdvantage')}
+          value={side}
+          disabled={!helps}
+          options={(['normal', ...advantage.sides] as const).map((value) => ({ value, label: SIDE_LABEL[value]() }))}
+          onChange={setSide}
+        />
+      )}
+
+      {shareRolls && (
+        <DropdownToggleRow label={t('dice.showRollsToPlayers')} value={shareRolls.shown} onChange={shareRolls.onToggle} />
+      )}
+
       <div className="atlas-dice-tray__modifier">
         <span className="atlas-dice-tray__modifier-label">Modifier</span>
         <button
@@ -104,7 +154,7 @@ export function DiceTray({ onRoll }: DiceTrayProps): React.ReactElement {
 
       {/* Always present, even empty: a region that appears with its content goes unheard by screen readers. */}
       <p className={cn('atlas-dice-tray__formula', formula === '' && 'atlas-dice-tray__formula--empty')} role="status" aria-live="polite">
-        {formula === '' ? 'The tray is empty.' : formula}
+        {formula === '' ? 'The tray is empty.' : rollSide ? `${formula} · ${SIDE_LABEL[rollSide]()}` : formula}
       </p>
 
       <div className="atlas-dice-tray__actions">

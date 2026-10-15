@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
-import type { DiceRollResult } from '../../../tools/DiceTool';
+import type { DiceRollResult } from '../../../types/diceTypes';
 import { TokenPortrait } from '../../../packages/components/shared/TokenPortrait';
-import { useDiceAvatar } from './useDiceAvatar';
+import type { RollSourcePresentation, UseDiceAvatar } from './diceSourcePresentation';
 import { DICE_TOAST_KNOT_SYMBOL_ID } from './diceToastOrnament';
-import { dieLabel } from '../../../tools/diceLabels';
+import { dieLabel, dieStates, droppedAny, rollLine } from '../../../tools/diceLabels';
+import { AdvantageTag, listsDice, RolledDiceLine } from './RolledDiceLine';
 import { t } from '../../../i18n';
 import { rollAuthor } from '../../../tools/rollAuthor';
 import { rollFontClass } from '../../hooks/useDiceLook';
@@ -16,19 +17,29 @@ const CORNERS = ['tl', 'tr', 'bl', 'br'] as const;
 
 interface DiceToastProps {
   result: DiceRollResult;
+  /** Who the roll names; unset looks it up as the GM's window does. */
+  presentation?: RollSourcePresentation | null | undefined;
   phase: ToastPhase;
   onDismiss: () => void;
+  /** Finds the portrait; called once per render. */
+  useAvatar: UseDiceAvatar;
 }
 
-export function DiceToast({ result, phase, onDismiss }: DiceToastProps): React.ReactElement {
+export function DiceToast({ result, presentation, phase, onDismiss, useAvatar }: DiceToastProps): React.ReactElement {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const crit = result.crit;
   const source = result.source;
-  const sourceTokenName = source?.tokenName ?? t('dice.unknown');
-  const avatar = useDiceAvatar(source);
-  const hasSource = source?.type === 'statblock' && Boolean(source.tokenName);
-  const author = rollAuthor(result);
+  const dropping = droppedAny(result.rolls);
+  const avatar = useAvatar(source, presentation);
+  const presented = presentation !== undefined;
+  // A presented roll shows exactly its name, or none: no placeholder, initial or alt text stands in.
+  const sourceTokenName = presented ? presentation?.name ?? '' : source?.tokenName ?? t('dice.unknown');
+  const hasSource = presented
+    ? Boolean(avatar || presentation?.name)
+    : source?.type === 'statblock' && Boolean(source.tokenName);
+  // Who rolled, in the player's colour; a presented roll names exactly its own name.
+  const author = presented ? (sourceTokenName ? { name: sourceTokenName } : null) : rollAuthor(result);
 
   const handleToggleDetails = (e: React.MouseEvent): void => {
     e.stopPropagation();
@@ -66,6 +77,7 @@ export function DiceToast({ result, phase, onDismiss }: DiceToastProps): React.R
               src={avatar.src}
               alt={sourceTokenName}
               showRing={avatar.showRing}
+              ringColor={avatar.ringColor}
               ring={avatar.ring}
             />
           ) : (
@@ -80,7 +92,10 @@ export function DiceToast({ result, phase, onDismiss }: DiceToastProps): React.R
           {source?.abilityName && (
             <span className="atlas-dice-toast__ability">{source.abilityName}</span>
           )}
-          <span className="atlas-dice-toast__formula">{result.formula}</span>
+          <AdvantageTag side={result.advantage} />
+          {listsDice(result)
+            ? <RolledDiceLine result={result} className="atlas-dice-toast__formula" />
+            : <span className="atlas-dice-toast__formula">{rollLine(result)}</span>}
         </div>
         </div>
         <div className="atlas-dice-toast__details-toggle" onClick={handleToggleDetails}>
@@ -96,9 +111,11 @@ export function DiceToast({ result, phase, onDismiss }: DiceToastProps): React.R
                 key={i}
                 className={cn(
                   'atlas-dice-toast__die-badge',
-                  roll.value === roll.max && 'atlas-dice-toast__die-badge--max',
-                  roll.value === 1 && 'atlas-dice-toast__die-badge--min',
+                  dieStates(roll).map((state) => `atlas-dice-toast__die-badge--${state}`),
+                  roll.colour && 'atlas-die-badge--coloured',
+                  dropping && !roll.dropped && !roll.rerolled && 'atlas-die-badge--kept',
                 )}
+                style={roll.colour ? { '--atlas-die-colour': roll.colour } as React.CSSProperties : undefined}
               >
                 {dieLabel(result.rolls, i)}
               </span>

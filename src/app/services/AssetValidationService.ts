@@ -1,6 +1,7 @@
-import { App, Notice, TFile, normalizePath } from 'obsidian';
+import { App, TFile, normalizePath } from 'obsidian';
 import type { MapFile } from './MapPersistence';
 import { t } from '../i18n';
+import { showNotice } from '../ui/notice';
 
 /** The parts of a map that reference vault images; satisfied by a MapFile and by the live store state. */
 export interface MapAssetReferences {
@@ -21,41 +22,13 @@ export interface AssetValidationResult {
     missingAssets: MissingAsset[];
 }
 
+// Fork: in their own module, so the map image reaches no `obsidian` in the online player page
+export { MISSING_ASSET_SIZE, drawMissingAssetImage } from './missingAssetImage';
+
 export class AssetValidationService {
-    private missingAssetPlaceholder: string | null = null;
     private validationCache = new Map<string, boolean>();
     
-    constructor(private plugin: { app: App }) {
-        void this.initializePlaceholderAsset();
-    }
-
-    private async initializePlaceholderAsset(): Promise<void> {
-        // Create a simple placeholder image data URL
-        const canvas = createEl('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        
-        if (ctx) {
-            // Draw a gray background
-            ctx.fillStyle = '#404040';
-            ctx.fillRect(0, 0, 128, 128);
-            
-            // Draw a question mark
-            ctx.fillStyle = '#808080';
-            ctx.font = 'bold 64px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('?', 64, 64);
-            
-            // Draw border
-            ctx.strokeStyle = '#606060';
-            ctx.lineWidth = 4;
-            ctx.strokeRect(2, 2, 124, 124);
-            
-            this.missingAssetPlaceholder = canvas.toDataURL();
-        }
-    }
+    constructor(private plugin: { app: App }) {}
 
     async validateAsset(path: string): Promise<boolean> {
         // Check cache first
@@ -107,10 +80,6 @@ export class AssetValidationService {
         return result;
     }
 
-    getMissingAssetPlaceholder(): string | null {
-        return this.missingAssetPlaceholder;
-    }
-
     showMissingAssetsNotice(missingAssets: MissingAsset[]): void {
         if (missingAssets.length === 0) return;
 
@@ -123,7 +92,7 @@ export class AssetValidationService {
         
         message += `\n${t('validation.placeholders')}`;
 
-        new Notice(message, 5000);
+        showNotice(message, 5000);
     }
 
     clearCache(): void {

@@ -2,7 +2,7 @@ import { parseResourceDefinitions } from '../resources/resourceDefinitions';
 import type { TokenRole } from '../tokenRings/tokenRingTypes';
 import { wasTokenRegistrationSaved } from './assetRegistrationRecovery';
 import { SettingsService } from './SettingsService';
-import { App, Notice, TFile, TFolder } from 'obsidian';
+import { App, TFile, TFolder } from 'obsidian';
 import { ensureAdapterFolder } from '../plugin/vaultFolders';
 import type { TokenStateSnapshot } from '../types';
 import { changesLook, type CharacterRecord, type LibraryLook } from '../characters/characterRecord';
@@ -20,7 +20,8 @@ import { assetFilePath, groupTokenRefs } from './vault-sync/assetFiles';
 import { reconcileIndex, type VaultReconciliation } from './vault-sync/reconcileIndex';
 import { listVault, readVault } from './vault-sync/vaultListing';
 import type { CollectionSettings } from '../types/collectionSettingsTypes';
-import { isLegacyTokenRecord, isRecord, type LegacyAssetMetadata } from './assetMetadataGuards';
+import { isLegacyTokenRecord, type LegacyAssetMetadata } from './assetMetadataGuards';
+import { isRecord } from '../utils/guards';
 import { groupLegacyTags, hasAssetTag, tagGroupOf, tagKey, type TagGroup } from './tagGroups';
 import { t } from '../i18n';
 import { trashVaultItem } from '../utils/trashVaultItem';
@@ -30,6 +31,7 @@ import { LEGACY_INDEX_FILE, LIBRARY_FILE, recordFilePath } from './library/libra
 import { isPayloadUnread, serializeRecord } from './library/recordFile';
 import { libraryClock, parseLibraryState } from './library/libraryState';
 import { trashSceneSnapshots } from '../snapshots/sceneSnapshotFolders';
+import { showNotice } from '../ui/notice';
 
 export interface BaseAsset {
   id: string;
@@ -58,6 +60,8 @@ export interface TokenAsset extends BaseAsset {
   statblockPath?: string; // Optional link to statblock note
   /** What its placements on maps say of the character: settings, and state while linked. Kept up by `CharacterSync`. */
   character?: CharacterRecord;
+  /** Set (only ever to true) on the tokens that are the players' characters; see `characters/playerCharacters.ts`. */
+  playerCharacter?: true;
 }
 
 export interface MapAsset extends BaseAsset {
@@ -454,10 +458,10 @@ export class AssetService {
     try {
       copyPath = await preserveUnreadableMetadata(this.app.vault.adapter, stored.path);
     } catch (error) {
-      new Notice(t('index.unreadable', { path: stored.path }), 0);
+      showNotice(t('index.unreadable', { path: stored.path }), 0);
       throw error;
     }
-    new Notice(t('index.rebuilding', { path: copyPath }), 0);
+    showNotice(t('index.rebuilding', { path: copyPath }), 0);
     this.metadata = await this.createDefaultMetadata();
   }
 
@@ -1422,6 +1426,32 @@ export class AssetService {
     return this.getAssets(undefined, 'token');
   }
 
+  /** Every library token, read from the index in memory; none before it was loaded. For menus that open at once. */
+  loadedTokenAssets(): TokenAsset[] {
+    const assets = this.metadata ? Object.values(this.metadata.assets) : [];
+    return assets.filter((asset): asset is TokenAsset => asset.type === 'token');
+  }
+
+  /**
+   * Makes library tokens the players' characters, or no longer, in one save. An edit like any
+   * other: written to each token's record file and stamped; the flag is stored only as true.
+   * Tokens that already are what is asked, and ids that name no token, are left alone.
+   */
+  async setPlayerCharacters(ids: readonly string[], on: boolean): Promise<void> {
+    await this.ensureLoaded();
+    const assets = this.metadata!.assets;
+    const modifiedAt = Date.now();
+    let changed = false;
+    for (const id of ids) {
+      const asset = assets[id];
+      if (asset?.type !== 'token' || (asset.playerCharacter === true) === on) continue;
+      const { playerCharacter: _was, ...rest } = asset;
+      assets[id] = on ? { ...rest, playerCharacter: true, modifiedAt } : { ...rest, modifiedAt };
+      changed = true;
+    }
+    if (changed) await this.saveMetadata();
+  }
+
   async deleteTokenAsset(id: string): Promise<void> {
     await this.deleteAsset(id);
   }
@@ -1522,23 +1552,6 @@ export class AssetService {
       }
     }
     if (changed) await this.saveMetadata();
-  }
-
-  /** The tags of a group: registered in any collection or carried by any asset of the group, sorted by name. */
-  async getAllTags(group: TagGroup): Promise<string[]> {
-    await this.ensureLoaded();
-    if (!this.metadata) return [];
-
-    const tags = new Set<string>();
-    for (const collection of Object.values(this.metadata.collections)) {
-      for (const tag of Object.values(collection.tags ?? {})) {
-        if (tag.group === group) tags.add(tag.name);
-      }
-    }
-    for (const asset of Object.values(this.metadata.assets)) {
-      if (tagGroupOf(asset.type) === group) asset.tags.forEach((tag) => tags.add(tag));
-    }
-    return Array.from(tags).sort();
   }
 
   /** The tags a collection registers in a group. */
@@ -1643,7 +1656,6 @@ export class AssetService {
     return collection?.settings ?? { conditions: [] };
   }
 
-  /** The library token drawn with this artwork, read from the loaded index. */
   /**
    * Records what a placement says of the library character `assetId` and tells open maps
    * (`atlas-vtt:character-changed`). The index takes it at once; the disk shortly after the
@@ -1673,6 +1685,7 @@ export class AssetService {
     void this.saveMetadata();
   }
 
+  /** The library token drawn with this artwork, read from the loaded index. */
   findTokenAssetByImagePath(imagePath: string): TokenAsset | null {
     if (!this.metadata) return null;
     return Object.values(this.metadata.assets).find(

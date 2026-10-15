@@ -23,6 +23,8 @@ import { copyMapObjects } from '../../../clipboard/mapClipboardActions';
 import { StatblockDialogService } from '../../../services/StatblockDialogService';
 import { TokenStatblockLinkService } from '../../../services/TokenStatblockLinkService';
 import { runInBackground } from '../../../utils/backgroundTask';
+import { createStatblockEntry, editInStatblockPane, newStatblockOption, type EntryContext, type TokenCreationContext } from '../../../statblocks/editor/create/entryPoints';
+import { placedPlayerCharacterEntry } from './playerCharacterMenu';
 import { openEditTokenModal } from '../../../pixi/token-renderer/EditTokenModal';
 import { STATBLOCK_UNLINK_UPDATES } from '../../../pixi/token-renderer/statblockFrontmatter';
 import { DestructiveActionRow } from '../../../pixi/token-renderer/DestructiveActionRow';
@@ -84,7 +86,7 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   // The token itself
   entries.push(
     separator,
-    statblockEntry(app, canvas, token, character),
+    ...statblockEntries(app, canvas, token, character),
     {
       type: 'item',
       label: t('editToken.title'),
@@ -93,6 +95,9 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
     },
     appearanceSubmenu(canvas, token, targets),
   );
+  // Player character: the library token it was placed from
+  const playerCharacter = placedPlayerCharacterEntry(app, token, store);
+  if (playerCharacter) entries.push(playerCharacter);
 
   // Who sees it and who moves it
   entries.push(separator);
@@ -144,7 +149,7 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   return entries;
 }
 
-/** Size, rotation and role of the selection the token belongs to (one undo step each), and the clicked token's ring colour. */
+/** Size, rotation, role and ring colour of the selection the token belongs to (one undo step each); the clicked token's colour is ticked. */
 function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity, targets: string[]): ContextMenuEntry {
   const size = tokenSizeSubmenu(token.size, (newSize) => {
     const { grid, objects, updateTokens } = store.getState();
@@ -163,7 +168,9 @@ function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity, targe
       type: 'item' as const,
       label: color.name,
       checked: color.value === token.ringColor || (color.value === null && !token.ringColor),
-      onClick: () => store.getState().setTokenRing(token.id, color.value),
+      onClick: () => store.getState().updateTokens(
+        targets.map((id) => ({ id, changes: { ringColor: color.value ?? undefined } })),
+      ),
     })),
   };
   // The role is the library character's: every placement of it follows (`CharacterSync`)
@@ -174,11 +181,14 @@ function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity, targe
   return { type: 'submenu', label: t('token.appearance'), icon: 'paintbrush', children: [size, tokenRotationSubmenu(store, targets), role, ringColor] };
 }
 
-/** A linked statblock opens or unlinks from its own submenu; an unlinked token offers to link one. */
-function statblockEntry(app: App, { store }: TokenMenuCanvas, token: TokenEntity, character: Character | undefined): ContextMenuEntry {
+/**
+ * A linked statblock opens (in the statblock editor where it can) or unlinks from its own submenu;
+ * an unlinked token offers to link one, or to make one for it.
+ */
+function statblockEntries(app: App, { store }: TokenMenuCanvas, token: TokenEntity, character: Character | undefined): ContextMenuEntry[] {
   const statblockPath = character?.statblockPath;
   if (statblockPath) {
-    return {
+    return [{
       type: 'submenu',
       label: t('token.statblock'),
       icon: 'file-text',
@@ -188,6 +198,7 @@ function statblockEntry(app: App, { store }: TokenMenuCanvas, token: TokenEntity
           label: t('token.openStatblock'),
           icon: 'file-text',
           onClick: async () => {
+            if (editInStatblockPane(app, statblockPath, statblockEntryContext(app, store))) return;
             const file = app.vault.getAbstractFileByPath(statblockPath);
             if (file) await app.workspace.openLinkText(file.path, '', true);
           },
@@ -203,9 +214,10 @@ function statblockEntry(app: App, { store }: TokenMenuCanvas, token: TokenEntity
           },
         },
       ],
-    };
+    }];
   }
-  return {
+  const creation = tokenCreationContext(app, store, token, character?.name || 'Token');
+  const link: ContextMenuEntry = {
     type: 'item',
     label: t('am.menu.linkStatblock'),
     icon: 'link',
@@ -226,8 +238,26 @@ function statblockEntry(app: App, { store }: TokenMenuCanvas, token: TokenEntity
         },
         character?.name || t('initiative.token'),
         { imagePath: token.imagePath, showRing: token.showRing },
+        newStatblockOption(app, creation),
       );
     },
+  };
+  const create = token.imagePath ? createStatblockEntry(app, creation) : null;
+  return create ? [link, create] : [link];
+}
+
+/** The statblock editor opens from the map for the map's collection. */
+function statblockEntryContext(app: App, store: TokenMenuCanvas['store']): EntryContext {
+  const mapPath = store.getState().mapPath;
+  return { collectionId: mapPath ? AssetService.getInstance(app).getCollectionForMap(mapPath) : null, from: 'map' };
+}
+
+/** A statblock made for the token: named after it, linked to it on this map too. */
+function tokenCreationContext(app: App, store: TokenMenuCanvas['store'], token: TokenEntity, name: string): TokenCreationContext {
+  return {
+    ...statblockEntryContext(app, store),
+    token: { imagePath: token.imagePath, name },
+    onLinked: (statblockPath) => store.getState().updateToken(token.id, { statblockPath }),
   };
 }
 

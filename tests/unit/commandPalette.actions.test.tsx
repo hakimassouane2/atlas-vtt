@@ -1,17 +1,17 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { create } from 'zustand';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
 
-const { openSceneBrowser } = vi.hoisted(() => ({ openSceneBrowser: vi.fn() }));
+const { openSceneBrowser, openPlayerWindow } = vi.hoisted(() => ({ openSceneBrowser: vi.fn(), openPlayerWindow: vi.fn() }));
 
 vi.mock('../../src/app/react/root/AtlasUIContext', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../src/app/react/root/AtlasUIContext')>(),
   useAtlasUI: () => ({ view: { openSceneBrowser }, app: {} }),
 }));
 vi.mock('../../src/app/services/PlayerWindowService', () => ({ PlayerWindowService: {} }));
-vi.mock('../../src/app/services/PlayerWindowPresenter', () => ({ presentActiveTabInPlayerWindow: vi.fn() }));
+vi.mock('../../src/app/services/PlayerWindowPresenter', () => ({ presentActiveTab: vi.fn(), openPlayerWindow }));
 vi.mock('../../src/app/utils/activeLeafGuard', () => ({ isShortcutScopeActive: () => true }));
 vi.mock('../../src/app/react/components/command-palette/GridSettingsPanel', () => ({ GridSettingsPanel: () => null }));
 vi.mock('../../src/app/react/components/command-palette/TokenSettingsPanel', () => ({ TokenSettingsPanel: () => null }));
@@ -29,8 +29,36 @@ describe('Atlas search actions', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.useRealTimers();
     if (originalScrollIntoView) Object.defineProperty(Element.prototype, 'scrollIntoView', originalScrollIntoView);
     else Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+  });
+
+  it('does not focus the search field again after closing', () => {
+    vi.useFakeTimers();
+    const store = create(() => ({}));
+    const onClose = vi.fn();
+    const palette = (open: boolean): React.ReactElement => <ViewStoreProvider store={store}><CommandPalette isOpen={open} onClose={onClose} /></ViewStoreProvider>;
+    const view = render(palette(true));
+    const input = screen.getByPlaceholderText('Search commands...');
+    const focus = vi.spyOn(input, 'focus');
+    view.rerender(palette(false));
+    act(() => vi.advanceTimersByTime(100));
+    expect(focus).not.toHaveBeenCalled();
+  });
+
+  it('cancels its delayed work when unmounted', () => {
+    vi.useFakeTimers();
+    const store = create(() => ({}));
+    const view = render(<ViewStoreProvider store={store}><CommandPalette isOpen onClose={vi.fn()} /></ViewStoreProvider>);
+    view.unmount();
+    // Match jsdom teardown: callbacks must not reach the removed document.
+    vi.stubGlobal('document', undefined);
+    try {
+      expect(() => act(() => vi.advanceTimersByTime(100))).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it.each([
@@ -75,6 +103,18 @@ describe('Atlas search actions', () => {
     expect(screen.getByRole('button', { name: /^Freeze Player Camera/ }).classList.contains('atlas-focused')).toBe(true);
     fireEvent.keyDown(input, { key: 'ArrowUp' });
     fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('opens the player window from the palette and closes the palette', () => {
+    const onClose = vi.fn();
+    const store = create(() => ({}));
+    render(<ViewStoreProvider store={store}><CommandPalette isOpen onClose={onClose} /></ViewStoreProvider>);
+
+    fireEvent.change(screen.getByPlaceholderText('Search commands...'), { target: { value: 'player window' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Open Player Window/ }));
+
+    expect(openPlayerWindow).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledOnce();
   });
 

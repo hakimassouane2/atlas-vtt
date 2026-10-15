@@ -1,4 +1,4 @@
-import type { DiceRollResult } from './DiceTool';
+import type { DiceRollResult } from '../types/diceTypes';
 
 /** Who a roll is shown as made by: a name, and the player's colour when a player rolled it. */
 export interface RollAuthor {

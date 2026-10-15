@@ -2,6 +2,8 @@ import type { ExperimentalFeatureId } from '../experimental/experimentalFeatures
 import { AMBIENT_AUDIO_ENABLED } from '../featureFlags';
 import { isActiveAtlasLeaf } from '../utils/activeLeafGuard';
 import { handledByAnotherControl } from './tooltipEscape';
+import { isTextEntryTarget } from './textEntry';
+import type { SettingsService } from '../services/SettingsService';
 import { t } from '../i18n';
 
 export const MAP_HOTKEYS = [
@@ -43,10 +45,10 @@ export const MAP_HOTKEYS = [
   { id: 'lootRoller', label: t('hotkey.lootRoller'), group: t('hotkey.group.combat'), defaultKey: 'l', dmOnly: true },
   { id: 'previousTurn', label: t('hotkey.previousTurn'), group: t('hotkey.group.combat'), defaultKey: 'ArrowUp', dmOnly: true },
   { id: 'nextTurn', label: t('hotkey.nextTurn'), group: t('hotkey.group.combat'), defaultKey: 'ArrowDown', dmOnly: true },
-  ...([1, 2, 3, 4, 5] as const).map(n => ({ id: `widget${n}` as const, label: t('hotkey.holdWidget', { n }), group: t('hotkey.group.widgets'), defaultKey: String(n), selectsWidget: true })),
-  { id: 'increase', label: t('hotkey.increase'), group: t('hotkey.group.widgets'), defaultKey: '+', whileWidgetHeld: true },
-  { id: 'increaseAlt', label: t('hotkey.increaseAlt'), group: t('hotkey.group.widgets'), defaultKey: '=', whileWidgetHeld: true },
-  { id: 'decrease', label: t('hotkey.decrease'), group: t('hotkey.group.widgets'), defaultKey: '-', whileWidgetHeld: true },
+  ...([1, 2, 3, 4, 5] as const).map(n => ({ id: `widget${n}` as const, label: t('hotkey.holdWidget', { n }), group: t('hotkey.group.widgets'), defaultKey: String(n), dmOnly: true, selectsWidget: true })),
+  { id: 'increase', label: t('hotkey.increase'), group: t('hotkey.group.widgets'), defaultKey: '+', dmOnly: true, whileWidgetHeld: true },
+  { id: 'increaseAlt', label: t('hotkey.increaseAlt'), group: t('hotkey.group.widgets'), defaultKey: '=', dmOnly: true, whileWidgetHeld: true },
+  { id: 'decrease', label: t('hotkey.decrease'), group: t('hotkey.group.widgets'), defaultKey: '-', dmOnly: true, whileWidgetHeld: true },
   { id: 'timerPlayPause', label: t('hotkey.timerPlayPause'), group: t('hotkey.group.widgets'), defaultKey: 'Space', dmOnly: true, whileWidgetHeld: true },
   { id: 'timerReset', label: t('hotkey.timerReset'), group: t('hotkey.group.widgets'), defaultKey: 'r', dmOnly: true, whileWidgetHeld: true },
 ] as const;
@@ -101,8 +103,7 @@ export function namesHotkey(label: string): boolean {
 }
 export function canRunMapHotkeys(event: KeyboardEvent, viewId?: string): boolean {
   if (handledByAnotherControl(event) || event.isComposing || !isActiveAtlasLeaf(viewId)) return false;
-  const target = event.target as Element | null;
-  if (target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .cm-editor, [role="textbox"]')) return false;
+  if (isTextEntryTarget(event.target)) return false;
   if (document.querySelector('.modal-container, .prompt, .suggestion-container, .menu, .atlas-asset-manager-modal, .atlas-command-palette-overlay, .atlas-onboarding-overlay, .atlas-hotkey-help, .atlas-text-dialog-backdrop, .atlas-dm-screen-wrapper, .atlas-grid-alignment-panel, [aria-modal="true"]')) return false;
   return true;
 }

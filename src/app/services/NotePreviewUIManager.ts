@@ -5,7 +5,7 @@ import type { NotePin } from '../types';
 import type { TokenVitals } from './statblockVitalsSync';
 import { NotePreviewWindow } from './NotePreviewWindow';
 import { StatblockPreviewWindow } from './StatblockPreviewWindow';
-import { findCreatureForNotePath } from './FantasyStatblocksService';
+import { isStatblockNote, statblockNoteKnown, unparsedFrontmatterStatblock } from '../statblocks/resolve/statblockNote';
 import { MapLinkPreview } from './MapLinkPreview';
 import { linkedFilePath, linkedMapPath, linkedSceneFile } from './sceneLinks';
 import { runInBackground } from '../utils/backgroundTask';
@@ -13,6 +13,8 @@ import { findAtlasLeafByViewId } from '../utils/atlasLeafLookup';
 import { readPinnedNotePreviews } from '../stores/pinnedNotePreviewSlice';
 import { isModHeld } from '../keyboard/modKey';
 import type { ViewAtlasStore } from '../storeFactory';
+import type { TokenRollContext } from '../types/diceRollOrigin';
+import { captureRollContext } from '../tools/diceRollOrigins';
 
 /**
  * A hovered token presented to the preview system like a pin on its linked
@@ -63,13 +65,19 @@ export class NotePreviewUIManager {
   private mapUnloading = false;
   private activePreviews: Map<string, IPreviewWindow> = new Map();
   private isModifierKeyDown = false;
+  /** Counts `hideAllUnpinnedPreviews`, so a preview decided after a read knows it was hidden or replaced meanwhile. */
+  private hideCount = 0;
   private lastHoveredPinId: string | null = null;
-  /** Element under the pointer, kept until it leaves; replayed on each CMD/Ctrl press. */
+  /**
+   * Element under the pointer, kept until it leaves; replayed on each CMD/Ctrl press. A
+   * hovered token keeps the scene it was hovered in, which rolls from its statblock name.
+   */
   private currentHover: {
     pin: PreviewAnchor;
     screenX: number;
     screenY: number;
     sourceLeaf: WorkspaceLeaf | null;
+    originContext: TokenRollContext | undefined;
   } | null = null;
   private boundHideAllUnpinnedPreviewsOnBlur!: () => void;
   private boundHandleKeyDown!: (e: KeyboardEvent) => void;
@@ -107,8 +115,13 @@ export class NotePreviewUIManager {
       
       // Hover events only fire when the hovered element changes, so remember
       // the hover: every later modifier press replays it.
-      const sourceLeaf = findAtlasLeafByViewId(this.app.workspace, this.viewId);
-      this.currentHover = { pin: data.pin, screenX: data.screenX, screenY: data.screenY, sourceLeaf };
+      this.currentHover = {
+        pin: data.pin, screenX: data.screenX, screenY: data.screenY,
+        sourceLeaf: findAtlasLeafByViewId(this.app.workspace, this.viewId),
+        originContext: 'type' in data.pin && data.pin.type === 'token'
+          ? captureRollContext(this.viewId, this.store.getState(), [data.pin.id])
+          : undefined,
+      };
       if (modifierKeyDown) {
         this.showPreviewFor(this.currentHover);
       }
@@ -241,7 +254,7 @@ export class NotePreviewUIManager {
 
   private showPreviewFor(hover: NonNullable<typeof this.currentHover>): void {
     runInBackground(
-      this.showOrCreatePreview(hover.pin, hover.screenX, hover.screenY, hover.sourceLeaf),
+      this.showOrCreatePreview(hover.pin, hover.screenX, hover.screenY, hover.sourceLeaf, hover.originContext),
       'Showing note preview',
     );
   }
@@ -281,6 +294,8 @@ export class NotePreviewUIManager {
     screenX: number,
     screenY: number,
     sourceLeaf?: WorkspaceLeaf | null,
+    /** The scene a hovered token was hovered in; a statblock opened for it rolls for that scene. */
+    originContext?: TokenRollContext,
   ): Promise<void> {
 
     // First, check if we already have a preview for this exact pin
@@ -314,20 +329,26 @@ export class NotePreviewUIManager {
       return;
     }
 
-    // Check file type for specialized previews
+    // A token whose note is a statblock gets the statblock preview
     const file = this.app.vault.getAbstractFileByPath(linkedFilePath(pin.notePath));
-    if (file instanceof TFile) {
+    if (file instanceof TFile && 'type' in pin && pin.type === 'token') {
+      // Only a note whose statblock is in a fence is read; a hide or another hover meanwhile wins.
+      // A frontmatter statblock Fantasy Statblocks has not parsed shows as the note, where the plugin draws any fence it holds.
+      const hides = this.hideCount;
+      const isStatblock = !unparsedFrontmatterStatblock(this.app, file)
+        && (statblockNoteKnown(this.app, file) || await isStatblockNote(this.app, file));
+      if (hides !== this.hideCount) return;
 
-      // Notes backed by a Fantasy Statblocks creature → rich statblock preview for tokens
-      const isStatblock = findCreatureForNotePath(file.path) !== null;
-
-      if (isStatblock && 'type' in pin && pin.type === 'token') {
+      if (isStatblock) {
         const statblockPreview = new StatblockPreviewWindow(
           this.app, 
           pin.notePath, 
           pin,
           this, 
-          { x: screenX, y: screenY }
+          { x: screenX, y: screenY },
+          undefined,
+          this.viewId,
+          originContext,
         );
         
         if (statblockPreview.element) {
@@ -394,6 +415,7 @@ export class NotePreviewUIManager {
   }
 
   public hideAllUnpinnedPreviews(excludeNotePath?: string | null): void {
+    this.hideCount++;
     this.activePreviews.forEach((preview) => {
       if (preview.notePath === excludeNotePath && this.isModifierKeyDown) return; // Don't hide if it's the current hover target & mod down
       if (!preview.getIsPinned()) {

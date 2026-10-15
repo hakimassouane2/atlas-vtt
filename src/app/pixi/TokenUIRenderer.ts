@@ -6,6 +6,7 @@ import type { StoreApi } from 'zustand';
 import { barDimensions } from '../styles/designTokens';
 import { TokenConditionsUI, type TokenConditionsLayout } from './token-renderer/TokenConditionsUI';
 import { isNameplateVisible } from './token-renderer/nameplateVisibility';
+import { tokenDisplayName } from './token-renderer/tokenDisplayName';
 import type { ConditionDefinition } from '../types/collectionSettingsTypes';
 import { ResourceStack, type ResourceSlot } from './token-renderer/resources/ResourceStack';
 import { ResourceWheels } from './token-renderer/resources/ResourceWheels';
@@ -53,8 +54,12 @@ export class TokenUIRenderer {
   private besideToken: Container;
   /** The mirror of `besideToken` past the left resize button; holds the wheels of the left side. */
   private leftOfToken: Container;
-  /** The resources of the wheel slots, shown on hover and selection. */
+  /** The resources of the wheel slots, shown on hover and selection; in the players' view at rest. */
   private wheels = new ResourceWheels();
+  /** The GM's canvas shows the players' view (session view, the peek): resources as players see them. */
+  private playersView = false;
+  /** The wheels stand at rest instead of answering hover and selection: the players' view has neither. */
+  private wheelsAtRest = false;
   private difficultyBadge: Container;
   private difficultyText: Text;
   private defeatedOverlay: Graphics;
@@ -218,20 +223,24 @@ export class TokenUIRenderer {
   }
   
   
-  /** Redraws the UI for `token`, whose sprite is `spriteWidth` world pixels wide. */
+  /**
+   * Redraws the UI for `token`, whose sprite is `spriteWidth` world pixels wide. With
+   * `shownToPlayers` it is the players' copy of the UI, drawn for the player window; a player's
+   * page draws every token as its player sees it (`playerSettingsFor`).
+   */
   public update(token: BaseToken & Partial<Character>, spriteWidth: number, shownToPlayers?: Pick<AtlasSettings['localPlayerView'], 'showTokenNameplates'>): void {
     const playerSettings = shownToPlayers ?? this.playerSettingsFor?.(token);
     const tokenSettings = this.store?.getState().tokenSettings;
+    const forPlayers = playerSettings !== undefined || this.playersView;
     // Players see the resources their definitions allow, whatever the DM hides on this map.
-    const viewer: ResourceViewer = !playerSettings ? 'dm' : this.playerControls?.(token) ? 'controller' : 'player';
+    const viewer: ResourceViewer = !forPlayers ? 'dm' : playerSettings && this.playerControls?.(token) ? 'controller' : 'player';
     const definitions = this.resourceDefsProvider();
-    // The map's own switches hide resources from the GM; the player view never reads them
-    const hidden = playerSettings ? [] : tokenSettings?.hiddenResources ?? [];
+    // The map's own switches hide resources from the GM; the players' view never reads them
+    const hidden = forPlayers ? [] : tokenSettings?.hiddenResources ?? [];
     const shown = visibleResources(token, definitions, viewer).filter(({ definition }) => !hidden.includes(definition.key));
 
     const bars = shown.filter(({ slot }) => shapeOf(slot) === 'bar');
-    // Wheels answer the game master's hover and selection; the player view has neither
-    const wheels = playerSettings ? [] : shown.filter(({ slot }) => shapeOf(slot) === 'wheel');
+    const wheels = shown.filter(({ slot }) => shapeOf(slot) === 'wheel');
 
     const resourcesKey = shown.map(({ definition, value, slot }) =>
       `${definition.key}:${slot}:${definition.name}:${definition.color}:${value.current}/${value.max}`).join('|');
@@ -240,7 +249,7 @@ export class TokenUIRenderer {
     const defeated = isDefeated(token, definitions);
     // The ring's size setting moves the resize buttons, and with them the wheels
     const ringScale = tokenSettings?.tokenRingSize ?? 1;
-    const updateKey = `${resourcesKey}_${defeated}_${spriteWidth}_${ringScale}_${this.isHovered}_${this.isSelected}_${token.name || ''}_${showNameplate}_${token.statblockName || ''}_${conditionsKey}`;
+    const updateKey = `${resourcesKey}_${forPlayers}_${defeated}_${spriteWidth}_${ringScale}_${this.isHovered}_${this.isSelected}_${token.name || ''}_${showNameplate}_${token.statblockName || ''}_${conditionsKey}`;
 
     // Skip update if nothing has changed
     if (this.lastUpdateData === updateKey) {
@@ -256,7 +265,6 @@ export class TokenUIRenderer {
     this.nameText.text = '';
     
     // Check if we have any data to display
-    const hasStatblock = !!token.statblockPath;
     const hasResources = bars.length > 0 || wheels.length > 0;
     // showNameplate is already calculated above for change detection
 
@@ -278,6 +286,8 @@ export class TokenUIRenderer {
     const baseGap = 2; // Gap between token and first bar
     this.resources.update(bars, baseGap, this.canAnimateValues());
     this.wheels.update(wheels);
+    this.wheelsAtRest = forPlayers;
+    this.setRevealAlpha(this.resources.getTextAlpha());
 
     this.hasContent = hasResources || showNameplate || hasConditions;
     this.container.visible = this.hasContent && !this.hiddenWithToken;
@@ -291,19 +301,7 @@ export class TokenUIRenderer {
     }
 
     // Name badge - only show if showNameplate is true AND there's a meaningful name
-    // Determine displayName first to decide whether to show the nameplate
-    let displayName: string | null = null;
-    if (token.name) {
-      // Token has a custom name (overrides statblock name)
-      displayName = token.name;
-    } else if (hasStatblock && token.statblockName) {
-      // Token has a statblock and we loaded the statblock name
-      displayName = token.statblockName;
-    } else if (hasStatblock) {
-      // Token has a statblock but no name was loaded - show placeholder
-      displayName = t('token.unknownCreature');
-    }
-    // If no statblock and no name, displayName stays null - don't show nameplate
+    const displayName = tokenDisplayName(token);
 
     // Only show nameplate if enabled AND we have a name to display
     if (showNameplate && displayName) {
@@ -485,16 +483,28 @@ export class TokenUIRenderer {
     this.updateTextVisibility();
   }
   
+  /**
+   * The GM's canvas shows the players' view (session view, the peek) or the GM's own: in the
+   * players' view it draws the resources players see, its wheels at rest, as the player window does.
+   */
+  public setPlayersView(on: boolean): void {
+    if (this.playersView === on) return;
+    this.playersView = on;
+    if (!this.currentToken || this.currentTokenSize <= 0) return;
+    this.lastUpdateData = '';
+    this.update(this.currentToken, this.currentTokenSize);
+  }
+
   /** Shows or hides the wheels of both sides, e.g. during a resize. */
   private setWheelsVisible(visible: boolean): void {
     this.besideToken.visible = visible;
     this.leftOfToken.visible = visible;
   }
 
-  /** Bar numbers and wheels show together, on hover and selection. */
+  /** Bar numbers and wheels show together, on hover and selection; wheels at rest show always. */
   private setRevealAlpha(alpha: number): void {
     this.resources.setTextAlpha(alpha);
-    this.wheels.setAlpha(alpha);
+    this.wheels.setAlpha(this.wheelsAtRest ? 1 : alpha);
   }
 
   private updateTextVisibility(): void {

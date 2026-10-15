@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { renderEntries, type ContextMenuEntry } from '../components/context-menu/AtlasContextMenu';
@@ -9,8 +9,9 @@ import { t } from '../../i18n';
 
 // ── Context + hook ──────────────────────────────────────────────────────────
 
-// Re-exported so the React UI keeps importing menu types from this file
-export type { ContextMenuEntry, ContextMenuOptions } from '../../ui/contextMenus';
+// Re-exported so the React UI keeps importing menu types and helpers from this file
+export type { ContextMenuEntry, ContextMenuOptions, ContextMenuController, GlobalContextMenuOptions } from '../../ui/contextMenus';
+export { openContextMenuGlobal, closeContextMenuGlobal } from '../../ui/contextMenus';
 
 const ContextMenuCtx = createContext<ContextMenuController | null>(null);
 
@@ -19,6 +20,9 @@ export const useContextMenu = (): ContextMenuController => {
   if (!ctx) throw new Error('useContextMenu must be used inside <ContextMenuProvider>');
   return ctx;
 };
+
+/** The nearest provider's controller, or null outside every provider (a part rendered on its own in a test). */
+export const useOptionalContextMenu = (): ContextMenuController | null => useContext(ContextMenuCtx);
 
 // ── Provider ────────────────────────────────────────────────────────────────
 
@@ -36,19 +40,48 @@ function returnFocusTo(element: HTMLElement | null, event: Event): void {
   if (element.isConnected && (!active || active === element.ownerDocument.body)) element.focus();
 }
 
-export const ContextMenuProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface ContextMenuProviderProps {
+  children: React.ReactNode;
+  /**
+   * Marks the open menu's content with `data-atlas-owner`, so the surface
+   * that opened it (a statblock panel) knows focus in it is still its own.
+   */
+  ownerId?: string | undefined;
+  /** Serves only the components inside it, never `openContextMenuGlobal`: a surface whose menus belong to it alone. */
+  local?: boolean | undefined;
+}
+
+export const ContextMenuProvider: React.FC<ContextMenuProviderProps> = ({ children, ownerId, local = false }) => {
   const [menuState, setMenuState] = useState<MenuState | null>(null);
   // The body of the document the provider renders in: a map in a popout opens its menus there.
   const [body, setBody] = useState<HTMLElement | null>(null);
   const anchor = useCallback((node: HTMLSpanElement | null): void => setBody(node?.ownerDocument.body ?? null), []);
+  const bodyRef = useRef<HTMLElement | null>(null);
+  bodyRef.current = body;
 
-  const close = useCallback((): void => setMenuState(null), []);
-
-  const open = useCallback((entries: ContextMenuEntry[], position: { x: number; y: number }, options?: ContextMenuOptions): void => {
-    setMenuState({ entries, position, returnFocus: options?.returnFocus ?? null });
+  // The open menu's `onClose`, called once whether it closes or another menu takes its place.
+  const closing = useRef<(() => void) | undefined>(undefined);
+  const told = useCallback((): void => {
+    const onClose = closing.current;
+    closing.current = undefined;
+    onClose?.();
   }, []);
 
-  useEffect(() => registerContextMenuController({ open, close }), [open, close]);
+  const close = useCallback((): void => {
+    told();
+    setMenuState(null);
+  }, [told]);
+
+  const open = useCallback((entries: ContextMenuEntry[], position: { x: number; y: number }, options?: ContextMenuOptions): void => {
+    told();
+    closing.current = options?.onClose;
+    setMenuState({ entries, position, returnFocus: options?.returnFocus ?? null });
+  }, [told]);
+
+  useEffect(() => {
+    if (local) return undefined;
+    return registerContextMenuController({ open, close, doc: () => bodyRef.current?.ownerDocument ?? null });
+  }, [open, close, local]);
 
   const pos = menuState?.position ?? { x: 0, y: 0 };
 
@@ -79,6 +112,7 @@ export const ContextMenuProvider: React.FC<{ children: React.ReactNode }> = ({ c
             <DropdownMenu.Portal container={body}>
               <DropdownMenu.Content
                 className="atlas-ctx-menu"
+                data-atlas-owner={ownerId}
                 side="bottom"
                 align="start"
                 sideOffset={4}

@@ -1,6 +1,7 @@
 import { PlayerInitiativePanel } from '../../services/PlayerInitiativePanel';
 import { DEFAULT_INITIATIVE_RULES } from '../../gameSystems/initiativeRules';
-import { mapResources, type CollectionLookup } from '../../resources/collectionResources';
+import { mapResources } from '../../resources/collectionResources';
+import type { RulesLookup } from '../../gameSystems/mapRules';
 import type { ViewAtlasStore } from '../../storeFactory';
 import type { TokenEntity } from '../../types';
 import type { InitiativeRules } from '../../types/initiativeRulesTypes';
@@ -13,7 +14,7 @@ export class InitiativeOverlay {
   private readonly settings = new PageSettings();
   private rules: InitiativeRules = { ...DEFAULT_INITIATIVE_RULES };
 
-  constructor(container: HTMLElement, store: ViewAtlasStore, collection: CollectionLookup, controls: (token: TokenEntity) => boolean) {
+  constructor(container: HTMLElement, store: ViewAtlasStore, collection: RulesLookup, controls: (token: TokenEntity) => boolean) {
     const panel = new PlayerInitiativePanel(pageApp, this.settings.asSettingsService(), {
       // As in the DM's Atlas: players see the combatants' HP where the collection shows HP to them
       showsHp: (mapPath) => mapResources(collection, mapPath).some((definition) => definition.key === 'hp' && definition.visibleToPlayers),

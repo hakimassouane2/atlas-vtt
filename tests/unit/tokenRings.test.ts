@@ -68,7 +68,7 @@ describe('ring files', () => {
   });
 
   it('make a bundle say the format that reads them', () => {
-    expect(bundleFormatFor([{ vaultPath: 'a.webp', role: 'token-ring' }, { vaultPath: 'p.json', role: 'system-preset' }])).toBe(9);
+    expect(bundleFormatFor([{ vaultPath: 'a.webp', role: 'token-ring' }, { vaultPath: 'p.json', role: 'system-preset' }])).toBe(10);
     expect(bundleFormatFor([{ vaultPath: 'p.json', role: 'system-preset' }])).toBe(8);
     expect(bundleFormatFor([{ vaultPath: 't.webp', role: 'token-image' }])).toBe(6);
   });

@@ -20,6 +20,8 @@ export interface NotePin {
   gmOnly?: boolean; // Whether the pin is only visible to the GM
   /** Links the note to the grid cell containing (x, y) instead of marking a point; hex grids show that hex, other grids a pin. */
   hex?: boolean;
+  /** Players may read the linked note (or the heading it names) once they find the pin on the map. */
+  readable?: true;
 }
 
 /** A bounded resource value saved on an individual map token. */
@@ -40,6 +42,8 @@ export interface BaseToken {
   x: number;
   y: number;
   imagePath: string;
+  /** The library token it was placed from (`libraryTokenOf`); unset on tokens placed before tokens carried it. */
+  assetId?: string;
   tags?: string[];
   /** Hex colour for the ring; undefined takes the colour the collection gives the token's role, else white. */
   ringColor?: string;

@@ -22,29 +22,12 @@ export function resolveLocale(language: string): string {
   return base in TRANSLATIONS ? base : DEFAULT_LOCALE;
 }
 
-/** Sets the language of every later `t` call; Atlas uses Obsidian's, see below. */
+/** Sets the language of every later `t` call. The plugin selects it during bootstrap. */
 export function setLocale(language: string): void {
   locale = resolveLocale(language);
   translation = TRANSLATIONS[locale] ?? en;
   pluralRules = new Intl.PluralRules(locale);
 }
-
-/**
- * Obsidian's language, read where Obsidian's `getLanguage()` reads it: the canvas also runs
- * in the online player page (fork), where the `obsidian` module does not exist.
- */
-function obsidianLanguage(): string {
-  try {
-    // eslint-disable-next-line obsidianmd/prefer-get-language -- the player page has no `obsidian` module
-    return window.localStorage.getItem('language') || DEFAULT_LOCALE;
-  } catch {
-    return DEFAULT_LOCALE;
-  }
-}
-
-// Set on load, so texts built at module level are translated too. Obsidian restarts
-// when its language changes, so nothing has to re-render on a switch.
-setLocale(obsidianLanguage());
 
 /** The active language code, for `Intl` formatters that should match Atlas' texts. */
 export function getLocale(): string {

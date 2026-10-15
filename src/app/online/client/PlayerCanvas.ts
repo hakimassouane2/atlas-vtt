@@ -1,10 +1,12 @@
-import type { Application, Texture } from 'pixi.js';
+import type { Application } from 'pixi.js';
 import type { Viewport } from 'pixi-viewport';
 import { PixiAppManager } from '../../pixi/PixiAppManager';
 import { PixiRendererOrchestrator } from '../../PixiRendererOrchestrator';
 import { applyNavigationMode } from '../../pixi/viewportNavigation';
-import { backgroundTextureCache } from '../../pixi/backgroundTextureCache';
-import { centerAndFitMap, mapPlaceholderTexture, showMapImage } from '../../pixi/mapDisplay';
+import { showMapGrid, viewMapImageDeps } from '../../pixi/mapDisplay';
+import { MapImage } from '../../pixi/mapImage/MapImage';
+import { fitMapRect } from '../../pixi/fitMapRect';
+import { readMapStretch } from '../../grid/mapStretch';
 import { captureSceneTransition, type SceneTransition } from '../../pixi/sceneTransition';
 import { createSceneStore, type ViewAtlasStore } from '../../storeFactory';
 import { getHistoryStore } from '../../stores/history';
@@ -12,7 +14,7 @@ import type { AtlasSettings, NavigationInputMode } from '../../services/Settings
 import type { CanvasHost, CanvasPlayer } from '../../canvas/canvasHost';
 import type { PlayerCommand } from '../playerCommands';
 import { sceneOf, withSceneChanges, type ReplicatedScene, type SceneChange } from '../scene/sceneReplica';
-import { sceneImageUrl } from './session';
+import { PageMapImages } from './pageMapImages';
 import { CommandBridge } from './commandBridge';
 // `vite/player-client.mts` makes this PIXI's emitter in the browser
 import { EventEmitter } from 'events';
@@ -21,8 +23,7 @@ type PlayerView = AtlasSettings['localPlayerView'];
 
 /**
  * Atlas' own canvas on a player's page. It shows the scene the DM's Atlas sends as players see
- * it (the store is a player view: hidden tokens left out, the fog's full cover, no pins; the grid
- * only where the DM shows players the grid), and lets the player act on their own tokens as the
+ * it (the store is a player view: hidden tokens left out, the fog's full cover, no pins), and lets the player act on their own tokens as the
  * GM acts on any: what they change goes to the DM's Atlas as commands (`CommandBridge`).
  */
 export class PlayerCanvas {
@@ -34,16 +35,16 @@ export class PlayerCanvas {
   /** The scene as the DM's Atlas last sent it, kept up to date while a map image loads. */
   private scene: ReplicatedScene | null = null;
   private playerView: PlayerView | null = null;
-  /** The map image held for the scene shown. */
-  private backgroundUrl: string | null = null;
+  /** Opens the scenes' map images from the DM's Atlas. */
+  private readonly images = new PageMapImages();
+  /** The canvas's map image, made on the first scene shown. */
+  private mapImage: MapImage | null = null;
   /** Bumped by every scene shown: a map image that arrives for an older one is let go. */
   private loads = 0;
   /** The previous map's last frame, held over the canvas while the next map loads. */
   private pendingTransition: SceneTransition | null = null;
   /** The previous map's frame, still fading out over the next one. */
   private fadingTransition: SceneTransition | null = null;
-  /** The grid last shown, kept while the scene's grid and the player view are the same: renderers redraw on a new one. */
-  private shownGrid: { source: ReplicatedScene['grid']; showGrid: boolean; grid: ReplicatedScene['grid'] } | null = null;
 
   constructor(host: CanvasHost & { player: CanvasPlayer }, send: (command: PlayerCommand) => Promise<boolean>) {
     this.store = createSceneStore('online-player', { isPlayerView: true });
@@ -80,13 +81,13 @@ export class PlayerCanvas {
     this.renderer.resize(width, height);
   }
 
-  /** What the DM shows players: the grid, names. */
+  /** What the DM shows players: names. */
   setPlayerView(settings: PlayerView): void {
     this.playerView = settings;
     if (!this.scene || this.store.getState().isMapLoading) return;
-    const { grid, tokenSettings } = this.shown(this.scene);
+    const { tokenSettings } = this.shown(this.scene);
     // A copy of the token settings redraws every token's UI with the names now shown or hidden
-    this.bridge.applyRemote(() => this.store.setState({ grid, tokenSettings: { ...tokenSettings } }));
+    this.bridge.applyRemote(() => this.store.setState({ tokenSettings: { ...tokenSettings } }));
   }
 
   /** Redraws every token's UI: the player became another profile, which may see other tokens' resources. */
@@ -112,16 +113,14 @@ export class PlayerCanvas {
       state.clearMapState();
     });
 
-    const { texture, url } = await this.mapImage(scene);
-    if (load !== this.loads) {
-      if (url) backgroundTextureCache.release(url);
-      return;
+    const mapImage = this.viewMapImage();
+    if (mapImage) {
+      await mapImage.load(this.images.sourceFor(scene.background, scene.grid?.size), readMapStretch(scene.grid?.mapStretch));
+      if (load !== this.loads) return;
+      showMapGrid(this.renderer, mapImage, scene.grid);
+      const viewport = this.renderer.getViewportInstance();
+      if (isNewMap && viewport && mapImage.worldRect) fitMapRect(viewport, mapImage.worldRect);
     }
-    if (this.backgroundUrl) backgroundTextureCache.release(this.backgroundUrl);
-    this.backgroundUrl = url;
-
-    const sprite = showMapImage(this.renderer, texture, scene.grid);
-    if (isNewMap) centerAndFitMap(this.renderer, sprite);
     this.bridge.applyRemote(() => this.store.setState(this.shown(this.scene!)));
     this.eventBus.emit('map-loaded');
     await new Promise<void>((resolve) => this.eventBus.emit('wait-for-tokens-loaded', resolve));
@@ -165,7 +164,7 @@ export class PlayerCanvas {
     this.fadingTransition?.cancel();
     this.bridge.destroy();
     this.renderer.destroy();
-    if (this.backgroundUrl) backgroundTextureCache.release(this.backgroundUrl);
+    this.images.dispose();
   }
 
   /** Shows the scene as the DM's Atlas sent it last, as after its changes or a refused command. */
@@ -174,39 +173,25 @@ export class PlayerCanvas {
   }
 
   /**
-   * The store's state for `scene`: the grid only where the DM shows players the grid, and the
-   * tokens the player holds where the pointer has them, not where the DM's Atlas last heard of them.
+   * The store's state for `scene`: the tokens the player holds where the pointer has them, not
+   * where the DM's Atlas last heard of them.
    */
   private shown(scene: ReplicatedScene): ReplicatedScene {
-    const grid = this.playerGrid(scene.grid);
     const { heldTokens, objects } = this.store.getState();
     const held = Object.keys(heldTokens).filter((id) => objects.tokens[id] && scene.objects.tokens[id]);
-    if (held.length === 0) return { ...sceneOf(scene), grid };
+    if (held.length === 0) return sceneOf(scene);
     const tokens = { ...scene.objects.tokens };
     for (const id of held) tokens[id] = objects.tokens[id]!;
-    return { ...sceneOf(scene), grid, objects: { ...scene.objects, tokens } };
+    return { ...sceneOf(scene), objects: { ...scene.objects, tokens } };
   }
 
-  /** The scene's grid, shown only where the DM shows players the grid. */
-  private playerGrid(source: ReplicatedScene['grid']): ReplicatedScene['grid'] {
-    const showGrid = this.playerView?.showGrid ?? false;
-    if (!source) return source;
-    if (this.shownGrid?.source !== source || this.shownGrid.showGrid !== showGrid) {
-      this.shownGrid = { source, showGrid, grid: { ...source, visible: source.visible !== false && showGrid } };
-    }
-    return this.shownGrid.grid;
-  }
-
-  /** The scene's map image and the URL it is held under, or a placeholder held under none. */
-  private async mapImage(scene: ReplicatedScene): Promise<{ texture: Texture; url: string | null }> {
-    if (scene.background) {
-      const url = sceneImageUrl(scene.background);
-      try {
-        return { texture: await backgroundTextureCache.acquire(url), url };
-      } catch (error) {
-        console.error('[PlayerCanvas] Could not load the map image:', error);
-      }
-    }
-    return { texture: mapPlaceholderTexture(scene.grid?.size || 70), url: null };
+  /** The canvas's map image, made and handed to the renderer the first time; null without a viewport. */
+  private viewMapImage(): MapImage | null {
+    if (this.mapImage) return this.mapImage;
+    const deps = viewMapImageDeps(this.renderer, this.images);
+    if (!deps) return null;
+    this.mapImage = new MapImage(deps);
+    this.renderer.setMapImage(this.mapImage);
+    return this.mapImage;
   }
 }

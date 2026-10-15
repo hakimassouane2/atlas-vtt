@@ -3,17 +3,19 @@ import { diceRollForPlayers } from '../tools/diceRollForPlayers';
 import type { TokenEntity } from '../types';
 import type { PlayerProfile } from '../types/collectionSettingsTypes';
 import { playerRollStamp } from './rollStamps';
+import { onAnyDiceRoll } from '../tools/diceRollFeed';
 
 /**
  * Sends dice rolls to players: the rolls stamped as shown to them (every roll a player
  * makes, and the DM's rolls made while the player view settings show them), masked
- * like in the local player window. Rolls reach it through the `atlas-dice-rolled` event every dice
- * engine dispatches; players' rolls go through the DM's engine, so the DM's toasts
+ * like in the local player window. Rolls reach it through `onAnyDiceRoll`, which every dice
+ * engine announces to; players' rolls go through the DM's engine, so the DM's toasts
  * and dice log show them too. Players' pages show them with the same toasts.
  */
 export class PlayerDiceFeed {
-  private readonly handleRoll = (event: Event): void => {
-    const result = (event as CustomEvent<DiceRollResult>).detail;
+  private stopListening: (() => void) | null = null;
+
+  private readonly handleRoll = (result: DiceRollResult): void => {
     if (!result.shownToPlayers) return;
     this.publish(diceRollForPlayers(result, this.getTokens()));
   };
@@ -25,11 +27,13 @@ export class PlayerDiceFeed {
   ) {}
 
   start(): void {
-    document.addEventListener('atlas-dice-rolled', this.handleRoll);
+    this.stopListening?.();
+    this.stopListening = onAnyDiceRoll(this.handleRoll);
   }
 
   stop(): void {
-    document.removeEventListener('atlas-dice-rolled', this.handleRoll);
+    this.stopListening?.();
+    this.stopListening = null;
   }
 
   /** Rolls a player's `formula` with the DM's `diceTool`, signed with their `profile`, for `token` when given. */
@@ -40,6 +44,6 @@ export class PlayerDiceFeed {
       type: token ? 'statblock' : 'toolbar',
       ...(token && { tokenId: token.id, tokenImagePath: token.imagePath }),
       ...(tokenName && { tokenName }),
-    }, playerRollStamp(profile));
+    }, undefined, { stamp: playerRollStamp(profile) });
   }
 }

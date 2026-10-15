@@ -1,22 +1,20 @@
 import React from 'react';
 import type { App } from 'obsidian';
-import type { StatblockItem, StatblockMonster, Trait } from './statblockTypes';
-import { runCallback } from './layoutCallbacks';
+import type { StatblockItem, StatblockMonster } from './statblockTypes';
 import {
   abilityModifier,
   headingText,
   propertyText,
-  signed,
   slugify,
   stringify,
-  toTitleCase,
   trimLabel,
 } from './statblockUtils';
-import { StatblockMarkdown } from './StatblockText';
-import { EditableValue } from './EditableValue';
-import { useStatblockEdit } from './statblockEditContext';
+import { StatblockMarkdown } from '../../../statblocks/render/shared/StatblockMarkdown';
+import { EditableField } from '../../../statblocks/render/shared/EditableField';
+import { hitPointsAttribute, namesHitPoints } from '../../../statblocks/render/shared/hitPoints';
+import { statblockImageSrc } from '../../../statblocks/render/shared/statblockImage';
 import { LabelTooltip } from '../../../packages/components/primitives/tooltip';
-import { isHitPointsKey } from '../../../resources/resourceFields';
+import { diceLinkProps } from '../../../services/statblockDiceLinks';
 import { t } from '../../../i18n';
 
 /** Values that map cleanly onto a single editable frontmatter entry. */
@@ -85,7 +83,7 @@ export function SubheadingBlock({
 }: BlockProps): React.JSX.Element | null {
   const parts = (item.properties ?? [])
     .filter((property) => property in monster)
-    .map((property) => stringify(monster[property], 0, ', ', false));
+    .map((property) => stringify(monster[property], ', ', false));
 
   if (!parts.length) return null;
 
@@ -112,10 +110,10 @@ export function PropertyBlock({
 
   const label = trimLabel(item.display ?? item.properties?.[0] ?? '');
   const hook = item.doNotAddClass ? undefined : slugify(item.properties?.[0] ?? '') || undefined;
-  const hitPoints = isHitPointsKey(item.properties?.[0] ?? '') || isHitPointsKey(label);
+  const hitPoints = namesHitPoints(item.properties?.[0], label);
 
   return (
-    <div className="atlas-sb-property" data-prop={hook} data-hit-points={hitPoints ? '' : undefined}>
+    <div className="atlas-sb-property" data-prop={hook} {...hitPointsAttribute(hitPoints)}>
       <span className="atlas-sb-property-name">{label}</span>
       <EditableField
         path={[item.properties?.[0] ?? '']}
@@ -131,43 +129,6 @@ export function PropertyBlock({
         />
       </EditableField>
     </div>
-  );
-}
-
-/**
- * Wraps a value in an inline editor when the surrounding statblock is editable
- * and the underlying frontmatter value is a simple scalar.
- */
-function EditableField({
-  path,
-  value,
-  editable,
-  label,
-  multiline,
-  children,
-}: {
-  path: Array<string | number>;
-  value: string;
-  editable: boolean;
-  label?: string | undefined;
-  multiline?: boolean | undefined;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  const edit = useStatblockEdit();
-
-  if (!edit.editable || !editable || !path.length || path[0] === '') {
-    return <>{children}</>;
-  }
-
-  return (
-    <EditableValue
-      value={value}
-      multiline={multiline}
-      ariaLabel={label}
-      onCommit={(next) => edit.commit(path, next)}
-    >
-      {children}
-    </EditableValue>
   );
 }
 
@@ -202,43 +163,6 @@ export function TextBlock({ item, monster, app, sourcePath }: BlockProps): React
   );
 }
 
-/** `saves` — a list of save/skill pairs. */
-export function SavesBlock({ item, monster, app, sourcePath }: BlockProps): React.JSX.Element | null {
-  const raw = monster[item.properties?.[0] ?? ''];
-  const entries: unknown[] = Array.isArray(raw) ? raw : [];
-  if (!entries.length) return null;
-
-  const resolved = entries.map((save) => runCallback(item.callback, { monster, property: save }, save));
-
-  const text = resolved
-    .map((save) => {
-      if (typeof save === 'string') return save;
-      if (save && typeof save === 'object') {
-        return Object.entries(save as Record<string, unknown>)
-          .map(([key, value]) =>
-            typeof value === 'number'
-              ? `${toTitleCase(key)} ${signed(value)}`
-              : `${toTitleCase(key)} ${stringify(value)}`,
-          )
-          .join(', ');
-      }
-      return stringify(save);
-    })
-    .filter(Boolean)
-    .join(', ');
-
-  if (!text.length) return null;
-
-  return (
-    <div className="atlas-sb-property" data-prop={slugify(item.properties?.[0] ?? '') || undefined}>
-      <span className="atlas-sb-property-name">
-        {trimLabel(item.display ?? toTitleCase(item.properties?.[0] ?? ''))}
-      </span>
-      <StatblockMarkdown text={text} app={app} sourcePath={sourcePath} />
-    </div>
-  );
-}
-
 /** `table` — ability scores and similar grids, with derived modifiers. */
 export function TableBlock({ item, monster }: BlockProps): React.JSX.Element | null {
   const raw = monster[item.properties?.[0] ?? ''];
@@ -259,7 +183,7 @@ export function TableBlock({ item, monster }: BlockProps): React.JSX.Element | n
       <tbody>
         <tr>
           {values.map((value, index) => (
-            <td key={headers[index] ?? index}>
+            <td key={headers[index] ?? index} data-roll-name={headers[index]}>
               <EditableField
                 path={[item.properties?.[0] ?? '', index]}
                 value={stringify(value)}
@@ -271,7 +195,7 @@ export function TableBlock({ item, monster }: BlockProps): React.JSX.Element | n
               {item.calculate && typeof value === 'number' && (
                 <span className="atlas-sb-modifier">
                   {' '}
-                  ({abilityModifier(value, item, monster)})
+                  (<ModifierRoll modifier={abilityModifier(value, item, monster)} />)
                 </span>
               )}
             </td>
@@ -280,6 +204,11 @@ export function TableBlock({ item, monster }: BlockProps): React.JSX.Element | n
       </tbody>
     </table>
   );
+}
+
+/** A calculated modifier as a roll: the dice tool adds a bare bonus to the collection's default roll. */
+function ModifierRoll({ modifier }: { modifier: string }): React.JSX.Element {
+  return <span {...diceLinkProps(modifier)}>{modifier}</span>;
 }
 
 /** `image` — creature artwork, and the click target for assigning a token. */
@@ -293,14 +222,7 @@ export function ImageBlock({
   const raw = item.properties?.map((property) => monster[property]).find((value) => typeof value === 'string');
   const hasImage = typeof raw === 'string' && raw.length > 0;
 
-  let src = '';
-  if (hasImage) {
-    src = decodeURIComponent(raw).replace(/(^\[\[|\]\]$)/g, '').split('|')[0] ?? '';
-    if (!/^https?:/.test(src) && app) {
-      const file = app.metadataCache.getFirstLinkpathDest(src, sourcePath ?? '');
-      src = file ? app.vault.getResourcePath(file) : '';
-    }
-  }
+  const src = hasImage ? statblockImageSrc(app, raw, sourcePath) : '';
 
   // With no image and no way to add one, there is nothing to render.
   if (!src && !onAssignToken) return null;
@@ -328,143 +250,6 @@ export function ImageBlock({
           )}
         </button>
       </LabelTooltip>
-    </div>
-  );
-}
-
-/** A single trait/feature: bolded name followed by its description. */
-export function TraitLine({
-  trait,
-  item,
-  monster,
-  app,
-  sourcePath,
-  index,
-}: BlockProps & { trait: Trait; index?: number }): React.JSX.Element | null {
-  const desc = runCallback(item.callback, { monster, property: trait }, trait.desc ?? '');
-  const name = trait.name ?? '';
-  if (!name && !desc) return null;
-
-  const property = item.properties?.[0] ?? '';
-  const canEdit = !item.callback && index != null && property.length > 0;
-
-  return (
-    <div className="atlas-sb-trait" data-hit-points={isHitPointsKey(name) ? '' : undefined}>
-      {name && (
-        <span className="atlas-sb-trait-name">
-          <EditableField
-            path={[property, index as number, 'name']}
-            value={name}
-            editable={canEdit}
-            label={t('statblock.traitName')}
-          >
-            {name}
-          </EditableField>
-        </span>
-      )}
-      <EditableField
-        path={[property, index as number, 'desc']}
-        value={String(desc)}
-        editable={canEdit}
-        label={t('statblock.traitDescription')}
-        multiline
-      >
-        <StatblockMarkdown
-          text={String(desc)}
-          app={app}
-          sourcePath={sourcePath}
-          markdown={item.markdown ?? true}
-        />
-      </EditableField>
-    </div>
-  );
-}
-
-/** `traits` — a titled list of features, actions, reactions, etc. */
-export function TraitsBlock({ item, monster, app, sourcePath }: BlockProps): React.JSX.Element | null {
-  const raw = monster[item.properties?.[0] ?? ''];
-  const traits = Array.isArray(raw) ? (raw as Trait[]) : [];
-  if (!traits.length) return null;
-
-  return (
-    <div className="atlas-sb-traits">
-      <SectionHeading item={item} monster={monster} app={app} />
-      {item.subheadingText && <div className="atlas-sb-text">{item.subheadingText}</div>}
-      {traits.map((trait, index) => (
-        <TraitLine
-          key={`${trait.name ?? 'trait'}-${index}`}
-          trait={trait}
-          index={index}
-          item={item}
-          monster={monster}
-          app={app}
-          sourcePath={sourcePath}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** `spells` — spell lists, grouped under their header lines. */
-export function SpellsBlock({ item, monster, app, sourcePath }: BlockProps): React.JSX.Element | null {
-  const raw = monster[item.properties?.[0] ?? ''];
-  const entries = Array.isArray(raw) ? raw : [];
-  if (!entries.length) return null;
-
-  const ensureColon = (header: string): string =>
-    /[^a-zA-Z0-9]$/.test(header) ? header : `${header}:`;
-
-  const blocks: Array<{ header: string; spells: Array<{ level?: string; spells: string }> }> = [];
-
-  for (const entry of entries) {
-    const isHeader =
-      typeof entry === 'string' && (entry.trim().endsWith(':') || !entry.includes(':'));
-
-    if (isHeader) {
-      blocks.push({ header: ensureColon(entry), spells: [] });
-      continue;
-    }
-
-    const spell =
-      typeof entry === 'string'
-        ? { spells: entry }
-        : {
-            level: Object.keys(entry as object)[0],
-            spells: stringify(Object.values(entry as object)[0]),
-          };
-
-    if (!blocks.length) {
-      blocks.push({
-        header: `${stringify(monster.name)} knows the following spells:`,
-        spells: [],
-      });
-    }
-    blocks[blocks.length - 1]!.spells.push(spell as { level?: string; spells: string });
-  }
-
-  return (
-    <div className="atlas-sb-traits">
-      {blocks.map((block, blockIndex) => (
-        <React.Fragment key={block.header}>
-          {blockIndex === 0 && (
-            <div className="atlas-sb-section-heading">
-              {item.heading ?? t('statblock.spellcasting')}
-              <div className="atlas-sb-rule" />
-            </div>
-          )}
-          <div className="atlas-sb-trait">
-            <StatblockMarkdown text={block.header} app={app} sourcePath={sourcePath} />
-          </div>
-          <ul className="atlas-sb-spells">
-            {block.spells.map((spell, index) => (
-              <li key={`${spell.level ?? ''}-${index}`}>
-                {spell.level && <span className="atlas-sb-spell-level">{spell.level}: </span>}
-                <StatblockMarkdown text={spell.spells} app={app} sourcePath={sourcePath} />
-              </li>
-            ))}
-          </ul>
-        </React.Fragment>
-      ))}
     </div>
   );
 }

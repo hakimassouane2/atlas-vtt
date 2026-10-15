@@ -1,7 +1,7 @@
 import type { StoreApi } from 'zustand';
-import type { CollectionLookup } from '../resources/collectionResources';
+import type { RulesLookup } from '../gameSystems/mapRules';
 import type { ResourceDefinition } from '../resources/resourceTypes';
-import type { ViewAtlasState } from '../storeFactory';
+import type { ViewAtlasState, ViewAtlasStore } from '../storeFactory';
 import type { TokenEntity } from '../types';
 import type { ConditionDefinition } from '../types/collectionSettingsTypes';
 import type { GridSystem } from '../grid/GridSystem';
@@ -11,6 +11,7 @@ import type { AudioFeature, AudioFeatureDeps } from '../pixi/audio/AudioFeature'
 import type { HotkeySettings } from '../keyboard/mapHotkeys';
 import type { LaserPointerSettings } from '../tools/laserPointerSettings';
 import type { PlayerTokenUISettings } from '../pixi/token-renderer/playerTokenUISettings';
+import type { MapImage } from '../pixi/mapImage/MapImage';
 
 /** The bytes of an image a canvas shows, with their type. */
 export interface ArtFile {
@@ -26,12 +27,16 @@ export interface ArtSource {
   onChanged(listener: (path: string) => void): () => void;
 }
 
-/** The collections a canvas reads its map's rules from (conditions, resources, measurement). */
-export interface CanvasCollections extends CollectionLookup {
-  /** Settles once the collections can be read; until then a map reads as outside every collection. */
-  ready(): Promise<void>;
-  /** Calls `listener` with the id of a collection whose settings changed; returns what stops it. */
-  onChanged(listener: (collectionId: string) => void): () => void;
+/**
+ * Where a canvas reads its map's rules (conditions, resources, measurement): the played campaign's
+ * system, else the map's collection (`rulesForMap`), and the collections' own settings (rings).
+ */
+export interface CanvasCollections extends RulesLookup {
+  /**
+   * Calls `listener` whenever the rules of the map at `mapPath()` may have changed, also once the
+   * collections can be read (until then a map reads as outside every collection); returns what stops it.
+   */
+  onRulesChanged(mapPath: () => string | null | undefined, listener: () => void): () => void;
 }
 
 /** What a token's menu works on. */
@@ -92,4 +97,9 @@ export interface CanvasHost {
   readonly lighting?: (deps: CanvasLightingDeps) => LightingFeature;
   /** Ambient audio, for a canvas that has it. */
   readonly audio?: (deps: CanvasAudioDeps) => AudioFeature;
+  /**
+   * Shows the store's background in `mapImage` whenever it changes outside a load (an undo of a
+   * background change), for a canvas that reads its scene's images itself; returns what stops it.
+   */
+  readonly followBackground?: (store: ViewAtlasStore, mapImage: MapImage) => () => void;
 }

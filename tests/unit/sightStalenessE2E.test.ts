@@ -11,10 +11,11 @@ import { unitScaleOf } from '../../src/app/lighting/lightingUnits';
 import { sealedWalls } from '../../src/app/lighting/sealWalls';
 import { heldForSight } from '../../src/app/lighting/sightOnDrop';
 import { LightingController } from '../../src/app/pixi/lighting/LightingController';
-import { tokenPerception } from '../../src/app/pixi/lighting/playerLightingLayers';
+import { tokenPerception } from '../../src/app/vision/tokenPerception';
 import type { TokenRenderer } from '../../src/app/pixi/TokenRenderer';
 import { AssetService } from '../../src/app/services/AssetService';
 import { mapMeasurementSettings } from '../../src/app/services/mapMeasurementSettings';
+import { rulesLookup } from '../../src/app/services/mapRules';
 import { mapSenseRulesSource } from '../../src/app/services/mapSenseRules';
 import { mapSightRules } from '../../src/app/services/mapSightRules';
 import { type ViewAtlasStore } from '../../src/app/storeFactory';
@@ -77,7 +78,7 @@ function world(): World {
   controller.wire({
     setWallPointerDownHandler: vi.fn(), setWallPointerMoveHandler: vi.fn(), setWallPointerUpHandler: vi.fn(), setWallDoubleClickHandler: vi.fn(),
     setWallContextMenuHandler: vi.fn(), setWallCursorProvider: vi.fn(), setDoorMenuHandlers: () => undefined, setDoorClickHandler: vi.fn(), setLightHandlers: vi.fn(),
-    setPlayerSightProvider: vi.fn(), refreshPlayerSight: vi.fn(), getSensedOutlineLayer: () => ({ visible: false }),
+    setPlayerSightProvider: vi.fn(), setGlideWay: vi.fn(), refreshPlayerSight: vi.fn(), getSensedOutlineLayer: () => ({ visible: false }),
   } as unknown as TokenRenderer);
   cleanup = () => {
     controller.destroy();
@@ -112,7 +113,7 @@ function compare({ current, store, controller }: World): { held: unknown; fresh:
   const perception = controller.playerSight();
   const ids = Object.keys(state.objects.tokens);
   if (!state.lighting.enabled) return { held: perception, fresh: undefined };
-  const scale = unitScaleOf(mapMeasurementSettings(assets, state), state.grid);
+  const scale = unitScaleOf(mapMeasurementSettings(rulesLookup(current.app), state), state.grid);
   const walls = sealedWalls(wallList(state.objects.walls), worldTexel(BOUNDS));
   const resolver = tokenSensesResolver(CreatureIndex.forApp(current.app), mapSenseRulesSource(current.app, assets, () => state));
   const rules = mapSightRules(current.app, state, (token) => resolver.visionOf(token));

@@ -1,4 +1,4 @@
-import type { CollectionLookup } from '../resources/collectionResources';
+import type { CollectionLookup } from '../gameSystems/mapRules';
 import { RESOURCE_COLORS } from '../resources/resourceColors';
 import type { TokenEntity } from '../types';
 import type { CollectionSettings, PlayerProfile } from '../types/collectionSettingsTypes';

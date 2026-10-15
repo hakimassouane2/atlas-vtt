@@ -1,75 +1,100 @@
-import { App } from 'obsidian';
-import { MapLoader } from './MapLoader';
+import type { App } from 'obsidian';
+import { MapLoader, mapImageSourceFor } from './MapLoader';
 import type { MapFile } from './services/MapPersistence';
-import { PixiRendererOrchestrator } from './PixiRendererOrchestrator';
-import { backgroundTextureCache } from './pixi/backgroundTextureCache';
-import { centerAndFitMap, showMapImage } from './pixi/mapDisplay';
+import { MAP_THUMBNAIL_SIZE } from './services/MapThumbnailService';
+import { readMapStretch } from './grid/mapStretch';
+import { MapImage } from './pixi/mapImage/MapImage';
+import { MapImageService } from './pixi/mapImage/MapImageService';
+import { fitMapRect, fitZoomRange } from './pixi/fitMapRect';
+import { showCamera, type ViewCamera } from './pixi/viewCamera';
+import { showMapGrid, viewMapImageDeps, type MapRenderer } from './pixi/mapDisplay';
+import type { ViewAtlasStore } from './storeFactory';
 
 export interface DisplayedMap {
   mapData: MapFile;
-  /** Background texture reference held for this map; release it through `backgroundTextureCache`. */
-  backgroundUrl: string | null;
+}
+
+/** The store background each map image shows, as the load or the store's change that showed it named it. */
+const shownBackground = new WeakMap<MapImage, string | null>();
+
+/** The view's map image, made and handed to the renderer on the first load; null without a viewport. */
+function viewMapImage(app: App, renderer: MapRenderer): MapImage | null {
+  const existing = renderer.getMapImage();
+  if (existing) return existing;
+  const deps = viewMapImageDeps(renderer, MapImageService.forApp(app), MAP_THUMBNAIL_SIZE);
+  if (!deps) return null;
+  const mapImage = new MapImage(deps);
+  renderer.setMapImage(mapImage);
+  return mapImage;
 }
 
 /**
- * Load the given map file, create background sprite, initialise grid and
+ * Load the given map file, show its map image, initialise grid and
  * return the parsed mapData. Returns null without touching the renderer when
  * `isSuperseded` reports that a newer load took over while the file was read.
+ * The camera goes to `camera` (a tab's own, kept from when it was last shown), else fits the map.
  */
 async function loadAndDisplay(
   app: App,
-  renderer: PixiRendererOrchestrator,
+  renderer: MapRenderer,
   filePath: string,
-  restoreCamera: boolean = true,
+  camera: ViewCamera | null = null,
   isSuperseded: () => boolean = () => false,
 ): Promise<DisplayedMap | null> {
-  const { mapData, texture, backgroundUrl } = await MapLoader.load(app, filePath);
-  if (isSuperseded()) {
-    if (backgroundUrl) backgroundTextureCache.release(backgroundUrl);
-    return null;
+  const { mapData, image } = await MapLoader.load(app, filePath);
+  if (isSuperseded()) return null;
+
+  const mapImage = viewMapImage(app, renderer);
+  if (mapImage) {
+    shownBackground.set(mapImage, mapData.background ?? null);
+    await mapImage.load(image, readMapStretch(mapData.grid?.mapStretch));
+    if (isSuperseded()) return null;
   }
 
-  const sprite = showMapImage(renderer, texture, mapData.grid);
+  // The grid always starts enabled, so the user instantly sees it and can toggle it off later.
+  const gridOptions = mapImage ? showMapGrid(renderer, mapImage, mapData.grid) : null;
 
-  // Restore camera state if present, otherwise center and fit
   const viewport = renderer.getViewportInstance();
-  if (viewport) {
-    // Always center and fit on initial load, unless explicitly restoring camera
-    // Check if camera has valid values (not just default 0,0,1)
-    const hasValidCamera = mapData.camera &&
-                         (mapData.camera.x !== 0 || mapData.camera.y !== 0 || mapData.camera.scale !== 1);
-
-    if (restoreCamera && hasValidCamera) {
-      // Restore saved camera position
-      viewport.moveCenter(mapData.camera.x, mapData.camera.y);
-      viewport.setZoom(mapData.camera.scale);
-    } else {
-      // Center and fit the map in the viewport
-      centerAndFitMap(renderer, sprite);
-    }
-  } else {
-    console.warn('[MapController] Viewport not available for camera positioning');
-  }
+  const worldRect = mapImage?.worldRect;
+  if (!viewport) console.warn('[MapController] Viewport not available for camera positioning');
+  else if (camera) {
+    if (worldRect) fitZoomRange(viewport, worldRect);
+    showCamera(viewport, camera);
+  } else if (worldRect) fitMapRect(viewport, worldRect);
 
   // Ensure in‑memory map data reflects current grid enabled status so the UI
   // shows the correct state.
   if (mapData.grid) {
     mapData.grid.enabled = true;
   } else {
-    const shown = renderer.getGridSystem()?.getOptions();
     mapData.grid = {
       enabled: true,
-      size: shown?.size ?? 70,
-      offsetX: shown?.offsetX ?? 0,
-      offsetY: shown?.offsetY ?? 0,
+      size: gridOptions?.size ?? 70,
+      offsetX: gridOptions?.offsetX ?? 0,
+      offsetY: gridOptions?.offsetY ?? 0,
       opacity: 0.7,
     };
   }
 
-  return { mapData, backgroundUrl };
+  return { mapData };
+}
+
+/**
+ * Shows the store's background whenever it changes outside a load (undo or redo of a background
+ * change, a missing image removed): the image loads into the same map image. Returns the unsubscribe.
+ */
+function followBackground(app: App, store: ViewAtlasStore, mapImage: MapImage): () => void {
+  return store.subscribe((state) => state.background, (background) => {
+    const state = store.getState();
+    // A load sets the background itself and shows the image of its file.
+    if (!state.mapLoaded || state.isMapLoading) return;
+    if (shownBackground.get(mapImage) === background) return;
+    shownBackground.set(mapImage, background);
+    void mapImage.load(mapImageSourceFor(app, background, state.grid?.size));
+  });
 }
 
 /**
  * Handles loading map resources and initialising renderer state.
  */
-export const MapController = { loadAndDisplay };
+export const MapController = { loadAndDisplay, followBackground };

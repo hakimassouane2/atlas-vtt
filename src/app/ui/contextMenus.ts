@@ -9,6 +9,8 @@ export interface ContextMenuOptions {
    * a point and cannot hold focus.
    */
   returnFocus?: HTMLElement | null;
+  /** Called once the menu closes, however it closed. */
+  onClose?: (() => void) | undefined;
 }
 
 /** What a mounted menu provider (`ContextMenuProvider`) answers to. */
@@ -17,23 +19,35 @@ export interface ContextMenuController {
   close: () => void;
 }
 
+/** A provider serving callers outside React. */
+export interface RegisteredContextMenuController extends ContextMenuController {
+  /** The document the provider opens its menus in, once it is rendered. */
+  doc: () => Document | null;
+}
+
 /**
  * Every mounted provider registers here. The newest one serves callers outside
  * React, so a provider that unmounts never disables the ones still on screen.
  */
-const controllers: ContextMenuController[] = [];
+const controllers: RegisteredContextMenuController[] = [];
 
 /** Lets `controller` serve menus until the function it returns is called. */
-export function registerContextMenuController(controller: ContextMenuController): () => void {
+export function registerContextMenuController(controller: RegisteredContextMenuController): () => void {
   controllers.push(controller);
   return () => {
     controllers.splice(controllers.indexOf(controller), 1);
   };
 }
 
-/** Opens a menu of `entries` at a point of the window, in the newest mounted provider. */
-export function openContextMenuGlobal(entries: ContextMenuEntry[], position: { x: number; y: number }, options?: ContextMenuOptions): void {
-  controllers[controllers.length - 1]?.open(entries, position, options);
+export interface GlobalContextMenuOptions extends ContextMenuOptions {
+  /** Opens the menu in this document (a popout's), served by the newest provider rendered there. */
+  doc?: Document | undefined;
+}
+
+/** Opens a menu of `entries` at a point of the window, in the newest mounted provider (of `options.doc` when given). */
+export function openContextMenuGlobal(entries: ContextMenuEntry[], position: { x: number; y: number }, options?: GlobalContextMenuOptions): void {
+  const inDoc = options?.doc === undefined ? controllers : controllers.filter((controller) => controller.doc() === options.doc);
+  inDoc[inDoc.length - 1]?.open(entries, position, options);
 }
 
 export function closeContextMenuGlobal(): void {

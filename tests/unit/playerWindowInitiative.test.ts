@@ -97,7 +97,7 @@ describe('player initiative panel', () => {
     // HP stays hidden until the collection lets players see it
     expect(panel()?.querySelector('progress')).toBeNull();
     collection.hpVisibleToPlayers = true;
-    settings.setLocalPlayerViewSettings({ showTokenNameplates: true, showGrid: false });
+    settings.setLocalPlayerViewSettings({ showTokenNameplates: true, showWidgets: false });
     expect(panel()?.querySelector('progress')?.value).toBe(8);
     const objects = store.getState().objects;
     store.setState({ objects: { ...objects, tokens: { hero: { ...objects.tokens.hero!, isHidden: true } } } });
@@ -133,11 +133,17 @@ describe('player initiative panel', () => {
     expect(panel?.querySelector('progress')).toBeNull();
   });
 
-  it('binds to the view of a scene the DM opens, and lets go of it when the window closes', () => {
-    const { service, settings, doc, source } = setup();
+  it('holds the presented initiative while browsing and binds to a newly presented view', () => {
+    const { service, settings, store, doc, source } = setup();
+    service.holdCurrentFrame();
+    store.setState({ initiative: { ...store.getState().initiative, round: 9 } });
     settings.setLocalPlayerViewSettings({ showTokenNameplates: true });
+    expect(doc.body.textContent).toContain('Round 1');
+    expect(doc.body.textContent).not.toContain('Round 9');
+    service.releaseHeldFrame(source);
+    expect(doc.body.textContent).toContain('Round 9');
     const other = scene('Other hero');
-    service.follow({ ...source, store: other });
+    service.presentCanvas({ ...source, store: other }, 'scene-b');
     expect(doc.body.textContent).toContain('Other hero');
     other.setState({ initiative: { ...other.getState().initiative, round: 3 } });
     expect(doc.body.textContent).toContain('Round 3');
@@ -148,14 +154,39 @@ describe('player initiative panel', () => {
     expect(doc.body.textContent).toBe(before);
   });
 
-  it('keeps the initiative of a closed map without following its store', () => {
+  it('keeps the presented map\'s tracker visibility while the DM browses another map', () => {
+    const { service, store, doc, source } = setup(false);
+    const panel = (): Element | null => doc.querySelector('[aria-label="Initiative order"]');
+    service.holdCurrentFrame();
+    // Switching tabs loads the other map into the same view store.
+    store.setState({ initiativeTrackerOpen: true, initiative: { ...store.getState().initiative, round: 5 } });
+    expect(panel()).toBeNull();
+    store.setState({ initiativeTrackerOpen: false });
+    store.setState({ initiativeTrackerOpen: true });
+    expect(panel()).toBeNull();
+    // Returning to the presented map resumes following its live state.
+    store.setState({ initiativeTrackerOpen: false });
+    service.releaseHeldFrame(source);
+    expect(panel()).toBeNull();
+    store.setState({ initiativeTrackerOpen: true });
+    expect(panel()?.textContent).toContain('Round 5');
+  });
+
+  it('keeps a shown tracker while the DM browses a map with the tracker closed', () => {
     const { service, store, doc } = setup();
-    service.follow(null);
+    service.holdCurrentFrame();
+    store.setState({ initiativeTrackerOpen: false, objects: { tokens: {} } });
+    expect(doc.querySelector('[aria-label="Initiative order"]')?.textContent).toContain('Round 1');
+  });
+
+  it('keeps the initiative of a closed presented map without following its store', () => {
+    const { service, store, doc } = setup();
+    service.releaseSource(store);
     store.setState({ initiativeTrackerOpen: false, initiative: { ...store.getState().initiative, round: 9 } });
     expect(doc.body.textContent).toContain('Round 1');
     const next = scene();
     next.setState({ initiative: { ...next.getState().initiative, round: 4 } });
-    service.follow({ canvas: createEl('canvas'), withPlayerSafeFrame: vi.fn(), store: next });
+    service.presentCanvas({ canvas: createEl('canvas'), withPlayerSafeFrame: vi.fn(), store: next }, 'scene-b');
     expect(doc.body.textContent).toContain('Round 4');
   });
 

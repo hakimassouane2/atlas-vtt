@@ -8,7 +8,8 @@
 
 import type { StoreApi } from 'zustand';
 import type { GridSystem } from '../../grid/GridSystem';
-import { pathLengthInCells } from '../../grid/gridDistance';
+import { pathLengthInCells, type GridGeometry } from '../../grid/gridDistance';
+import { tokenCenterShift } from '../../grid/gridPlacement';
 import type { Point } from '../../grid/hexGeometry';
 import { formatDistance, type MeasurementSettings } from '../../grid/measurementFormat';
 import type { ViewAtlasState } from '../../storeFactory';
@@ -27,6 +28,7 @@ export class DragRuler {
     private readonly gridSystem: GridSystem,
     private readonly store: Pick<StoreApi<ViewAtlasState>, 'getState'>,
     private readonly settingsProvider: () => MeasurementSettings,
+    private readonly tokenVisible: (tokenId: string) => boolean = () => true,
   ) {}
 
   /** Starts measuring a drag of `tokenId`, which started at `origin`. */
@@ -64,6 +66,14 @@ export class DragRuler {
     return shown ? [] : this.view.layers.map(layer => ({ layer, visible: false }));
   }
 
+  /** A held token can enter fog without ending its measured drag. */
+  refreshVisibility(): void {
+    const landing = this.landing;
+    if (!this.tokenId || !landing) return;
+    const visible = this.tokenVisible(this.tokenId) && this.waypoints.some((point) => !samePoint(point, landing));
+    for (const layer of this.view.layers) layer.visible = visible;
+  }
+
   destroy(): void {
     this.end();
     this.view.destroy();
@@ -86,7 +96,9 @@ export class DragRuler {
   }
 
   private redraw(): void {
-    if (this.landing) drawRuler(this.view, this.gridSystem, this.settingsProvider(), [...this.waypoints, this.landing]);
+    if (!this.landing || !this.tokenId) return;
+    drawRuler(this.view, this.gridSystem, this.settingsProvider(), this.store.getState(), this.tokenId, [...this.waypoints, this.landing]);
+    this.refreshVisibility();
   }
 
   private snap(point: Point): Point {
@@ -96,23 +108,53 @@ export class DragRuler {
 
 /** Where a ruler of `tokenId` ends for the token at `point`: the cell it would land in. */
 export function snapRulerPoint(state: Pick<ViewAtlasState, 'grid' | 'objects'>, gridSystem: GridSystem, tokenId: string, point: Point): Point {
-  const snapToGrid = state.grid?.snapToGrid ?? true;
-  if (!snapToGrid) return { x: point.x, y: point.y };
-  const size = state.objects.tokens[tokenId]?.size;
-  return gridSystem.snapTokenCenter(point.x, point.y, size || 1);
+  if (!snapsToGrid(state)) return { x: point.x, y: point.y };
+  return gridSystem.snapTokenCenter(point.x, point.y, tokenSize(state, tokenId));
 }
 
-/** Draws a ruler through `points` (start, waypoints, landing) with its distance, or nothing while it has not moved. */
-export function drawRuler(view: DragRulerView, gridSystem: GridSystem, settings: MeasurementSettings, points: readonly Point[], color?: string): void {
+/**
+ * Draws a ruler of `tokenId` through `points` (start, waypoints, landing) with its distance, or nothing
+ * while it has not moved.
+ */
+export function drawRuler(
+  view: DragRulerView,
+  gridSystem: GridSystem,
+  settings: MeasurementSettings,
+  state: Pick<ViewAtlasState, 'grid' | 'objects'>,
+  tokenId: string,
+  points: readonly Point[],
+  color?: string,
+): void {
   const landing = points[points.length - 1];
   if (!landing || points.every(point => samePoint(point, landing))) {
     view.clear();
     return;
   }
-  const distance = formatDistance(pathLengthInCells(gridSystem.getOptions(), [...points], settings.diagonalRule), settings);
+  const grid = gridSystem.getOptions();
+  const cells = pathLengthInCells(grid, cellPath(state, tokenId, points, grid), settings.diagonalRule);
+  const distance = formatDistance(cells, settings);
   // A ruler of one's own takes the accent
   if (color) view.draw(points, distance, color);
   else view.draw(points, distance);
+}
+
+/**
+ * The snapped path as the cells the token's footprint starts from. An even footprint snaps to where
+ * cells meet, and on a hex grid that point lies in none of the three hexes around it: which one the
+ * rounding picks differs from place to place, so the same drag measured a hex more or less.
+ */
+function cellPath(state: Pick<ViewAtlasState, 'grid' | 'objects'>, tokenId: string, points: readonly Point[], grid: GridGeometry): readonly Point[] {
+  if (!snapsToGrid(state)) return points;
+  const shift = tokenCenterShift(grid.type, grid.size, tokenSize(state, tokenId));
+  return points.map(point => ({ x: point.x - shift.x, y: point.y - shift.y }));
+}
+
+function snapsToGrid(state: Pick<ViewAtlasState, 'grid'>): boolean {
+  return state.grid?.snapToGrid ?? true;
+}
+
+function tokenSize(state: Pick<ViewAtlasState, 'objects'>, tokenId: string): number {
+  return state.objects.tokens[tokenId]?.size || 1;
 }
 
 function samePoint(a: Point, b: Point): boolean {

@@ -41,7 +41,7 @@ export function playerClient(): Plugin {
         minify: isProduction,
         define: { 'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development') },
         loader: { '.webp': 'dataurl', '.png': 'dataurl', '.svg': 'text' },
-        plugins: [browserStandIns(clientDir)],
+        plugins: [browserStandIns(clientDir), inlineWorkers(isProduction)],
         logLevel: 'silent',
       });
       for (const input of Object.keys(result.metafile.inputs)) {
@@ -64,6 +64,49 @@ function browserStandIns(clientDir: string): EsbuildPlugin {
       pluginBuild.onLoad({ filter: /.*/, namespace: 'atlas-no-style' }, () => ({ contents: '', loader: 'js' }));
       pluginBuild.onResolve({ filter: /\.mp3\?inline$/ }, (args) => ({ path: args.path, namespace: 'atlas-no-sound' }));
       pluginBuild.onLoad({ filter: /.*/, namespace: 'atlas-no-sound' }, () => ({ contents: "export default '';", loader: 'js' }));
+    },
+  };
+}
+
+/**
+ * Vite's `?worker&inline` imports (the map tile worker) for esbuild: the worker is bundled on its own
+ * and the import gives a class that starts it from a blob, as Vite's inline workers do.
+ */
+function inlineWorkers(isProduction: boolean): EsbuildPlugin {
+  return {
+    name: 'atlas-player-client-inline-workers',
+    setup(pluginBuild) {
+      pluginBuild.onResolve({ filter: /\?worker&inline$/ }, (args) => ({
+        path: path.resolve(args.resolveDir, args.path.replace(/\?worker&inline$/, '.ts')),
+        namespace: 'atlas-inline-worker',
+      }));
+      pluginBuild.onLoad({ filter: /.*/, namespace: 'atlas-inline-worker' }, async (args) => {
+        const worker = await build({
+          entryPoints: [args.path],
+          bundle: true,
+          write: false,
+          format: 'iife',
+          platform: 'browser',
+          target: 'es2020',
+          minify: isProduction,
+          metafile: true,
+          logLevel: 'silent',
+        });
+        const code = worker.outputFiles[0]?.text ?? '';
+        return {
+          contents: `const code = ${JSON.stringify(code)};
+export default class InlineWorker {
+  constructor(options) {
+    const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+    const worker = new Worker(url, options);
+    URL.revokeObjectURL(url);
+    return worker;
+  }
+}`,
+          loader: 'js',
+          watchFiles: Object.keys(worker.metafile?.inputs ?? {}),
+        };
+      });
     },
   };
 }

@@ -9,9 +9,10 @@ export const command: Translation = {
   'command.openDashboard': 'Открыть панель',
   'command.openSceneBrowser': 'Открыть список сцен',
   'command.reportIssue': 'Сообщить о проблеме…',
-  'command.sendMapToPlayerView': 'Открыть окно игроков',
+  'command.sendMapToPlayerView': 'Показать текущую карту игрокам',
+  'command.showMapInPlayerWindow': 'Показать текущую карту в окне игроков на этом компьютере',
   'command.toggleDiceLog': 'Показать/скрыть журнал бросков',
   'command.toggleInitiativeTracker': 'Показать/скрыть трекер инициативы',
-  'command.toggleLootRoller': 'Показать/скрыть генератор добычи',
+  'command.toggleLootRoller': 'Показать/скрыть случайные таблицы',
   'command.viewChangelog': 'Открыть список изменений',
 };

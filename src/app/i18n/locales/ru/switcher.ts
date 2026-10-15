@@ -5,5 +5,6 @@ export const switcher: Translation = {
   'switcher.jump': 'Перейти',
   'switcher.navigate': 'Навигация',
   'switcher.open': 'Открыть',
+  'switcher.openBoth': 'Открыть в обоих видах',
   'switcher.search': 'Поиск по открытым картам',
 };

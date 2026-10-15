@@ -5,6 +5,7 @@ import type { PlayerFrameSource } from '../../src/app/services/PlayerFrameMirror
 import { PlayerWindowService } from '../../src/app/services/PlayerWindowService';
 import type { ViewAtlasState } from '../../src/app/storeFactory';
 import { attachFakePlayerWindow } from '../mocks/playerPopout';
+import { frameSource, sizePlayerWindow } from '../mocks/playerFrameSource';
 
 vi.mock('../../src/app/atlas-view', () => ({ AtlasView: class {}, ATLAS_VIEW_TYPE: 'atlas-vtt' }));
 
@@ -90,21 +91,24 @@ describe('live player settings', () => {
     service.destroy();
   });
 
-  it('follows the scene the DM opens in the view, and a newly followed view only', () => {
+  it('keeps the presented map\'s widgets while the DM browses another map and follows a newly presented one', () => {
     vi.useFakeTimers();
     const settings = new SettingsService(app);
-    const store = createStore(() => counterScene('First', 3));
+    const store = createStore(() => counterScene('Presented', 3));
     const source = sourceFor(store);
     const service = new PlayerWindowService(app, source.store!, settings);
     const doc = attachFakePlayerWindow(service, source);
     const widgets = doc.getElementById('atlas-player-widgets')!;
     store.setState({ widgetValues: { counter: 4 } });
-    expect(widgets.textContent).toBe('4First');
-    // Opening another scene loads it into the same store
-    store.setState({ ...counterScene('Second', 9), widgetValues: { counter: 9 } });
-    expect(widgets.textContent).toBe('9Second');
+    expect(widgets.textContent).toBe('4Presented');
+    service.holdCurrentFrame();
+    // Switching tabs loads the other map, with the same default widget ids, into the same store.
+    store.setState({ ...counterScene('Browsed', 9), widgetValues: { counter: 9 } });
+    expect(widgets.textContent).toBe('4Presented');
+    store.setState({ widgetSettings: { ...store.getState().widgetSettings, globalVisible: false } });
+    expect(widgets.textContent).toBe('4Presented');
     const otherView = createStore(() => counterScene('Other view', 7));
-    service.follow(sourceFor(otherView));
+    service.presentCanvas(sourceFor(otherView), 'scene-b');
     expect(widgets.textContent).toBe('7Other view');
     otherView.setState({ widgetValues: { counter: 8 } });
     expect(widgets.textContent).toBe('8Other view');
@@ -112,10 +116,10 @@ describe('live player settings', () => {
     expect(widgets.textContent).toBe('8Other view');
   });
 
-  it('shows the scene the DM has open once the popout has loaded', () => {
+  it('keeps the presented map when the DM switches tabs before the popout has loaded', () => {
     vi.useFakeTimers();
     const settings = new SettingsService(app);
-    const store = createStore(() => counterScene('First', 3));
+    const store = createStore(() => counterScene('Presented', 3));
     const source = sourceFor(store);
     const service = new PlayerWindowService(app, source.store!, settings);
     const doc = document.implementation.createHTMLDocument();
@@ -124,12 +128,13 @@ describe('live player settings', () => {
     Object.defineProperty(doc.body, 'win', { value: {
       document: doc, closed: false, addEventListener, removeEventListener: vi.fn(), close: vi.fn(),
     } });
-    service.attachToView({ contentEl: doc.body, updateSession: vi.fn() } as never, source);
-    store.setState(counterScene('Second', 9));
+    service.attachToView({ contentEl: doc.body, updateSession: vi.fn() } as never, source, { tabId: 'scene-a', filePath: 'scene-a.atlasmap' });
+    service.holdCurrentFrame();
+    store.setState(counterScene('Browsed', 9));
     Object.defineProperty(doc, 'readyState', { value: 'complete' });
     const onLoad = addEventListener.mock.calls.find(([type]) => type === 'load')![1] as () => void;
     onLoad();
-    expect(doc.getElementById('atlas-player-widgets')?.textContent).toBe('9Second');
+    expect(doc.getElementById('atlas-player-widgets')?.textContent).toBe('3Presented');
   });
 
   it('passes the latest settings to every live frame capture', () => {
@@ -143,15 +148,16 @@ describe('live player settings', () => {
     vi.spyOn(target, 'getContext').mockReturnValue({ clearRect: vi.fn(), drawImage: vi.fn() } as any);
     (service as any).playerWindow = { document: doc, closed: false, requestAnimationFrame, cancelAnimationFrame, removeEventListener: vi.fn(), close: vi.fn() };
     const capture = vi.fn();
-    (service as any).streamSource = { canvas: document.createElement('canvas'), withPlayerSafeFrame: capture };
+    sizePlayerWindow();
+    (service as any).streamSource = frameSource({ withPlayerSafeFrame: capture });
     (service as any).startMirroring();
     vi.mocked(requestAnimationFrame).mock.calls.at(-1)![0](40);
-    expect(capture).toHaveBeenLastCalledWith(expect.any(Function), settings.getLocalPlayerViewSettings(), undefined);
-    settings.setLocalPlayerViewSettings({ showGrid: false, showTokenNameplates: true });
+    expect(capture).toHaveBeenLastCalledWith(expect.any(Function), settings.getLocalPlayerViewSettings(), expect.objectContaining({ width: 1280, height: 720 }));
+    settings.setLocalPlayerViewSettings({ showWidgets: false, showTokenNameplates: true });
     const nextFrame = vi.mocked(requestAnimationFrame).mock.calls.at(-1)![0];
     capture.mockClear();
     nextFrame(56);
     expect(capture).toHaveBeenCalledTimes(1);
-    expect(capture).toHaveBeenLastCalledWith(expect.any(Function), settings.getLocalPlayerViewSettings(), undefined);
+    expect(capture).toHaveBeenLastCalledWith(expect.any(Function), settings.getLocalPlayerViewSettings(), expect.objectContaining({ width: 1280, height: 720 }));
   });
 });

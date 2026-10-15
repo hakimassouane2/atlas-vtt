@@ -34,6 +34,8 @@ export class UIManager implements ITokenUIManager {
   private playerUIContainer: Container | null = null;
   private playerTokenUIs: Record<string, TokenUIRenderer> = {};
   private tokenUIs: Record<string, TokenUIRenderer> = {};
+  /** The canvas shows the players' view (session view, the peek): token UIs draw what players see. */
+  private playersView = false;
   private tokenControlsUI?: TokenControlsUI;
   
   // Condition definitions provider — forwarded to each TokenUIRenderer
@@ -133,6 +135,7 @@ export class UIManager implements ITokenUIManager {
       ui.playerSettingsFor = (shown) => playerTokenUISettings(shown as TokenEntity, player.tokenUI());
       ui.playerControls = (shown) => player.controls(shown as TokenEntity);
     }
+    ui.setPlayersView(this.playersView);
     this.tokenUIs[tokenId] = ui;
     
     const uiElement = ui.getContainer();
@@ -326,6 +329,18 @@ export class UIManager implements ITokenUIManager {
   /** Scale of `tokenId`'s bars, which its +/- controls match. */
   private barScale(tokenId: string): number {
     return this.tokenUIs[tokenId]?.getUIScale() ?? restingTokenUIScale(this.store.getState().grid?.size ?? 70);
+  }
+
+  /**
+   * Whether the canvas shows the players' view (session view, the peek): every token's UI then
+   * draws the resources players see, its wheels at rest, as the player window does.
+   */
+  setPlayersView(on: boolean): void {
+    if (this.playersView === on) return;
+    this.playersView = on;
+    for (const ui of Object.values(this.tokenUIs)) ui.setPlayersView(on);
+    // The +/- controls sit on the resources just redrawn
+    this.updateSelectionUI(this.store.getState().selectedIds);
   }
 
   /** Shows or hides a token's UI with its token; while hidden, no later update of the token shows it again. */

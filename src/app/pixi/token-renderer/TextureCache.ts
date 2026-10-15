@@ -1,10 +1,9 @@
-import { Texture, Graphics, CanvasSource, ImageSource, type Application } from 'pixi.js';
+import { Texture, Graphics, type CanvasSource, type ImageSource, type Application } from 'pixi.js';
 import type { ArtFile, ArtSource } from '../../canvas/canvasHost';
 import type { ITextureCache } from './types';
 import { normalizeImagePath } from '../../utils/pathUtils';
 import { loadAsset, unloadAsset } from '../utils/assetLifecycle';
-import { withDecodedImage } from '../../imageProcessing/imageElement';
-import { fitWithin } from '../../imageProcessing/imageLayout';
+import { decodeImage, decodedSource, type DecodedImage } from '../decodedImage';
 
 /**
  * Longest edge of a token texture. Tokens render at roughly one grid cell, so
@@ -14,37 +13,9 @@ const MAX_TOKEN_TEXTURE_SIZE = 1024;
 /** Cache key of the placeholder used for tokens without art. */
 const DEFAULT_TOKEN_TEXTURE_KEY = 'default-token';
 
-/**
- * Decode an image off the main thread and downscale it to the token budget.
- * Falls back to an <img> + canvas decode for formats createImageBitmap cannot
- * handle (notably SVG in Chromium).
- */
-async function decodeTokenImage({ bytes, mimeType }: ArtFile): Promise<ImageBitmap | HTMLCanvasElement> {
-  const blob = new Blob([bytes], { type: mimeType });
-  if (mimeType !== 'image/svg+xml') {
-    try {
-      const full = await createImageBitmap(blob);
-      const target = fitWithin(full, MAX_TOKEN_TEXTURE_SIZE, MAX_TOKEN_TEXTURE_SIZE);
-      if (target.width === full.width && target.height === full.height) return full;
-      const scaled = await createImageBitmap(full, {
-        resizeWidth: target.width,
-        resizeHeight: target.height,
-        resizeQuality: 'high',
-      });
-      full.close();
-      return scaled;
-    } catch {
-      // Fall through to the <img> path
-    }
-  }
-  return withDecodedImage(blob, (img) => {
-    const target = fitWithin({ width: img.naturalWidth || 512, height: img.naturalHeight || 512 }, MAX_TOKEN_TEXTURE_SIZE, MAX_TOKEN_TEXTURE_SIZE);
-    const canvas = createEl('canvas');
-    canvas.width = target.width;
-    canvas.height = target.height;
-    canvas.getContext('2d')!.drawImage(img, 0, 0, target.width, target.height);
-    return canvas;
-  });
+/** Decodes token art, downscaled to the token budget. */
+function decodeTokenImage({ bytes, mimeType }: ArtFile): Promise<DecodedImage> {
+  return decodeImage(bytes, mimeType, MAX_TOKEN_TEXTURE_SIZE);
 }
 
 /** Image paths PIXI's `Assets` loads by URL instead of reading them from the art source. */
@@ -161,7 +132,7 @@ export class TextureCache implements ITextureCache {
 
     const generation = (this.reloadGenerations.get(key) ?? 0) + 1;
     this.reloadGenerations.set(key, generation);
-    let decoded: ImageBitmap | HTMLCanvasElement;
+    let decoded: DecodedImage;
     try {
       const file = await this.art.read(key);
       if (!file) return false;
@@ -186,11 +157,9 @@ export class TextureCache implements ITextureCache {
     return true;
   }
 
-  private createSource(path: string, decoded: ImageBitmap | HTMLCanvasElement): ImageSource | CanvasSource {
-    const sourceOptions = { autoGenerateMipmaps: true, scaleMode: 'linear' as const, label: path };
-    if (!(decoded instanceof ImageBitmap)) return new CanvasSource({ resource: decoded, ...sourceOptions });
-    this.bitmapByKey.set(path, decoded);
-    return new ImageSource({ resource: decoded, ...sourceOptions });
+  private createSource(path: string, decoded: DecodedImage): ImageSource | CanvasSource {
+    if (decoded instanceof ImageBitmap) this.bitmapByKey.set(path, decoded);
+    return decodedSource(decoded, { autoGenerateMipmaps: true, scaleMode: 'linear', label: path });
   }
 
   private destroyTexture(key: string): void {

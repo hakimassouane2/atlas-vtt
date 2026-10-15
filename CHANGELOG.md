@@ -2,6 +2,128 @@
 
 <!-- Generated from changelog/*.md. Run npm run changelog:generate. -->
 
+## 0.8.0 — Online play and native statblocks
+
+2026-10-14
+
+### What's New
+#### New Feature: Online Play
+- Online play (closed beta): host a table that your players join in their web browser. It is off until you turn it on under Experimental features in the command palette.
+- Campaigns on the dashboard: create and search campaigns, and play one to track its scenes and player characters.
+- Right-click a token to make it a player character. Player characters have their own Players tab in the asset manager.
+- A campaign keeps one set of values for each player character. Hit points changed on one scene show on every scene and sync to your other devices.
+- The token and map creators have a From vault tab, so you can use images already in your vault.
+- Dice formulas support the notation of Foundry and Roll20: keep and drop (2d20kh1), rerolls, explosions, success counts, d%, Fate dice, labels and brackets. Dropped and rerolled dice are shown struck through.
+- Initiative rolls add each creature's modifier from its statblock. With a contribution by anacletoTM.
+
+#### New Feature: Native Statblocks
+- Atlas draws statblocks itself, so they show without the Fantasy Statblocks plugin.
+- Statblock templates for 5E (2014 and 2024), Cairn, Draw Steel and Fate, plus general ones for creatures, NPCs and hazards.
+- A template value can be limited to a list of choices, picked from a dropdown.
+- A template value can be shown in a box, with a small label over a large number, like hit points in a printed statblock.
+#### General
+- The Loot Feature is now "Random Tables": roll on tables in your notes and on your loot bases.
+- Each collection sets its item rarities and their colours in its Random tables settings.
+- New table: paste a table from a PDF, web page or spreadsheet and save it as a file.
+- You can give a combatant your own initiative modifier in its edit dialog, which replaces the statblock's modifier until you clear it. With a contribution by anacletoTM.
+- The initial opening of scenes is now faster. The Spectral Engine now visualises grid detection with an animation
+- Added Toggle to turn off Grid Detection in the Grid Settings
+### What's Fixed / Improved
+
+- The asset manager's Characters tab is now called Tokens.
+- Tokens no longer snap to a default hidden grid if no grid was found during automatic detection
+- Improved UX for Grid Alignment panel
+- Atlas' toast messages now match the look of your theme.
+- Several tokens can share one statblock, for example colour variants of a creature.
+- Linking a token no longer replaces a statblock's own picture. A token copied to another collection keeps its statblock.
+- The creature filter Layout is now called Template. `layout:` still works in the search.
+- Fixed bug where note pin and statblock previews would open in a shifted position while an Obsidian sidebar was open
+- Measured distances show one decimal place, so a 1.5 m cell reads 1.5 m. Contributed by giopalma.
+- The fog brush draws an even stroke while you drag it. Contributed by MavethGH.
+- The first fog stroke after deleting all fog shows while you draw it. Contributed by MavethGH.
+- Saving an encounter from the asset manager or scene browser no longer opens the name dialog behind it.
+- Cmd+A (Ctrl+A) in an asset manager text field selects the text, not every asset.
+- Creating maps, tokens and scenes only offers the tags of the chosen collection.
+- A fixed value such as armour class now shows on its token when it is 0.
+- A ring colour picked from the right-click menu colours all selected tokens, in one undo step.
+- Resource wheels that players may see now show in the player window. Every resource has its own switch in the player view settings.
+
+## 0.7.1 — Local player window and more precise grid alignment
+
+2026-10-10
+
+### New
+
+- New command in Atlas Command Palette: Show Current Map in Local Player Window as a differentiation between online player view and local player view
+
+### Improved
+
+- Significantly improved reliability and precision of grid alignment both in auto and manual mode
+- Grid alignment now detects stretched hexes and pointy hex grids much better
+### Fixed
+
+- A collection's cover and the thumbnails of small images are saved as WebP, as their file names say, and an export no longer carries one that is a PNG or JPEG under a WebP name
+- Fixed a bug where too small cover images of exported collections weren't converted to .webp correctly as expected by the Armarium parser
+- Fixed a bug where modifier rolls in FS statblock tables weren't clickable
+
+## 0.7.0 — Huge sharp maps, gliding tokens and a lighting quality setting
+
+2026-10-09
+
+### New
+
+- Huge maps of up to 144 megapixels (about 16,000 × 9,000 pixels) stay sharp at every zoom
+- Imported maps keep their full quality: PNG, JPEG and WebP files are no longer compressed
+- Tokens glide to their place instead of jumping
+- Lighting quality setting (High, Balanced, Saver) for laptops with weaker graphics
+
+### Important changes
+
+- Local player view window no longer adapts in size and resolution to host windows and instead adapts to it's own monitor
+- When the map pane changes size, the map keeps its centre in place instead of its top-left corner
+- Hidden tokens no longer give players sight or explore new areas. Areas already explored stay explored
+- Tokens and door icons under fog are hidden from players, with their names and rulers
+- Players see a roll's token picture and name only when they can see that token
+- Measurements that start on a token players can't see are hidden from players
+- Look-alike token numbers in the player view count only the tokens players can see
+- Atlas skips statblocks, note properties and loot files larger than 32 KB
+
+### Improved
+
+- Large maps open faster, and much faster the second time. Settings show the space this uses and clear it
+- Grid on maps now correctly adjusts again to host changes on the player view
+- New toggle for public dice rolls in the dice tray
+- Invalid or oversized dice formulas are rejected with a clear message
+- Sight and light are much faster on maps with thousands of walls
+- Fog strokes keep consistent shapes
+
+### Fixed
+
+- The map no longer flickers when a sidebar opens or closes
+- Fit map (Shift+1) shows very large maps entirely
+- Maps larger than the graphics card can show no longer stay black
+- The player window no longer zooms in, cuts off the map or turns blocky when you open a sidebar or use a small pane
+- The frozen player camera no longer jumps or resizes when you switch tabs or open a sidebar
+- Freezing the player camera right after switching scenes freezes it in the right place
+- Obsidian no longer turns sluggish after a right-click menu while Fantasy Statblocks is enabled
+- Dragging tokens and measuring no longer slow Obsidian down
+- Fixed performance for DM screen after fresh Obsidian start
+- Empty or broken statblock entries no longer break the toolbar or the asset manager. With a contribution by ISorokaI
+- Dice in statblocks can be clicked in every Fantasy Statblocks layout, including custom ones with scripts
+- Dice rolls, sounds and history stay in the map view that made them
+- Undo and redo change only what that edit changed
+- The ruler and token dragging measure the same distance everywhere on the map
+- Distance per square takes decimals with a comma or a point, and values below 1
+- Ruler labels are readable in the light theme
+- Timers keep correct time while Obsidian is in the background
+- Fog updates correctly when you return to a map or cancel a drawing
+- Erasing part of a drawing keeps the drawing's settings
+- Map shortcuts keep working after two note previews open at once
+- Scenes no longer fail with "Failed to fetch" on older Obsidian installers
+- A scene that fails to open no longer leaves the previous scene's tokens on screen
+- The command palette no longer takes focus back after you close it
+- Without graphics acceleration, areas that two tokens see are no longer black for players
+
 ## 0.6.0 — Customizable toolbar, links to scenes in notes, Russian and library sync
 
 2026-10-05

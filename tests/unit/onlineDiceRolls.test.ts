@@ -2,7 +2,8 @@ import { describe, expect, test, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { ViewAtlasState } from '../../src/app/storeFactory';
-import { DiceTool, type DiceRollResult } from '../../src/app/tools/DiceTool';
+import { DiceTool, type DiceRollResult, type RollStamp } from '../../src/app/tools/DiceTool';
+import { DEFAULT_DICE_RULES } from '../../src/app/gameSystems/diceRules';
 import { rollAuthor } from '../../src/app/tools/rollAuthor';
 import { playerRollStamp } from '../../src/app/online/rollStamps';
 import { parsePlayerCommand } from '../../src/app/online/playerCommands';
@@ -30,10 +31,12 @@ describe('who rolled', () => {
   });
 
   test('the DM engine stamps its own rolls and takes a player\'s stamp as given', () => {
-    const tool = new DiceTool(new EventEmitter(), undefined, () => ({ look: { colour: 'dark', font: 'medieval' }, shownToPlayers: false }));
+    const inputs = { random: Math.random, rollId: (): string => 'r', roller: (): string => 'Player', onFormulaError: (): void => {} };
+    const dmStamp = (): RollStamp => ({ look: { colour: 'dark', font: 'medieval' }, shownToPlayers: false });
+    const tool = new DiceTool(new EventEmitter(), () => DEFAULT_DICE_RULES, inputs, dmStamp);
     expect(tool.rollDice('1d6')).toMatchObject({ look: { colour: 'dark' }, shownToPlayers: false });
-    expect(tool.rollDice('1d6').roller).toBeUndefined();
-    expect(tool.rollDice('1d6', undefined, playerRollStamp(alice))).toMatchObject({ roller: { name: 'Alice' }, shownToPlayers: true });
+    expect(tool.rollDice('1d6')?.roller).toBeUndefined();
+    expect(tool.rollDice('1d6', undefined, undefined, { stamp: playerRollStamp(alice) })).toMatchObject({ roller: { name: 'Alice' }, shownToPlayers: true });
   });
 
   test('a roll is shown as its character, else its player, else the DM; older rolls name nobody', () => {
