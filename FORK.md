@@ -23,7 +23,12 @@ conflits avec l'original.
 - `main` : notre seule branche durable. Une grosse fonctionnalité se fait sur une branche
   temporaire, supprimée une fois fusionnée dans `main`.
 
-Dernière synchro avec l'original : **0.6.0** (7 octobre 2026, merge de `upstream/main`).
+Dernière synchro avec l'original : **0.8.0** (15 octobre 2026, merge de `upstream/main`).
+
+**Deux modes en ligne cohabitent.** La 0.8.0 apporte le sien dans `src/app/online/` (`gm/`, `protocol/`,
+`movement/`, `marks/`, `tableLog/`) : il passe par le serveur relais de ByteMirror, avec comptes et clés
+d'accès, et reste éteint (fonction expérimentale `onlinePlay`). On n'y touche pas, pour que les synchros
+passent sans conflit. **Notre mode auto-hébergé, celui qui sert à jouer, est dans `src/app/selfhost/`.**
 
 Sur un nouveau PC :
 
@@ -139,11 +144,13 @@ vocabulaire : `CONTEXT.md`.
    (l'arrêt vaut jusqu'au prochain lancement). Le globe est grisé à l'arrêt, actif en marche avec le
    nombre de pages connectées, rouge si le port est pris. Pas encore de capture pour la carte de
    l'éditeur de barre (`toolbarScreenshots.ts` : `online: null`).
-   Accueil Atlas : tuile **Online Session**, qui fait la même chose et affiche les profils connectés.
+   Accueil Atlas : bouton **Online session** dans la barre du haut (`selfhost/OnlineDashboardAction.tsx`),
+   qui fait la même chose et affiche les profils connectés.
    Commandes équivalentes : "Start online session and copy the player link", "Stop online session".
 3. Rien à présenter : les joueurs voient toujours la scène ouverte chez le MJ (l'onglet de scène
    actif). Changer d'onglet ou ouvrir une scène les y emmène ; ils gardent l'image de l'ancienne
-   pendant le chargement. La popout locale suit de la même façon ("Open player view" l'ouvre).
+   pendant le chargement. La popout locale, elle, est celle de l'original (œil sur les onglets, scène
+   présentée) : on ne s'en sert pas.
 4. Réglages de la collection, onglet **Players** : un profil par joueur (nom et couleur, sans mot de
    passe). Puis donner les tokens : Edit Token, section **Players** (un interrupteur par profil), ou
    clic droit sur le token (ou la sélection), sous-menu **Players**. Un token peut appartenir à
@@ -171,7 +178,8 @@ vocabulaire : `CONTEXT.md`.
    Chaque jet dit qui l'a lancé : le personnage s'il y en a un, sinon le joueur (dans la couleur de
    son profil) ou « GM ». Les dés de chacun gardent son habillage partout ; la vitesse et le choix
    3D ou carte sont ceux du MJ (réglages des dés), pour toute la table.
-6. Ce que les joueurs voient suit tes réglages de la vue joueur (grille, noms, jets du MJ) et la
+6. Ce que les joueurs voient suit tes réglages de la vue joueur (noms, jets du MJ ; la grille comme
+   le MJ la règle, l'original a retiré le réglage « grille » en 0.7) et la
    visibilité de chaque ressource. Pas d'éclairage dynamique en ligne : le brouillard seul révèle.
 7. "Reset link" dans les réglages invalide tous les liens déjà envoyés.
 
@@ -182,12 +190,12 @@ vocabulaire : `CONTEXT.md`.
   (`tests/unit/canvasImportGraph.test.ts`). Ce qui vient d'Obsidian passe par un `CanvasHost`
   (`src/app/canvas/canvasHost.ts`) : images, règles de collection, réglages, menu du token, joueur,
   éclairage, audio. L'hôte du MJ est `services/canvasHost/obsidianCanvasHost.ts`, celui du navigateur
-  `online/client/pageCanvasHost.ts`. Notifications, icônes et menus passent par de petits registres
+  `selfhost/client/pageCanvasHost.ts`. Notifications, icônes et menus passent par de petits registres
   que le plugin remplit au chargement (`ui/notices.ts`, `ui/icons.ts`, `ui/contextMenus.ts`).
 - Serveur HTTP (`OnlineSessionServer`), chaque requête porte la clé (`?k=`) : `/` la page,
   `/client.js` et `/styles.css` (feuilles du MJ + `client/playerPage.css`), `/events` le flux SSE,
   `POST /command` les commandes, `/image/<chemin>` les images de la scène et des jets.
-- **Réplication** (`online/scene/`) : `SceneReplicator` envoie la scène entière à l'arrivée d'un
+- **Réplication** (`selfhost/scene/`) : `SceneReplicator` envoie la scène entière à l'arrivée d'un
   joueur et à chaque chargement (`scene`), puis seulement les objets et champs changés (`changes`),
   une fois par tâche (pas par frame : Obsidian en arrière-plan n'en dessine plus) ; `context` porte les règles de la collection et les réglages de la vue
   joueur. Le MJ fait seul autorité.
@@ -216,7 +224,7 @@ vocabulaire : `CONTEXT.md`.
 - **Jets** : chaque jet porte qui l'a fait (`DiceRollResult.roller`, copie du profil), son habillage
   (`look`, `RollLook` avec la couleur d'accent résolue ; `renderDicePreviews` et `DiceColourStrip`
   prennent une couleur d'accent et des libellés pour les aperçus du joueur) et `shownToPlayers`, posés au lancer
-  (`online/rollStamps.ts` : `dmRollStamp` pour le MJ, `playerRollStamp` pour un joueur, dont l'accent
+  (`selfhost/rollStamps.ts` : `dmRollStamp` pour le MJ, `playerRollStamp` pour un joueur, dont l'accent
   est la couleur du profil). `PlayerDiceFeed` envoie les jets `shownToPlayers`, masqués pour un
   token caché ; `rollAuthor` décide du nom affiché (panneau 3D, carte, historique). L'habillage d'un
   joueur est dans `PlayerProfile.diceLook` (commande `diceLook`) ; sa couleur se change aussi depuis
@@ -247,22 +255,28 @@ vocabulaire : `CONTEXT.md`.
   « Relancer » seulement sur ses propres jets.
 - **Les joueurs suivent le MJ** (`services/followedScene.ts`) : la scène suivie est celle de la vue
   Atlas (une seule, ses onglets partagent un store et un canvas), dès que sa première scène est
-  chargée. La session en ligne et la popout locale s'y abonnent (`onFollowedScene`) ; un changement
-  de scène passe par le store (la réplication envoie la nouvelle scène entière une fois chargée, la
-  popout tient sa dernière image puis fait un fondu enchaîné, `PlayerWindowService.watchScene`).
+  chargée. La session en ligne s'y abonne (`onFollowedScene`, qui donne la vue et son store) ; un
+  changement de scène passe par le store (la réplication envoie la nouvelle scène entière une fois
+  chargée).
   La page joueur garde l'image de l'ancienne scène par-dessus son canvas jusqu'à ce que la nouvelle
   soit dessinée (`captureSceneTransition` dans `PlayerCanvas.showScene`). Vue Atlas fermée : la
-  page reçoit `noScene` et revient au message d'attente ; la popout garde sa dernière image sous
-  le message d'attente. Plus de bouton Show : œil des onglets, Maj+Entrée du sélecteur et
-  `presentedTabId` supprimés.
+  page reçoit `noScene` et revient au message d'attente. La popout locale ne suit pas : depuis la
+  synchro 0.8.0 elle est celle de l'original (scène présentée par l'œil des onglets).
+- **Règles** : la page reçoit les règles que la carte suit (`mapRules` : le système de la campagne
+  jouée l'emporte, nouveauté 0.8), fusionnées aux réglages de la collection (profils, anneaux).
+- **Carte de la page** : comme chez le MJ, une `MapImage` en tuiles (0.7) ; `client/pageMapImages.ts`
+  ouvre l'image par `/image/<chemin>` dans le `TileDecoderClient` (worker en ligne, cache en mémoire).
+  `vite/player-client.mts` compile les imports `?worker&inline` (esbuild ne les connaît pas).
+  `client/pageHost.ts`, importé en premier, installe les aides DOM d'Obsidian, le `DomHost` (0.8) et
+  la langue.
 
 ### Fichiers ajoutés
 
 - `src/app/canvas/canvasHost.ts` : ce que le canvas reçoit de son hôte.
 - `src/app/canvas/sharedRulers.ts`, `pixi/token-renderer/SharedDragRulers.ts` : les règles des autres.
 - `src/app/canvas/sharedLasers.ts`, `pixi/laser/RemoteLasers.ts`, `pixi/laser/LaserPublisher.ts`,
-  `pixi/laser/laserTrail.ts`, `online/PlayerLasers.ts` : les lasers des autres.
-- `src/app/online/` (côté MJ) : `OnlineSession.ts`, `OnlineSessionServer.ts`, `PlayerControls.ts`,
+  `pixi/laser/laserTrail.ts`, `selfhost/PlayerLasers.ts` : les lasers des autres.
+- `src/app/selfhost/` (côté MJ) : `OnlineSession.ts`, `OnlineSessionServer.ts`, `PlayerControls.ts`,
   `playerCommands.ts`, `playerHolds.ts`, `playerTokens.ts`, `PlayerDiceFeed.ts`, `playerPage.ts`,
   `pageTheme.ts`, `tokenImage.ts`, `onlineSessionSettingsSection.ts`, `playerClient.d.ts`,
   `connectedPlayers.ts`, `OnlineConnections.tsx`, `PlayerDiceLog.ts`, `rollStamps.ts`,
@@ -270,7 +284,7 @@ vocabulaire : `CONTEXT.md`.
   `scene/` (`sceneReplica.ts`, `sceneProtocol.ts`, `SceneReplicator.ts`).
 - `src/app/players/` : `playerProfiles.ts`, `PlayerDot.tsx`, `players.scss` ; onglet
   `react/components/collection-settings/PlayersTab.tsx`, sous-menu `context-menu/playersMenu.ts`.
-- `src/app/online/client/` (la page, compilée pour le navigateur par `vite/player-client.mts`) :
+- `src/app/selfhost/client/` (la page, compilée pour le navigateur par `vite/player-client.mts`) :
   `main.ts`, `PlayerCanvas.ts`, `pageCanvasHost.ts`, `commandBridge.ts`, `sceneConnection.ts`,
   `PlayerHud.tsx`, `playerTokenMenu.ts`, `pageDice.tsx`,
   `pageMenus.tsx`, `pageIcons.ts`, `initiativeOverlay.ts`, `pageStandIns.ts`, `session.ts`,
@@ -324,23 +338,36 @@ doit rester vert.
   menu joueur). L'interface d'un token sélectionné (nom, barres, roues, +/-) garde sa taille de repos
   et zoome avec la carte (`selectedTokenUIScale` supprimé).
 - `PlayerInitiativePanel`, `InitiativeCard` : badge d'instance partagé (`shownInstanceNumber`).
-- Joueurs qui suivent le MJ : `PlayerWindowPresenter` (réécrit : ouvrir, restaurer, suivre),
-  `PlayerWindowService` (`follow` remplace `presentCanvas` / `holdCurrentFrame` /
-  `releaseHeldFrame` / `releaseSource`), `PlayerFrameMirror` (`showsScene`), `local-player-view`
-  (la session ne retient plus d'onglet), `playerWindowStore` (sans `presentedTabId`), `SceneTabBar`
-  (sans œil), `SceneSwitcher` et son pied (sans Maj+Entrée), `UIRoot`, textes en/ru
-  (`command`/`palette.sendMapToPlayerView` = "Open player view", clés de présentation retirées).
+- Popout locale : version de l'original depuis la 0.8.0 ; seul `PlayerWindowService` passe
+  `mapInitiativeCollection` à `PlayerInitiativePanel`.
+- Initiative des joueurs : `PlayerInitiativePanel` prend une `InitiativeCollection` (la page en ligne
+  fournit la sienne) ; `playerInitiativeList.ts` (0.8) dessine aussi l'anneau du rôle (`ringImage`)
+  et le badge d'instance (`instance`).
+- `services/missingAssetImage.ts` : l'image « asset manquant » sortie d'`AssetValidationService`
+  (réexportée), pour que `MapImage` n'atteigne pas `obsidian` sur la page.
+- Dés (0.8) : `tools/diceRollFeed.ts` remplace l'événement document `atlas-dice-rolled` ;
+  `GmDiceDropdownMenu.tsx` (plateau du MJ : avantage, jets publics) enveloppe `DiceDropdownMenu`
+  partagé avec la page ; `DiceRoller`, `RollStamp` dans `types/diceTypes.ts`.
+- `CanvasHost.collections` repose sur le `RulesLookup` de l'original (campagne jouée, puis collection),
+  `onRulesChanged` ; `followBackground` facultatif (MJ seulement).
+- `ui/contextMenus.ts` porte le registre de l'original (`onClose`, `doc`, `GlobalContextMenuOptions`) ;
+  `ContextMenuContext` le réexporte.
+- Tests : `tests/setup/runtimePlatform.ts` fait suivre le `Platform` simulé à `runtimePlatform` ;
+  tests de l'original adaptés (store dans `viewStore`, menus par `ui/contextMenus` et `gmTokenMenu`).
+  Deux sont ignorés (`it.skip`, commentaire « Fork ») : la synchro des statblocks dans `TokenRenderer`
+  (chez nous dans `TokenStatblockSync`) et une lecture du source de `TokenUIRenderer` par son mode en ligne.
 - `main.ts` : session en ligne, registres (notices, icônes, plateforme). `PlayerView`
   (`atlas-vtt-player`, jamais ouverte) est supprimée.
-- `i18n/index.ts` : la langue est lue dans le `localStorage` (là où `getLanguage()` la lit), pas
-  par l'import `obsidian`, que la page joueur n'a pas. Nos propres textes restent en anglais en dur.
+- Langue : depuis la 0.8 l'original la règle dans `plugin/host/initializeHost.ts` ; la page joueur
+  le fait dans `selfhost/client/pageHost.ts`. `i18n/index.ts` n'est plus touché. Nos propres textes
+  restent en anglais en dur.
 - `MainToolbar` : `isPlayerView` vient du store ; `toolbarControls.tsx` passe `roll` au plateau de dés.
 - Contrôle Online session : entrée `online` de `toolbarCatalog.ts` (la première) et du raccourci
   `online` de `mapHotkeys.ts` (O), `ToolMenu` et `ToolbarContext.online` (`toolbarContext.ts`),
   `toolbarControls.tsx`, `useToolbarHotkeys.ts`, `toolbarScreenshots.ts`, `MainToolbar`
   (`useOnlineControl`), `styles/main.scss` ; `main.ts` appelle `startAutomatically` à `onLayoutReady`.
 - `vite.config.mts`, `vitest.config.mts` (alias `events` pour les tests GPU), `atlasSettings.ts` et
-  `SettingsService` (`onlineSession`, synchronisé avec les réglages du plugin), `PlayerWindowPresenter`, `dashboard-view.tsx`, `CommandPalette.tsx`,
+  `SettingsService` (`onlineSession`, synchronisé avec les réglages du plugin), `dashboard/HomePage.tsx`, `CommandPalette.tsx`,
   `EditTokenModal` (section Players), `gmTokenMenu` (sous-menu Players), `CollectionSettingsModal`
   (onglet Players), `bundleSettings.ts` (profils hors bundles). `playerLinked`, `playerId` et
   `playerCharacterId` sont retirés de `Character`.
