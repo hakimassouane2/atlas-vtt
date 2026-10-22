@@ -55,6 +55,22 @@ npm run build && npm test
 Avant de merger, comparer ses changements avec la liste des **points de contact** plus bas :
 ce sont les seuls fichiers d'origine qu'on a modifiés, donc les seuls où un conflit est possible.
 
+Règles retenues au fil des synchros (0.5.0, 0.6.0, 0.8.0) :
+
+- Merger directement sur `main`, puis réparer ensemble ce qui casse. Aller vite : merge, typecheck,
+  tests unitaires, build, push ; pas de longue séance de tests manuels.
+- Garder l'architecture `CanvasHost` du fork et reporter ses changements dans nos fichiers déplacés
+  (menu du token dans `gmTokenMenu.ts`, synchro des statblocks dans `TokenStatblockSync.ts`, etc.).
+- Nos textes d'interface restent en anglais en dur (pas de clés i18n).
+- Son mode en ligne (`src/app/online/`) n'est jamais touché ; le nôtre vit dans `src/app/selfhost/`.
+- Popout locale : on prend toujours sa version telle quelle.
+- Ses tests importent souvent `createViewAtlasStore` depuis `storeFactory` et interceptent les menus
+  par `ContextMenuContext` : les faire pointer vers `viewStore` et `ui/contextMenus`.
+- Sur le PC Windows (Node 25) : `NODE_OPTIONS=--no-webstorage` pour les tests unitaires. Échecs
+  propres à Windows, sans rapport avec le fork : `lightPopover`, `worktreeTargets`, `sharedTypes`,
+  `stylesheetRootHas`, `online/noKeys`, `templateAttributions` (chemins et fins de ligne), et un test
+  chronométré de `TileDecoderClient`. Tests GPU : `npx playwright install chromium` une fois par PC.
+
 ## Installer le build dans le vault
 
 Le vault de jeu est `C:\Users\PC\Documents\obsidian-jdr` sur le PC,
