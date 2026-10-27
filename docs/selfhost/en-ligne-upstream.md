@@ -69,7 +69,7 @@ Utile pour aller y piocher sans se perdre.
 
 | # | Chantier | État |
 | --- | --- | --- |
-| 0 | Merge de la 0.10.1 | à faire |
+| 0 | Merge de la 0.10.1 | fait (27 octobre 2026) |
 | 1 | Passer à leurs campagnes | à faire |
 | 2 | Journal de table et chat | à faire |
 | 3 | Fiche de personnage du joueur (3a, 3b, 3c) | à faire |
@@ -77,7 +77,8 @@ Utile pour aller y piocher sans se perdre.
 
 ### 0. Merge de la 0.10.1
 
-**État** : à faire.
+**État** : fait le 27 octobre 2026 (`5dc1b9ca`). Les vérifications en ligne ci-dessous restent à
+faire en jouant.
 
 Selon les règles habituelles de `FORK.md` : merge direct de `upstream/main` sur `main`, typecheck,
 tests unitaires, build, push, puis on répare ensemble. `src/app/online/` n'est jamais touché.
