@@ -29,6 +29,8 @@ Dernière synchro avec l'original : **0.8.0** (15 octobre 2026, merge de `upstre
 `movement/`, `marks/`, `tableLog/`) : il passe par le serveur relais de ByteMirror, avec comptes et clés
 d'accès, et reste éteint (fonction expérimentale `onlinePlay`). On n'y touche pas, pour que les synchros
 passent sans conflit. **Notre mode auto-hébergé, celui qui sert à jouer, est dans `src/app/selfhost/`.**
+Ce qu'on reprend de leur mode en ligne (sans comptes ni relais), dans quel ordre et où regarder dans
+leur code : `docs/selfhost/en-ligne-upstream.md`, notre liste de travail.
 
 Sur un nouveau PC :
 
