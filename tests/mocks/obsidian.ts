@@ -41,8 +41,9 @@ export class App {
   loadLocalStorage(key: string): unknown {
     return this.localStorage.get(key) ?? null;
   }
+  /** As Obsidian does: any falsy value (`false`, `0`, `''`, null) clears the key instead of storing it. */
   saveLocalStorage(key: string, data: unknown): void {
-    if (data === null) this.localStorage.delete(key);
+    if (!data) this.localStorage.delete(key);
     else this.localStorage.set(key, data);
   }
 }
@@ -186,6 +187,13 @@ export class TFile extends TAbstractFile {
     const parts = this.name.split('.');
     this.extension = parts.length > 1 ? parts[parts.length - 1] || '' : '';
     this.basename = parts.length > 1 ? parts.slice(0, -1).join('.') : this.name;
+  }
+}
+
+/** The desktop adapter; tests' vaults are in memory, so none is one. */
+export class FileSystemAdapter {
+  getBasePath(): string {
+    return '';
   }
 }
 

@@ -10,6 +10,7 @@ import { withAdvantage } from './diceAdvantage';
 import { getDiceCrit } from './diceCrit';
 import { rollFormula } from './diceFormula';
 import { announceDiceRoll } from './diceRollFeed';
+import { dressSetDice } from './diceAppearance';
 import type { FormulaError } from './parseFormula';
 
 export type { DiceRollResult, DiceRoller, RollStamp } from '../types/diceTypes';
@@ -22,6 +23,8 @@ export interface RollOptions {
   advantage?: AdvantageSide | undefined;
   /** Who the roll is made for (an online player); unset, the DM's own stamp. */
   stamp?: RollStamp | undefined;
+  /** Gives an explicit matching pool the set’s names and colours; never changes its dice. */
+  setAppearance?: boolean | undefined;
 }
 
 export interface DiceToolState {
@@ -100,7 +103,7 @@ export class DiceTool {
   /** Rolls the formula; one without dice (`+3`) is added to the dice of the set. */
   private parseAndRoll(formula: string, options: RollOptions | undefined): DiceRollResult | null {
     const { rules, shown } = rollingWith(this.getDiceRules(), options?.set);
-    return rollDiceFormula(formula, rules, this.inputs, shown, options?.advantage);
+    return rollDiceFormula(formula, rules, this.inputs, shown, options?.advantage, options?.setAppearance);
   }
 
   /** The dice a roll of `set` (else the collection's) is made with, and their rules: what advantage can do. */
@@ -161,7 +164,7 @@ export function rollingWith(
  * collection's own.
  */
 export function rollDiceFormula(
-  formula: string, rules: DiceRules | RollingDice, inputs: DiceRollInputs, shown?: RolledWithSet, advantage?: AdvantageSide,
+  formula: string, rules: DiceRules | RollingDice, inputs: DiceRollInputs, shown?: RolledWithSet, advantage?: AdvantageSide, setAppearance = false,
 ): DiceRollResult | null {
   const rolling = rollingRules(rules);
   const complete = completeFormula(formula, rules);
@@ -175,7 +178,7 @@ export function rollDiceFormula(
     inputs.onFormulaError(helped);
     return null;
   }
-  const { rolls, modifiers, total, linear } = helped
+  const { rolls, modifiers, named, total, linear } = helped
     ? rollFormula(helped.formula, inputs.random, helped.explodeRules, helped.looks)
     : rollFormula(complete.parsed, inputs.random, rolling, looks);
 
@@ -183,8 +186,9 @@ export function rollDiceFormula(
     id: inputs.rollId(),
     timestamp: Date.now(),
     formula: complete.formula,
-    rolls,
+    rolls: complete.written && setAppearance ? dressSetDice(rolls, rolling) : rolls,
     modifiers,
+    ...(named.length > 0 && { namedModifiers: named }),
     total,
     ...(!linear && { linear: false as const }),
     crit: getDiceCrit(rolls, rolling),

@@ -4,12 +4,10 @@ import { DiceTool } from '../../src/app/tools/DiceTool';
 import { offlineDiceInputs } from '../../src/app/services/offlineDiceInputs';
 import { DEFAULT_DICE_RULES } from '../../src/app/gameSystems/diceRules';
 import { t } from '../../src/app/i18n';
-import { Notice } from 'obsidian';
+import { showNotice } from '../../src/app/ui/notices';
 
-vi.mock('obsidian', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('obsidian')>();
-  return { ...actual, Notice: vi.fn() };
-});
+// Fork: the store's dice inputs show notices through the registry the plugin fills (`ui/notices`)
+vi.mock('../../src/app/ui/notices', () => ({ showNotice: vi.fn() }));
 afterEach(() => vi.restoreAllMocks());
 
 describe('offline dice inputs', () => {
@@ -22,6 +20,6 @@ describe('offline dice inputs', () => {
   });
   it.each(['syntax', 'length', 'terms', 'dice', 'faces'] as const)('shows a readable notice for %s', (code) => {
     offlineDiceInputs().onFormulaError({ ok: false, code });
-    expect(Notice).toHaveBeenCalledWith(t(`dice.formulaError.${code}`));
+    expect(showNotice).toHaveBeenCalledWith(t(`dice.formulaError.${code}`));
   });
 });

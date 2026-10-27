@@ -1,5 +1,6 @@
 import { installDomHost } from '../../host/dom';
 import { setLocale } from '../../i18n';
+import { TRANSLATIONS } from '../../i18n/languages';
 import { pluginDomHost } from '../../plugin/host/dom';
 import { installObsidianDom } from './obsidianDom';
 
@@ -13,7 +14,7 @@ installDomHost(pluginDomHost);
 /** Where Obsidian keeps its language on this computer (`getLanguage()` reads it there); a player's browser has none. */
 const OBSIDIAN_LANGUAGE_KEY = 'language';
 try {
-  setLocale(window.localStorage.getItem(OBSIDIAN_LANGUAGE_KEY) || 'en');
+  setLocale(window.localStorage.getItem(OBSIDIAN_LANGUAGE_KEY) || 'en', TRANSLATIONS);
 } catch {
-  setLocale('en');
+  setLocale('en', TRANSLATIONS);
 }

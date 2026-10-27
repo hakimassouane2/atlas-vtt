@@ -20,8 +20,13 @@ import {
   type TutorialId,
   TUTORIAL_IDS,
 } from './atlasSettings';
-import { loadInputMode, loadLightingQuality, saveInputMode, saveLightingQuality } from './deviceSettings';
+import { loadAnimateMaps, loadInitiativeCollapsed, loadInputMode, loadLightingQuality, loadPickedLightingQuality, saveAnimateMaps, saveInitiativeCollapsed, saveInputMode, saveLightingQuality, savePickedLightingQuality } from './deviceSettings';
+import { readGpuFacts } from './gpuFacts';
+import { pickLightingQuality } from '../lighting/deviceTier';
+import { readDock, type InitiativeLayout } from '../initiative/initiativeLayout';
+import type { InitiativeTurnOptions } from '../initiative/turnOptions';
 import type { LightingQualityLevel } from '../lighting/lightingQuality';
+import { readDungeonGeneratorSettings, type DungeonGeneratorSettings } from '../dungeons/generatorSettings';
 
 export { TUTORIAL_IDS } from './atlasSettings';
 export type { AtlasSettings, NavigationInputMode, NavigationSettings, OnlineSessionSettings, TutorialId } from './atlasSettings';
@@ -32,8 +37,8 @@ export type PluginDataStore = Pick<Plugin, 'loadData' | 'saveData'>;
 type SettingsListener = (settings: AtlasSettings) => void;
 
 /**
- * The GM's Atlas preferences, kept in the plugin's data (`data.json`), except the input mode
- * and the lighting quality, which belong to the device (`deviceSettings.ts`). Without a data store (tests, a view
+ * The GM's Atlas preferences, kept in the plugin's data (`data.json`), except the input mode,
+ * the lighting quality, whether maps animate and the collapsed initiative tracker, which belong to the device (`deviceSettings.ts`). Without a data store (tests, a view
  * without the plugin) the settings live in memory only.
  */
 export class SettingsService {
@@ -164,7 +169,6 @@ export class SettingsService {
 
   setHotkey(id: MapHotkeyId, key: string): void {
     const bindings = this.getHotkeys();
-    // The shortcuts of an experimental feature keep their keys while it is off.
     const conflict = key && availableHotkeys().find(action => action.id !== id && bindings[action.id] === key && !canShareHotkey(action.id, id));
     if (conflict) throw new Error(`Already assigned to ${conflict.label}. Clear that shortcut first.`);
     this.settings.hotkeys = withHotkey(this.settings.hotkeys, id, key);
@@ -213,15 +217,48 @@ export class SettingsService {
     this.notify();
   }
 
-  /** How much the lighting may ask of this device's graphics; `high` until chosen. */
+  /** How much the lighting may ask of this device's graphics: the GM's choice, else the level Atlas picked for the device. */
   getLightingQuality(): LightingQualityLevel {
-    return loadLightingQuality(this.app) ?? 'high';
+    return loadLightingQuality(this.app) ?? this.pickedLightingQuality();
+  }
+
+  /** Whether the GM never chose a lighting quality on this device, so it runs at the one Atlas picked. */
+  isLightingQualityPicked(): boolean {
+    return loadLightingQuality(this.app) === null;
   }
 
   /** The lighting quality is this device's: it goes to local storage, not into the synced settings. */
   setLightingQuality(level: LightingQualityLevel): void {
-    if (this.getLightingQuality() === level) return;
+    if (loadLightingQuality(this.app) === level) return;
+    const shown = this.getLightingQuality();
     saveLightingQuality(this.app, level);
+    if (shown !== level) this.notify();
+  }
+
+  /**
+   * The level picked for this device's graphics (`pickLightingQuality`) the first time it is
+   * asked, then stored, so it never changes by itself. `high` where the graphics cannot be read,
+   * which is asked again next time.
+   */
+  private pickedLightingQuality(): LightingQualityLevel {
+    const stored = loadPickedLightingQuality(this.app);
+    if (stored) return stored;
+    const facts = readGpuFacts();
+    if (!facts) return 'high';
+    const level = pickLightingQuality(facts);
+    savePickedLightingQuality(this.app, level);
+    return level;
+  }
+
+  /** Whether animated maps play on this device as chosen, or null when never chosen (`animateMapsOn` decides then). */
+  getAnimateMaps(): boolean | null {
+    return loadAnimateMaps(this.app);
+  }
+
+  /** Animating maps is this device's choice: it goes to local storage, not into the synced settings. */
+  setAnimateMaps(on: boolean): void {
+    if (this.getAnimateMaps() === on) return;
+    saveAnimateMaps(this.app, on);
     this.notify();
   }
 
@@ -235,6 +272,17 @@ export class SettingsService {
     this.commit();
   }
 
+  /** The dungeon generator's preferences, each field checked. */
+  getDungeonGenerator(): DungeonGeneratorSettings {
+    return readDungeonGeneratorSettings(this.settings.dungeonGenerator);
+  }
+
+  setDungeonGenerator(changes: Partial<DungeonGeneratorSettings>): void {
+    // Spread over the stored record, so fields a newer Atlas added survive.
+    this.settings.dungeonGenerator = { ...this.settings.dungeonGenerator, ...changes };
+    this.commit();
+  }
+
   /** The stored choice, or normal dice when the file holds something else. */
   getDiceDisplay(): DiceDisplay {
     return isDiceDisplay(this.settings.diceDisplay) ? this.settings.diceDisplay : 'full';
@@ -243,6 +291,59 @@ export class SettingsService {
   setDiceDisplay(display: DiceDisplay): void {
     if (this.settings.diceDisplay === display) return;
     this.settings.diceDisplay = display;
+    this.commit();
+  }
+
+  /** Whether the GM's initiative cards show names: off unless the file says `true`. */
+  showsInitiativeNames(): boolean {
+    return this.settings.initiativeNames === true;
+  }
+
+  setInitiativeNames(on: boolean): void {
+    if (this.showsInitiativeNames() === on) return;
+    this.settings.initiativeNames = on;
+    this.commit();
+  }
+
+  /** How the initiative lists are laid out: the GM's choices, and whether this device collapsed the tracker. */
+  initiativeLayout(): InitiativeLayout {
+    return {
+      fromTurn: this.settings.initiativeFromTurn !== false,
+      dock: readDock(this.settings.initiativeDock),
+      collapsed: loadInitiativeCollapsed(this.app),
+    };
+  }
+
+  /** The GM's choices go into the synced settings, the collapsed tracker into this device's local storage. */
+  setInitiativeLayout(changes: Partial<InitiativeLayout>): void {
+    const current = this.initiativeLayout();
+    const { fromTurn = current.fromTurn, dock = current.dock, collapsed = current.collapsed } = changes;
+    if (collapsed !== current.collapsed) saveInitiativeCollapsed(this.app, collapsed);
+    if (fromTurn === current.fromTurn && dock === current.dock) {
+      if (collapsed !== current.collapsed) this.notify();
+      return;
+    }
+    this.settings.initiativeFromTurn = fromTurn;
+    this.settings.initiativeDock = dock;
+    this.commit();
+  }
+
+  /** What a turn change does: the banner is on unless the file says `false`, the others off unless it says `true`. */
+  initiativeTurnOptions(): InitiativeTurnOptions {
+    return {
+      banner: this.settings.initiativeBanner !== false,
+      followTurn: this.settings.initiativeFollowTurn === true,
+      movesOnTurn: this.settings.initiativeMovesOnTurn === true,
+    };
+  }
+
+  setInitiativeTurnOptions(changes: Partial<InitiativeTurnOptions>): void {
+    const next = { ...this.initiativeTurnOptions(), ...changes };
+    const current = this.initiativeTurnOptions();
+    if (next.banner === current.banner && next.followTurn === current.followTurn && next.movesOnTurn === current.movesOnTurn) return;
+    this.settings.initiativeBanner = next.banner;
+    this.settings.initiativeFollowTurn = next.followTurn;
+    this.settings.initiativeMovesOnTurn = next.movesOnTurn;
     this.commit();
   }
 

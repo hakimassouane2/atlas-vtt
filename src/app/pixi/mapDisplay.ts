@@ -4,7 +4,10 @@ import type { GridOptions } from '../grid/GridSystem';
 import type { GridState } from '../types/gridTypes';
 import { parseGridColor } from '../grid/gridContrastColor';
 import { cellNumberStyleOfGrid } from '../grid/cellNumbering';
-import { readMapStretch, sameStretch } from '../grid/mapStretch';
+import { sameStretch } from '../grid/mapStretch';
+import { viewedImagePlacement } from '../levels/levelAlignment';
+import { levelBackground } from '../levels/levelEdits';
+import { viewedLevelId, type LevelView } from '../levels/sceneLevels';
 import type { ViewAtlasStore } from '../storeFactory';
 import { prefersReducedMotion } from '../utils/motion';
 import type { MapImage } from './mapImage/MapImage';
@@ -64,15 +67,60 @@ export function showMapGrid(renderer: MapRenderer, mapImage: MapImage, grid: Par
   return options;
 }
 
+/** The store background each map image shows, as the load or the store's change that showed it named it. */
+const shownBackground = new WeakMap<MapImage, string | null>();
+/** The background each map image has finished loading: what it shows on screen. */
+const loadedBackground = new WeakMap<MapImage, string | null>();
+
+/** Who hears that a map image has finished loading the background asked of it (`onBackgroundLoaded`). */
+const backgroundListeners = new Set<(mapImage: MapImage) => void>();
+
+/** The background `mapImage` was last asked to show (`showBackground`); undefined before any. */
+export function askedBackground(mapImage: MapImage): string | null | undefined {
+  return shownBackground.get(mapImage);
+}
+
+/** Loads `background` into `mapImage` and notes it shown once loaded, unless another was asked for meanwhile. */
+export async function showBackground(mapImage: MapImage, background: string | null, load: () => Promise<void>): Promise<void> {
+  shownBackground.set(mapImage, background);
+  await load();
+  if (shownBackground.get(mapImage) !== background) return;
+  loadedBackground.set(mapImage, background);
+  for (const listener of [...backgroundListeners]) listener(mapImage);
+}
+
 /**
- * Draws the map image with the stretch of the store's grid whenever that changes outside a load
- * (an alignment applied, its undo or redo), and says so with `onFollowed`. Returns the unsubscribe.
+ * Calls `listener` whenever a map image has finished loading the background it was last asked
+ * for, so whoever waits for `showsViewedLevel` learns when it turns true. Returns the unsubscribe.
+ */
+export function onBackgroundLoaded(listener: (mapImage: MapImage) => void): () => void {
+  backgroundListeners.add(listener);
+  return () => { backgroundListeners.delete(listener); };
+}
+
+/**
+ * Whether `mapImage` shows the background of the level the view's state shows: after a switch of
+ * level it does once that level's image has loaded. Players' frames wait for it.
+ */
+export function showsViewedLevel(mapImage: MapImage | null, state: Parameters<typeof levelBackground>[0] & LevelView): boolean {
+  return !mapImage || loadedBackground.get(mapImage) === levelBackground(state, viewedLevelId(state));
+}
+
+/** Whether another image is on its way into `mapImage`, which will come in drawn as its level is. */
+function loadingAnother(mapImage: MapImage): boolean {
+  return shownBackground.get(mapImage) !== loadedBackground.get(mapImage);
+}
+
+/**
+ * Draws the map image as the level the view shows is aligned (`viewedImagePlacement`) whenever that
+ * changes outside a load (an alignment applied, its undo or redo, another level shown), and says so
+ * with `onFollowed`. Returns the unsubscribe.
  */
 export function followStretch(store: ViewAtlasStore, mapImage: MapImage, onFollowed: () => void): () => void {
-  return store.subscribe((state) => readMapStretch(state.grid?.mapStretch), (stretch) => {
+  return store.subscribe((state) => viewedImagePlacement(state), (stretch) => {
     const state = store.getState();
-    // A load shows its image with the stretch of its file.
-    if (!state.mapLoaded || state.isMapLoading) return;
+    // A load shows its image with the stretch of its file, and another level's image comes in drawn as its level is.
+    if (!state.mapLoaded || state.isMapLoading || loadingAnother(mapImage)) return;
     mapImage.setStretch(stretch);
     // The image may have been drawn this way already, as an alignment's preview: nothing changed on it then.
     onFollowed();

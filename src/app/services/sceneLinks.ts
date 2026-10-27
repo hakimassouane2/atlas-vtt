@@ -1,15 +1,9 @@
 import type { App, TFile } from 'obsidian';
 import { collectionFolderPath, collectionIdOfPath } from './assetPaths';
 import { isPersistedMapEnvelope, type PersistedMapEnvelope } from './MapPersistence';
+import { linkedFilePath, linkedMapPath } from './sceneLinkPaths';
 
-/** The file a note link opens: `Notes/Cave.md#Entrance` opens `Notes/Cave.md`. */
-export const linkedFilePath = (link: string): string => link.split('#', 1)[0]!;
-
-/** The scene map a pin's link opens, or null when it opens a note. */
-export function linkedMapPath(link: string): string | null {
-  const path = linkedFilePath(link);
-  return path.toLowerCase().endsWith('.atlasmap') ? path : null;
-}
+export { linkedFilePath, linkedMapPath };
 
 /**
  * Whether a scene at `mapPath` may link to `link`. Notes may lie anywhere, but

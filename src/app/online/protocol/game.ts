@@ -1,6 +1,8 @@
 import { ASSET_CHUNK_BYTES, isCount, isHash, isMaxSide, MAX_ASSET_BYTES, parseAsset, parseAssetVariant, type AssetRef, type AssetVariant } from './asset.ts';
-import { isBookType, isPlayerBookType, parseBookMessage, parsePlayerBookMessage, type BookMessage, type PlayerBookMessage } from './book.ts';
+import { isBookType, isPlayerBookType, parseBookCover, parseBookMessage, parseBookTokenMessage, parsePlayerBookMessage, type BookMessage, type BookTokenMessage, type PlayerBookCover, type PlayerBookMessage, type PlayerBookParts } from './book.ts';
+import { parseBookRestMessage, type BookRestMessage } from './bookRest.ts';
 import { isDeltaOf, parseDelta, parseSeq, type DeltaMessage, type DeltaOf } from './delta.ts';
+import { parseFloor, type SharedFloor } from './floor.ts';
 import { parseFog, type SharedFog } from './fog.ts';
 import { parseImageMessage, type ImageMessage } from './image.ts';
 import { parseInitiative, type SharedInitiative } from './initiative.ts';
@@ -8,7 +10,7 @@ import { parseLightingScene, parseSight, type SharedLightingScene, type SharedSi
 import { parseLive, type LiveMessage } from './live.ts';
 import type { LogMessage, PlayerLogMessage } from './log.ts';
 import { isPlayerLogType, parseLogMessage, parsePlayerLog } from './logParse.ts';
-import { parsePlayerRoll, parseRoll, parseRollRefused, type PlayerRoll, type RollMessage, type RollRefused } from './dice.ts';
+import { parsePlayerRoll, parseRoll, parseRollDice, parseRollRefused, type PlayerRoll, type RollMessage, type RollRefused, type SharedRollDice } from './dice.ts';
 import { parseAnnotations, parseDoors, parseGrid, parsePinFound, parsePins, parseSensed, type PlayerPinFound, type SensedMark, type SharedAnnotations, type SharedDoor, type SharedGrid, type SharedPin } from './mapLayers.ts';
 import { parseMarks, parsePlayerMark, type MarksMessage, type PlayerCursor, type PlayerLaser, type PlayerMeasure } from './marks.ts';
 import { isRecord } from './shape.ts';
@@ -28,6 +30,8 @@ export interface SharedScene {
    * and `sight` messages, and nothing until it can be (never the map unlit).
    */
   readonly lit: boolean;
+  /** Which floor of a map with several this scene is; none for a map of one floor (and from an older GM). */
+  readonly floor?: SharedFloor;
 }
 
 /** Parts of one message a client puts together: at most this many, each as large as an asset chunk. */
@@ -41,8 +45,12 @@ export type GmMessage =
    * snaps to when dropped (null: it does not snap). `seq` numbers it for the deltas that follow (`DeltaMessage`).
    */
   | { readonly t: 'tokens'; readonly scene: string; readonly seq?: number; readonly tokens: readonly SharedToken[]; readonly cell: number; readonly snap: SnapGrid | null }
-  /** Sent to one player: the ids of the tokens in scene `scene`'s list that are theirs. */
-  | { readonly t: 'mine'; readonly scene: string; readonly tokens: readonly string[] }
+  /**
+   * Sent to one player: the ids of the tokens in scene `scene`'s list that are theirs, and by id the
+   * dice a roll for one of them is made with where they are not the scene's (`SharedRules.dice`: its
+   * character's template names a set of its own). Added later: an older GM names no dice.
+   */
+  | { readonly t: 'mine'; readonly scene: string; readonly tokens: readonly string[]; readonly dice?: Readonly<Record<string, SharedRollDice>> }
   | { readonly t: 'asset-chunk'; readonly hash: string; readonly index: number; readonly count: number; readonly data: string }
   | { readonly t: 'asset-refused'; readonly hash: string }
   | AssetVariant
@@ -105,7 +113,7 @@ export interface PlayerAssetRequest {
   readonly maxSide?: number;
 }
 
-export type PlayerMessage = PlayerAssetRequest | PlayerResync | PlayerMove | PlayerDrag | PlayerDragCancel | PlayerRoll | PlayerLaser | PlayerMeasure | PlayerCursor | PlayerLogMessage | PlayerBookMessage | PlayerPinFound;
+export type PlayerMessage = PlayerAssetRequest | PlayerResync | PlayerMove | PlayerDrag | PlayerDragCancel | PlayerRoll | PlayerLaser | PlayerMeasure | PlayerCursor | PlayerLogMessage | PlayerBookMessage | PlayerBookParts | PlayerBookCover | BookTokenMessage | BookRestMessage | PlayerPinFound;
 
 const MAX_CHUNKS = Math.ceil(MAX_ASSET_BYTES / ASSET_CHUNK_BYTES);
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
@@ -113,12 +121,18 @@ const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 const isSceneId = (value: unknown): value is string => typeof value === 'string' && value.length <= MAX_SCENE_ID;
 const isBase64Chunk = (value: unknown): value is string => typeof value === 'string' && value.length <= (ASSET_CHUNK_BYTES / 3) * 4 && BASE64.test(value);
 
+/** A scene's floor where it is given and well formed; a malformed one is left out, so the scene still shows. */
+function sceneExtras(value: Record<string, unknown>): Pick<SharedScene, 'floor'> {
+  const floor = parseFloor(value.floor);
+  return floor !== undefined ? { floor } : {};
+}
+
 function parseScene(value: unknown): SharedScene | null | undefined {
   if (value === null) return null;
   if (!isRecord(value) || !isSceneId(value.id) || typeof value.lit !== 'boolean') return undefined;
-  if (value.map === null) return { id: value.id, map: null, lit: value.lit };
+  if (value.map === null) return { id: value.id, map: null, lit: value.lit, ...sceneExtras(value) };
   const map = parseAsset(value.map);
-  return map === null ? undefined : { id: value.id, map, lit: value.lit };
+  return map === null ? undefined : { id: value.id, map, lit: value.lit, ...sceneExtras(value) };
 }
 
 /** A message about the scene's fog or lighting, or null for anything malformed. */
@@ -178,6 +192,16 @@ function parseSceneInput(value: Record<string, unknown>, scene: string): GmMessa
   }
 }
 
+/** The dice of a player's tokens by id, only for tokens of `tokens`; entries that do not parse are left out, and so is a malformed whole. */
+function parseTokenDice(value: unknown, tokens: readonly string[]): Readonly<Record<string, SharedRollDice>> | undefined {
+  if (!isRecord(value) || Object.keys(value).length > MAX_TOKENS) return undefined;
+  const entries = tokens.flatMap((id) => {
+    const dice = Object.hasOwn(value, id) ? parseRollDice(value[id]) : undefined;
+    return dice === undefined ? [] : [[id, dice] as const];
+  });
+  return entries.length === 0 ? undefined : Object.fromEntries(entries);
+}
+
 /** A GM message as the client reads it, or null for anything malformed. */
 export function parseGmMessage(value: unknown): GmMessage | null {
   if (!isRecord(value)) return null;
@@ -198,7 +222,9 @@ export function parseGmMessage(value: unknown): GmMessage | null {
     case 'mine': {
       if (typeof value.scene !== 'string' || value.scene.length > MAX_SCENE_ID || !Array.isArray(value.tokens) || value.tokens.length > MAX_TOKENS) return null;
       const tokens = value.tokens.filter((id): id is string => typeof id === 'string' && TOKEN_ID_PATTERN.test(id));
-      return tokens.length === value.tokens.length ? { t: 'mine', scene: value.scene, tokens } : null;
+      if (tokens.length !== value.tokens.length) return null;
+      const dice = parseTokenDice(value.dice, tokens);
+      return { t: 'mine', scene: value.scene, tokens, ...(dice !== undefined && { dice }) };
     }
     case 'asset-chunk':
       if (!isHash(value.hash) || !isCount(value.count, MAX_CHUNKS) || !isCount(value.index, value.count - 1) || !isBase64Chunk(value.data)) return null;
@@ -246,6 +272,10 @@ export function parsePlayerMessage(value: unknown): PlayerMessage | null {
   if (value.t === 'laser' || value.t === 'measure' || value.t === 'cursor') return parsePlayerMark(value);
   if (isPlayerLogType(value.t)) return parsePlayerLog(value);
   if (isPlayerBookType(value.t)) return parsePlayerBookMessage(value);
+  if (value.t === 'book-token') return parseBookTokenMessage(value);
+  if (value.t === 'book-rest') return parseBookRestMessage(value);
+  if (value.t === 'book-parts') return { t: 'book-parts' };
+  if (value.t === 'book-cover') return parseBookCover(value);
   if (value.t === 'resync') return isSceneId(value.scene) && isDeltaOf(value.of) ? { t: 'resync', scene: value.scene, of: value.of } : null;
   return value.t === 'asset-request' ? parseAssetRequest(value) : null;
 }

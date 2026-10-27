@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSceneStore, type ViewAtlasStore } from '../../src/app/storeFactory';
 import { SceneReplicator, type ReplicatedSource } from '../../src/app/selfhost/scene/SceneReplicator';

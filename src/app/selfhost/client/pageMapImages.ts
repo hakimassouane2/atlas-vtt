@@ -30,8 +30,8 @@ export class PageMapImages implements MapImageOpener {
       return { kind: 'none', width: side, height: side };
     }
     const file: PageImageFile = { path: background, extension: background.split('.').pop() ?? '' };
-    // The map image hands the file back to `open` only: a path is all the page has of it
-    return { kind: 'file', file: file as TFile };
+    // The map image hands the file back to `open` only: a path is all the page has of it, and no vault
+    return { kind: 'file', file } as MapImageSource;
   }
 
   open(file: TFile): Promise<OpenedMap> {

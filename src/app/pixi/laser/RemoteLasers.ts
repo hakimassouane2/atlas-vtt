@@ -1,8 +1,12 @@
 import { Application, Container, Text } from 'pixi.js';
 import type { Viewport } from 'pixi-viewport';
 import type { StoreApi } from 'zustand';
-import type { ViewAtlasState } from '../../storeFactory';
-import { LASER_PIECE_INTERVAL, type SharedLaser } from '../../canvas/sharedLasers';
+import { LASER_PIECE_INTERVAL, type SharedLaser, type SharedLasers } from '../../canvas/sharedLasers';
+
+/** What the lasers read of the view's store. */
+interface LaserState {
+  sharedLasers: SharedLasers;
+}
 import { t } from '../../i18n';
 import { destroyTree } from '../utils/destroyTree';
 import { usesCanvasRenderer } from '../utils/rendererType';
@@ -47,7 +51,7 @@ export class RemoteLasers {
     if (this.lasers.size > 0) this.startTicker();
   };
 
-  constructor(private readonly viewport: Viewport, private readonly pixiApp: Application, store: StoreApi<ViewAtlasState>) {
+  constructor(private readonly viewport: Viewport, private readonly pixiApp: Application, store: StoreApi<LaserState>) {
     this.container.eventMode = 'none';
     this.container.interactiveChildren = false;
     this.unsubscribe = store.subscribe((state, previous) => {
@@ -65,7 +69,7 @@ export class RemoteLasers {
     this.lasers.clear();
   }
 
-  private take(lasers: ViewAtlasState['sharedLasers'], previous: ViewAtlasState['sharedLasers']): void {
+  private take(lasers: SharedLasers, previous: SharedLasers): void {
     const now = Date.now();
     for (const [who, piece] of Object.entries(lasers)) {
       if (piece !== previous[who]) this.receive(who, piece, now);

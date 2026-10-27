@@ -1,7 +1,7 @@
 import { TokenRingToggle } from './TokenRingToggle';
 import { TokenSizeSelect } from './TokenSizeSelect';
 import { usePortraitRing } from '../../shared/tokenRingContext';
-import { portraitRingStyle } from '../../shared/tokenPortraitElement';
+import { portraitRingStyle } from '../../shared/portraitRingStyle';
 import '../../shared/token-portrait.scss';
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, Trash2, ZoomIn, ZoomOut } from 'lucide-react';

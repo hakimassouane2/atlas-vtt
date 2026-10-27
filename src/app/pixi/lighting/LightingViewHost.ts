@@ -5,6 +5,9 @@ import type { HideableLayer } from '../playerSafeFrame';
 import type { SceneFrame } from './engine/types';
 import type { LightingUnavailable } from './LightingRenderer';
 import type { SceneLightingView } from './sceneLightingView';
+import type { TokenPerception } from '../../vision/tokenPerception';
+import type { BelowRender } from './levels/LevelsBelow';
+import type { ArtFloors } from '../../levels/levelSurfaces';
 
 export interface LightingViewHostDeps {
   store: ViewAtlasStore;
@@ -46,8 +49,8 @@ class ModeLayer implements HideableLayer {
  * The engine's view is replaced when it reports itself unavailable: `failed` (its shaders do
  * not compile here, or a pass threw) for the rest of this view's life, `unfinished` (its last
  * attempt on this map never drew a frame, so it may have crashed the graphics process) until
- * the GM switches dynamic lighting off, which forgets that attempt and brings the engine back.
- * A map load brings the engine back too, but forgets nothing: every load passes through
+ * the GM switches the scene's dynamic lighting off, which forgets that attempt and brings the
+ * engine back. A map load brings the engine back too, but forgets nothing: every load passes through
  * lighting off, and the engine's attempt on the map that arrives decides again.
  */
 export class LightingViewHost implements SceneLightingView {
@@ -83,6 +86,10 @@ export class LightingViewHost implements SceneLightingView {
   resetExplored(): void { this.view.resetExplored(); }
   editExplored(edit: ExploredEdit): boolean { return this.view.editExplored(edit); }
   beforeMapUnload(): void { this.view.beforeMapUnload(); }
+  prepareBelow(picture?: BelowRender): void { this.view.prepareBelow?.(picture); }
+  releaseBelowPicture(): void { this.view.releaseBelowPicture?.(); }
+  belowTokenPerception(): TokenPerception { return this.view.belowTokenPerception?.() ?? ((): 'unseen' => 'unseen'); }
+  artFloors(): ArtFloors | undefined { return this.view.artFloors?.(); }
 
   /** An engine that fails while it prepares the frame is replaced during the call: the picture is then the fallback's. */
   renderForFrame<T>(frame: SceneFrame, render: () => T): T {

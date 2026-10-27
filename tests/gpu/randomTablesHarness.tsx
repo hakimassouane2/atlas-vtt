@@ -6,6 +6,7 @@ import { type ViewAtlasStore } from '../../src/app/storeFactory';
 import { createViewAtlasStore } from '../../src/app/viewStore';
 import { AtlasUIContext } from '../../src/app/react/root/AtlasUIContext';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
+import { ContextMenuProvider } from '../../src/app/react/root/ContextMenuContext';
 import { RandomTables } from '../../src/app/react/components/randomTables/RandomTablesPanel';
 import { AssetService } from '../../src/app/services/AssetService';
 import type { CollectionSettings } from '../../src/app/types/collectionSettingsTypes';
@@ -104,7 +105,9 @@ export async function mountTablesWindow(theme: 'light' | 'dark', size?: { width:
   render(
     <AtlasUIContext.Provider value={{ app, view: null, pixiApp: null, renderer: null }}>
       <ViewStoreProvider store={store}>
-        <div className="atlas-vtt-plugin atlas-tables-map"><RandomTables /></div>
+        <ContextMenuProvider>
+          <div className="atlas-vtt-plugin atlas-tables-map"><RandomTables /></div>
+        </ContextMenuProvider>
       </ViewStoreProvider>
     </AtlasUIContext.Provider>,
   );

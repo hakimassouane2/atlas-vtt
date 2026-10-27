@@ -1,7 +1,7 @@
 import { PlayerInitiativePanel } from '../../services/PlayerInitiativePanel';
 import { DEFAULT_INITIATIVE_RULES } from '../../gameSystems/initiativeRules';
 import { mapResources } from '../../resources/collectionResources';
-import type { RulesLookup } from '../../gameSystems/mapRules';
+import { mapConditions, type RulesLookup } from '../../gameSystems/mapRules';
 import type { ViewAtlasStore } from '../../storeFactory';
 import type { TokenEntity } from '../../types';
 import type { InitiativeRules } from '../../types/initiativeRulesTypes';
@@ -19,6 +19,8 @@ export class InitiativeOverlay {
       // As in the DM's Atlas: players see the combatants' HP where the collection shows HP to them
       showsHp: (mapPath) => mapResources(collection, mapPath).some((definition) => definition.key === 'hp' && definition.visibleToPlayers),
       rules: () => this.rules,
+      resources: (mapPath) => mapResources(collection, mapPath),
+      conditions: (mapPath) => mapConditions(collection, mapPath),
       viewerOf: (token) => (controls(token) ? 'controller' : 'player'),
       // The page draws Atlas' ring in the colour the token or its role has
       ringOf: (mapPath, token) => {

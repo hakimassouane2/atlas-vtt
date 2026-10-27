@@ -23,7 +23,8 @@ conflits avec l'original.
 - `main` : notre seule branche durable. Une grosse fonctionnalité se fait sur une branche
   temporaire, supprimée une fois fusionnée dans `main`.
 
-Dernière synchro avec l'original : **0.8.0** (15 octobre 2026, merge de `upstream/main`).
+Dernière synchro avec l'original : **0.10.1** (27 octobre 2026, merge de `upstream/main`). Son dépôt
+est devenu `atlas-vtt/atlas-vtt` (l'ancienne adresse `ByteMirror/atlas-vtt` redirige).
 
 **Deux modes en ligne cohabitent.** La 0.8.0 apporte le sien dans `src/app/online/` (`gm/`, `protocol/`,
 `movement/`, `marks/`, `tableLog/`) : il passe par le serveur relais de ByteMirror, avec comptes et clés
@@ -57,7 +58,7 @@ npm run build && npm test
 Avant de merger, comparer ses changements avec la liste des **points de contact** plus bas :
 ce sont les seuls fichiers d'origine qu'on a modifiés, donc les seuls où un conflit est possible.
 
-Règles retenues au fil des synchros (0.5.0, 0.6.0, 0.8.0) :
+Règles retenues au fil des synchros (0.5.0, 0.6.0, 0.8.0, 0.10.1) :
 
 - Merger directement sur `main`, puis réparer ensemble ce qui casse. Aller vite : merge, typecheck,
   tests unitaires, build, push ; pas de longue séance de tests manuels.
@@ -67,11 +68,18 @@ Règles retenues au fil des synchros (0.5.0, 0.6.0, 0.8.0) :
 - Son mode en ligne (`src/app/online/`) n'est jamais touché ; le nôtre vit dans `src/app/selfhost/`.
 - Popout locale : on prend toujours sa version telle quelle.
 - Ses tests importent souvent `createViewAtlasStore` depuis `storeFactory` et interceptent les menus
-  par `ContextMenuContext` : les faire pointer vers `viewStore` et `ui/contextMenus`.
+  par `ContextMenuContext` et les notices par `ui/notice` : les faire pointer vers `viewStore`,
+  `ui/contextMenus` et `ui/notices`. Depuis la 0.9 ses tests tournent sous Node par défaut : un test
+  du fork qui touche le DOM commence par `// @vitest-environment jsdom`.
+- Ce qu'il ajoute au moteur et qui lit Obsidian (toits, niveaux, vidéo, qualité de l'éclairage) passe
+  par un membre facultatif de `CanvasHost`, rempli par `obsidianCanvasHost` ; `canvasImportGraph` et
+  `npm run check:boundaries` le vérifient.
 - Sur le PC Windows (Node 25) : `NODE_OPTIONS=--no-webstorage` pour les tests unitaires. Échecs
   propres à Windows, sans rapport avec le fork : `lightPopover`, `worktreeTargets`, `sharedTypes`,
   `stylesheetRootHas`, `online/noKeys`, `templateAttributions` (chemins et fins de ligne), et un test
-  chronométré de `TileDecoderClient`. Tests GPU : `npx playwright install chromium` une fois par PC.
+  chronométré de `TileDecoderClient`. Les tests du générateur de donjons (`tests/unit/dungeons/`,
+  `levels/artRaster`) dépassent leurs délais quand toute la suite tourne sur ce PC ; seuls, la
+  plupart passent. Tests GPU : `npx playwright install chromium` une fois par PC.
 
 ## Installer le build dans le vault
 
@@ -94,12 +102,11 @@ Sous Windows le build réécrit les fins de ligne de `CHANGELOG.md` et
 
 ## Retouches de l'interface du MJ
 
-- **Cadre de sélection des tokens** (`pixi/SelectionManager.ts`) : il suit exactement l'emprise du
-  token sur la grille, les cases qu'il couvre (`tokenFootprintSize`, pas le sprite, qui est en
-  retrait du liseré de la grille), trait de 2 px à l'intérieur, comme Foundry ; les barres,
-  le nom et les roues restent dehors. L'original l'agrandissait de 12 px et y ajoutait les barres
-  (`getBarsReach`, retiré avec sa chaîne `UIManager` / `TokenRenderer` / `barsReachProvider`).
-  Les dessins et le brouillard gardent le cadre d'origine.
+- **Cadre de sélection des tokens** : depuis la 0.9.1 l'original dessine un contour autour de l'anneau
+  (`pixi/selection/`). Chez nous le contour d'un token est l'emprise de ses cases, comme Foundry :
+  `SelectionManager` donne `footprint` (`tokenFootprintSize`) à `selectionTargets`, qui en fait une
+  boîte ; les barres, le nom et les roues restent dehors (`barsProvider` reste à `NO_BARS`). Le bouton
+  de l'original qui tourne une sélection de plusieurs tokens est gardé.
 - **Réglages de collection** (`CollectionSettingsModal.tsx`) : le système de jeu n'est plus un
   onglet. Il se choisit dans le header (`collection-settings/GameSystemPicker.tsx` : un bouton qui
   ouvre la liste des systèmes, `GameSystemList.tsx`, ex-`SystemTab.tsx`, avec Reset, Rename et
@@ -328,6 +335,23 @@ doit rester vert.
 - `storeFactory.ts` : `createSceneStore` ; `createViewAtlasStore` est dans `viewStore.ts`.
 - `scripts/worktree-targets.js` : `GAME_VAULTS`, nos vaults de jeu où le build se copie.
 - `MapController`, `MapLoader` : affichage de la carte dans `pixi/mapDisplay.ts`.
+  `mapDisplay.ts` tient aussi l'image demandée et chargée de chaque carte (`showBackground`,
+  `showsViewedLevel`, `onBackgroundLoaded`, `followStretch`), que `MapController` réexporte.
+- `CanvasHost` (0.10) : `lighting` rend un `LightingController` (plus de `LightingFeature`, l'éclairage
+  n'est plus expérimental) ; `lightingQuality`, `roofHost`, `linkedSceneLevels`, `onLeavingView`,
+  `mapVideo` pour ce que l'orchestrateur lisait d'Obsidian. `ViewRoofs` prend son `host` sans `obsApp`,
+  `belowLevelsHost` lit l'art par `vaultArtSource`, `placementInput` ne lit que les raccourcis.
+- Sortis vers des modules sans Obsidian ni React pour le canvas : `levels/levelLabel.ts`
+  (`levelEditing` réexporte), `services/sceneLinkPaths.ts` (`sceneLinks` réexporte),
+  `ui/menuSeparator.ts` (le `MENU_SEPARATOR` de l'original devient notre entrée `separator`),
+  `shared/portraitRingStyle.ts` ; `stairsDrop` et `offlineDiceInputs` passent par `ui/notices`,
+  `playerInitiativeCard` par `ui/icons`.
+- `DragRuler` : publie son trajet par un rappel (`publishRuler`, la vue le met dans `localRuler`) ;
+  `drawRuler` partagé reprend le coût du terrain difficile et le bout sous le token (`tip`).
+- `gmTokenMenu` : sous-menu des niveaux, changement d'une ressource sur toute la sélection
+  (`TokenMenuCanvas.anchorEl`), lumière portée sans interrupteur expérimental.
+- `scripts/boundaries.mjs`, `tsconfig.shared.json` : nos fichiers partagés (`sharedLasers`,
+  `tokenRingContext`, `portraitRingStyle`).
 - `ContextMenuContext.tsx`, `AtlasContextMenu.tsx` : registre et icônes dans `ui/` ;
   `ContextMenuContext` réexporte `ContextMenuEntry` et `ContextMenuOptions` de `ui/contextMenus.ts`.
 - `DiceRollDisplay`, `useDiceAvatar`, `useDiceDisplay`, `useDiceLook`, `DiceDropdownMenu` :
@@ -354,8 +378,13 @@ doit rester vert.
 - Tokens : plus de poignées de taille ni de rotation (`TokenResizeUI`, `TokenRotationUI` supprimés) ;
   Apparence ▸ (Taille, Rotate) agit sur toute la sélection (`tokenRotationMenu.ts`, partagé avec le
   menu joueur). L'interface d'un token sélectionné (nom, barres, roues, +/-) garde sa taille de repos
-  et zoome avec la carte (`selectedTokenUIScale` supprimé).
-- `PlayerInitiativePanel`, `InitiativeCard` : badge d'instance partagé (`shownInstanceNumber`).
+  et zoome avec la carte (pas d'`emphasis` dans `TokenUIRenderer`) ; `selectedTokenUIScale` ne sert
+  plus qu'aux étiquettes de mesure (`measureLabelLayout`). Les roues se placent par le `wheelAnchor`
+  de l'original, avec `WHEEL_ANCHOR_OFFSET` à la place du bouton de taille.
+- `PlayerInitiativePanel` : sa version 0.10 (numéros des badges, conditions, vaincus), avec notre
+  `InitiativeCollection` (ressources, conditions, règles, PV par spectateur, anneau du rôle), que la
+  fenêtre locale (`mapInitiativeCollection`) et la page (`initiativeOverlay`) remplissent ;
+  `EntryToken.ringImage`, dessiné par `playerInitiativeCard`.
 - Popout locale : version de l'original depuis la 0.8.0 ; seul `PlayerWindowService` passe
   `mapInitiativeCollection` à `PlayerInitiativePanel`.
 - Initiative des joueurs : `PlayerInitiativePanel` prend une `InitiativeCollection` (la page en ligne

@@ -34,6 +34,8 @@ import { useCollectionFilterDefinitions } from './hooks/useCollectionFilterDefin
 import { useFilterSearch, useSearchKeywords } from './hooks/useFilterSearch';
 import { ActiveFilterBar } from './components/search/ActiveFilterBar';
 import { DIALOG_EXIT_DURATION, dialogBackdropVariants, useDialogWindowVariants } from '../primitives/dialogMotion';
+import { showDungeonGenerator } from '../dungeon-generator/openDungeonGenerator';
+import { runInBackground } from '../../../utils/backgroundTask';
 import { t } from '../../../i18n';
 import { TokenRingContext } from '../shared/tokenRingContext';
 import { usePortraitRings } from '../../../tokenRings/usePortraitRings';
@@ -176,7 +178,7 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
     data, sel, crud, tags, statblock,
   });
 
-  const anyModalOpen = crud.isTokenCreatorOpen || crud.isMapCreatorOpen;
+  const anyModalOpen = crud.isTokenCreatorOpen || crud.isEncounterBuilderOpen || crud.isMapCreatorOpen;
 
   return (
     <TokenRingContext.Provider value={portraitRings}>
@@ -241,6 +243,11 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
                   assetCounts={data.assetCounts}
                   onCreateTokens={() => crud.setIsTokenCreatorOpen(true)}
                   onCreateMap={crud.handleCreateMap}
+                  onGenerateDungeon={() => {
+                    runInBackground(showDungeonGenerator(data.app, selectedCollection), 'Opening the dungeon generator');
+                    onClose();
+                  }}
+                  onCreateEncounter={() => crud.setIsEncounterBuilderOpen(true)}
                   onCreateCollection={crud.handleCreateCollection}
                   onCreateFolder={crud.handleCreateFolder}
                   sidebarToggleLabel={sidebar.toggleLabel}

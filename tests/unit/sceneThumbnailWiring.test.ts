@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import { Container, Sprite, Texture, type Rectangle } from 'pixi.js';
@@ -64,12 +65,12 @@ function setup(contextLost = false) {
   const drawn = deferred();
   const whenReady = vi.fn((_rect: Rectangle, _worldPerScreenPixel: number, _timeoutMs: number) => drawn.promise);
   Object.assign(orchestrator as any, {
-    mapImage: { layer: background, worldRect: { x: 0, y: 0, width: 800, height: 600 }, whenReady, drawFor },
+    mapImage: { layer: background, worldRect: { x: 0, y: 0, width: 800, height: 600 }, whenReady, drawFor, hideVideoFor: () => () => undefined },
     pinRenderer: { getPinContainer: () => pins },
     hexLinkRenderer: { container: hexLinks },
     tokenRenderer: { getGmViewLayers: () => [{ layer: hiddenToken, visible: true, alpha: 0.5 }] },
     fogRenderer: { getGmViewLayers: () => [{ layer: fog, visible: true, alpha: 0.5 }] },
-    lightingFeature: { controller: {
+    lighting: {
       gmOverlays: () => gmOverlays,
       renderer: {
         renderForFrame: <T,>(frame: SceneFrame, render: () => T): T => {
@@ -78,7 +79,7 @@ function setup(contextLost = false) {
           try { return render(); } finally { lighting = false; }
         },
       },
-    } },
+    },
   });
   // Session view shows the fog opaque
   fog.alpha = 1;
@@ -99,8 +100,9 @@ describe('a map view\'s thumbnail render', () => {
     expect(new TextDecoder().decode(bytes!)).toBe('JPG');
     expect(rendered).toHaveLength(1);
     expect(rendered[0]!.lit).toBe(true);
-    expect(frames).toEqual([{ x: rendered[0]!.frame.x, y: rendered[0]!.frame.y, resolution: rendered[0]!.resolution }]);
-    expect(frames[0]).toEqual({ x: 0, y: 0, resolution: 0.5 });
+    const { x, y, width, height } = rendered[0]!.frame;
+    expect(frames).toEqual([{ x, y, resolution: rendered[0]!.resolution, width, height }]);
+    expect(frames[0]).toMatchObject({ x: 0, y: 0, resolution: 0.5 });
   });
 
   it('draws the map image\'s tiles at the thumbnail\'s own detail, and the canvas\' again afterwards', () => {

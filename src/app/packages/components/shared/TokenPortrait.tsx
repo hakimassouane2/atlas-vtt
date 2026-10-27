@@ -2,7 +2,7 @@ import React from 'react';
 import { RevealImage } from '../primitives/RevealImage';
 import { Skeleton } from '../primitives/Skeleton';
 import { usePortraitRing } from './tokenRingContext';
-import { portraitRingStyle } from './tokenPortraitElement';
+import { portraitRingStyle } from './portraitRingStyle';
 import type { RingSubject } from '../../../tokenRings/tokenRingTypes';
 import './token-portrait.scss';
 

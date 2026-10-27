@@ -112,6 +112,7 @@ describe('TokenRenderer and the collection of its map', () => {
     isDestroyed,
     uiManager: { refreshConditions: vi.fn(), refreshResources: vi.fn() },
     refreshAllRings: vi.fn(),
+    turnMarkers: { refresh: vi.fn() },
   });
 
   it('redraws conditions, resources and rings once the collection\'s rules are known or change', () => {
@@ -120,6 +121,9 @@ describe('TokenRenderer and the collection of its map', () => {
     expect(renderer.uiManager.refreshConditions).toHaveBeenCalledOnce();
     expect(renderer.uiManager.refreshResources).toHaveBeenCalledOnce();
     expect(renderer.refreshAllRings).toHaveBeenCalledOnce();
+    // Fork: linked tokens start missing resources in `TokenStatblockSync`, outside the canvas
+    // Who is defeated follows the resources, and so who holds a side's turn
+    expect(renderer.turnMarkers.refresh).toHaveBeenCalledOnce();
   });
 
   it('does nothing after the view closed', () => {

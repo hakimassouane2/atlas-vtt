@@ -5,8 +5,16 @@ import type { ViewAtlasState, ViewAtlasStore } from '../storeFactory';
 import type { TokenEntity } from '../types';
 import type { ConditionDefinition } from '../types/collectionSettingsTypes';
 import type { GridSystem } from '../grid/GridSystem';
-import type { LightingFeature } from '../pixi/lighting/LightingFeature';
-import type { LightingControllerDeps } from '../pixi/lighting/LightingController';
+import type { LightingController, LightingControllerDeps } from '../pixi/lighting/LightingController';
+import type { BelowLevelsHostDeps } from '../pixi/lighting/belowLevelsHost';
+import type { LightingQualitySource } from '../lighting/lightingQuality';
+import type { RoofHost } from '../pixi/lighting/levels/Roof';
+import type { SceneLevel } from '../types/sceneLevelTypes';
+import type { PinnedScene } from '../services/linkedSceneLevels';
+import type { MapVideoPlaybackDeps } from '../pixi/mapImage/video/watchMapVideoPlayback';
+import type { Application } from 'pixi.js';
+import type { Viewport } from 'pixi-viewport';
+import type { EventEmitter } from 'events';
 import type { AudioFeature, AudioFeatureDeps } from '../pixi/audio/AudioFeature';
 import type { HotkeySettings } from '../keyboard/mapHotkeys';
 import type { LaserPointerSettings } from '../tools/laserPointerSettings';
@@ -45,6 +53,8 @@ export interface TokenMenuCanvas {
   gridSystem: GridSystem;
   conditions: () => ConditionDefinition[];
   resources: () => readonly ResourceDefinition[];
+  /** The canvas element: popovers the menu opens are placed against it. */
+  anchorEl: () => HTMLElement;
 }
 
 /** Opens the menu of `token`, right-clicked at a point of the screen. */
@@ -53,6 +63,10 @@ export type TokenMenu = (token: TokenEntity, at: { x: number; y: number }) => vo
 /** The settings a canvas reads. */
 export interface CanvasSettings extends HotkeySettings {
   getLaserPointerSettings(): LaserPointerSettings;
+  /** The local player window's settings, where the canvas shows the players' view as that window would. */
+  getLocalPlayerViewSettings?(): { showInitiative?: boolean } | undefined;
+  /** Calls `listener` on every change of the settings; returns what stops it. */
+  onChange?(listener: () => void): () => void;
 }
 
 /**
@@ -67,7 +81,20 @@ export interface CanvasPlayer {
 }
 
 /** What a canvas hands its lighting; the host adds what it needs of its own. */
-export type CanvasLightingDeps = Omit<LightingControllerDeps, 'obsApp'>;
+export type CanvasLightingDeps = Omit<LightingControllerDeps, 'obsApp' | 'quality' | 'below'> & {
+  /** What the levels below the view need of it; the host adds how it reads their images. */
+  below: Omit<BelowLevelsHostDeps, 'obsApp'>;
+};
+
+/** What decides whether a canvas's animated map plays, besides the canvas and its scene. */
+export interface CanvasMapVideo {
+  /** Whether a players' picture of `store`'s scene is being shown (the local player window). */
+  playersSee(store: ViewAtlasStore): boolean;
+  /** Calls `listener` when that may have changed; returns what stops it. */
+  onPlayersChange(listener: () => void): () => void;
+  /** The setting that switches animated maps off, if the host has one. */
+  animate(): MapVideoPlaybackDeps['animate'];
+}
 
 /** What a canvas hands its ambient audio; the host adds what it needs of its own. */
 export type CanvasAudioDeps = Omit<AudioFeatureDeps, 'obsApp'>;
@@ -94,7 +121,17 @@ export interface CanvasHost {
    */
   readonly tokenMenu?: (canvas: TokenMenuCanvas) => TokenMenu;
   /** Dynamic lighting, for a canvas that has it. */
-  readonly lighting?: (deps: CanvasLightingDeps) => LightingFeature;
+  readonly lighting?: (deps: CanvasLightingDeps) => LightingController;
+  /** How much the lighting and the liquids may ask of the device, where the host has a setting for it. */
+  readonly lightingQuality?: () => LightingQualitySource | undefined;
+  /** How the roofs of a scene's levels are read, for a canvas that draws them. */
+  readonly roofHost?: (app: Application, viewport: Viewport) => RoofHost;
+  /** The levels of the scene a pin's note links to, for a canvas that offers them. */
+  readonly linkedSceneLevels?: (from: PinnedScene, link: string) => Promise<readonly SceneLevel[] | null>;
+  /** Calls `stop` when the view `viewId` stops being the one in use (another tab, a closed view); returns what stops it. */
+  readonly onLeavingView?: (eventBus: EventEmitter, viewId: string, stop: () => void) => () => void;
+  /** When an animated map plays, for a canvas that knows about other pictures of its scene. */
+  readonly mapVideo?: CanvasMapVideo;
   /** Ambient audio, for a canvas that has it. */
   readonly audio?: (deps: CanvasAudioDeps) => AudioFeature;
   /**

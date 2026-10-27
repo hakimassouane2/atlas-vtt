@@ -130,13 +130,13 @@ export function DiceTray({ onRoll, shareRolls, advantage }: DiceTrayProps): Reac
       )}
 
       <div className="atlas-dice-tray__modifier">
-        <span className="atlas-dice-tray__modifier-label">Modifier</span>
+        <span className="atlas-dice-tray__modifier-label">{t('diceRoll.modifier')}</span>
         <button
           type="button"
           className="atlas-dice-tray__grip atlas-dice-tray__step"
           onClick={() => setModifier((prev) => clampModifier(prev - 1))}
           disabled={modifier <= -MAX_MODIFIER}
-          aria-label="Decrease modifier"
+          aria-label={t('diceRoll.decreaseModifier')}
         >
           <Minus aria-hidden="true" />
         </button>
@@ -146,7 +146,7 @@ export function DiceTray({ onRoll, shareRolls, advantage }: DiceTrayProps): Reac
           className="atlas-dice-tray__grip atlas-dice-tray__step"
           onClick={() => setModifier((prev) => clampModifier(prev + 1))}
           disabled={modifier >= MAX_MODIFIER}
-          aria-label="Increase modifier"
+          aria-label={t('diceRoll.increaseModifier')}
         >
           <Plus aria-hidden="true" />
         </button>
@@ -154,16 +154,16 @@ export function DiceTray({ onRoll, shareRolls, advantage }: DiceTrayProps): Reac
 
       {/* Always present, even empty: a region that appears with its content goes unheard by screen readers. */}
       <p className={cn('atlas-dice-tray__formula', formula === '' && 'atlas-dice-tray__formula--empty')} role="status" aria-live="polite">
-        {formula === '' ? 'The tray is empty.' : rollSide ? `${formula} · ${SIDE_LABEL[rollSide]()}` : formula}
+        {formula === '' ? t('diceRoll.trayEmpty') : rollSide ? `${formula} · ${SIDE_LABEL[rollSide]()}` : formula}
       </p>
 
       <div className="atlas-dice-tray__actions">
         <Button size="sm" className="atlas-dice-tray__roll" onClick={throwDice} disabled={formula === ''}>
-          Roll
+          {t('diceRoll.roll')}
         </Button>
         {!empty && (
           <Button size="sm" variant="outline" onClick={clear}>
-            Clear
+            {t('diceRoll.clear')}
           </Button>
         )}
       </div>

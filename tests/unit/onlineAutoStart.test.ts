@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createServer, type Server } from 'net';
 import { Notice, Platform, type App } from 'obsidian';

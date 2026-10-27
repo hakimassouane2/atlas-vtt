@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { MAX_SOURCE_PIXELS } from '../../../src/app/pixi/mapImage/decodedLevels';
 import { MemoryTileBackend } from '../../../src/app/pixi/mapImage/memoryTileBackend';
@@ -109,6 +110,26 @@ describe('TileDecoderCore', () => {
     expect(h.graphics.composes).toEqual([{ width: 1500, height: 1000, parts: 6 }]);
     const small = fake(await h.core.overview(3, map.handle, 4000));
     expect([small.width, small.height]).toEqual([3000, 2000]);
+  });
+
+  it('reads which pixels of an overview hold art, and lets go of the overview', async () => {
+    const h = coreHarness();
+    const map = opened(await h.core.open(identity, fakePng(3000, 2000)));
+    const raster = await h.core.alphaRaster(1, map.handle, 600, 8);
+    expect([raster?.width, raster?.height]).toEqual([600, 400]);
+    expect(raster?.opaque.length).toBe(600 * 400);
+    expect(h.graphics.opaqueReads).toEqual([{ width: 600, height: 400, threshold: 8 }]);
+    expect(h.graphics.bitmaps.filter((bitmap) => bitmap.width === 600).every((bitmap) => bitmap.closed)).toBe(true);
+  });
+
+  it('works out a roof\'s pieces over an overview, its faint edge joined, and lets go of the overview', async () => {
+    const h = coreHarness();
+    const map = opened(await h.core.open(identity, fakePng(3000, 2000)));
+    const pieces = await h.core.roofPieces(1, map.handle, 600);
+    expect([pieces?.width, pieces?.height, pieces?.count]).toEqual([600, 400, 1]);
+    // The fake is opaque in its left half and faint in the column beside it, which joins the piece.
+    expect([pieces?.ids[0], pieces?.ids[299], pieces?.ids[300], pieces?.ids[301]]).toEqual([1, 1, 1, 0]);
+    expect(h.graphics.bitmaps.filter((bitmap) => bitmap.width === 600).every((bitmap) => bitmap.closed)).toBe(true);
   });
 
   it('fits an overview from the full size, not from the rounded-up size of the level it is drawn from', async () => {

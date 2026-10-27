@@ -1,44 +1,44 @@
-import { EventEmitter } from 'events';
 import { expect, it } from 'vitest';
-import { Container, Sprite, type Graphics } from 'pixi.js';
-import { createStore } from 'zustand/vanilla';
-import { subscribeWithSelector } from 'zustand/middleware';
-import { SelectionManager } from '../../src/app/pixi/SelectionManager';
+import { Container, Sprite } from 'pixi.js';
+import { NO_BARS, selectionTargets } from '../../src/app/pixi/selection/selectionTargets';
+import { tokenFootprintSize } from '../../src/app/pixi/token-renderer/tokenSizing';
 
 function tokenGroup(x: number, y: number, size: number): Container {
   const group = new Container();
   const sprite = group.addChild(new Sprite());
+  sprite.label = 'tokenSprite';
   sprite.width = size;
   sprite.height = size;
   group.position.set(x, y);
   return group;
 }
 
-function frameBounds(groups: Record<string, Container>, sizes: Record<string, number> = {}, gridSize = 70): { minX: number; maxX: number; minY: number; maxY: number } {
-  const viewport = Object.assign(new Container(), { toWorld: (point: { x: number; y: number }) => point });
-  const store = createStore(subscribeWithSelector(() => ({
-    selectedIds: Object.keys(groups), activeTool: 'select', selectionMode: 'box',
-    grid: { size: gridSize },
-    objects: { tokens: Object.fromEntries(Object.keys(groups).map((id) => [id, { id, size: sizes[id] }])), drawings: {} },
-  })));
-  const manager = new SelectionManager(viewport as never, () => groups, () => ({}), store as never, new EventEmitter());
-  manager.updateSelectionOverlay();
-  return (manager.getPlayerViewLayers()[0]!.layer as Graphics).bounds;
+/** The outline a selected token gets, framed as the fork does: by the cells it covers (FORK.md). */
+function outlineOf(group: Container, sizeInCells: number, gridSize = 70): { x: number; y: number; outline: unknown } {
+  const [target] = selectionTargets(['token'], {
+    world: new Container(),
+    tokens: { token: group },
+    drawings: {},
+    fog: {},
+    bars: () => NO_BARS,
+    footprint: () => tokenFootprintSize(gridSize, sizeInCells),
+  });
+  return { x: target!.x, y: target!.y, outline: target!.outline };
 }
 
 // Sprites are inset from their cells by the grid's stroke (4 px at 70 px), as `computeTokenPixelSize` makes them
 it('frames a selected token by the cell it covers, not by its inset sprite', () => {
-  const { minX, maxX, minY, maxY } = frameBounds({ goblin: tokenGroup(105, 105, 62) });
-  expect([minX, minY, maxX, maxY]).toEqual([70, 70, 140, 140]);
+  expect(outlineOf(tokenGroup(105, 105, 62), 1)).toEqual({ x: 105, y: 105, outline: { kind: 'rect', width: 70, height: 70, rotation: 0, cornerRadius: 0 } });
 });
 
 it('frames a large token by all the cells it covers, at any grid size', () => {
   // Size 2 covers three cells of 100 px
-  const { minX, maxX, minY, maxY } = frameBounds({ ogre: tokenGroup(350, 350, 276) }, { ogre: 2 }, 100);
-  expect([minX, minY, maxX, maxY]).toEqual([200, 200, 500, 500]);
+  expect(outlineOf(tokenGroup(350, 350, 276), 2, 100).outline).toMatchObject({ kind: 'rect', width: 300, height: 300 });
 });
 
-it('frames several tokens by the cells they cover together', () => {
-  const { minX, maxX, minY, maxY } = frameBounds({ a: tokenGroup(35, 35, 62), b: tokenGroup(175, 105, 62) });
-  expect([minX, minY, maxX, maxY]).toEqual([0, 0, 210, 140]);
+it('falls back to the ring where no footprint is known', () => {
+  const [target] = selectionTargets(['token'], {
+    world: new Container(), tokens: { token: tokenGroup(35, 35, 62) }, drawings: {}, fog: {}, bars: () => NO_BARS,
+  });
+  expect(target!.outline).toMatchObject({ kind: 'circle' });
 });

@@ -15,19 +15,11 @@ import type { ResourceDefsProvider, ResourceViewer, VisibleResource } from '../r
 import { isDefeated, isSpent } from '../resources/resourceValues';
 import { shapeOf, visibleResources } from '../resources/visibleResources';
 import { destroyTree } from './utils/destroyTree';
-import { computeTokenStrokeWidth, NAMEPLATE_HEIGHT, restingTokenUIScale } from './token-renderer/tokenSizing';
+import { computeTokenStrokeWidth, NAMEPLATE_HEIGHT, NAMEPLATE_TEXT, restingTokenUIScale, TOKEN_TEXT_RESOLUTION, tokenTextResolution } from './token-renderer/tokenSizing';
 import { getTokenRingCenterRadius } from './token-renderer/tokenRingMetrics';
-import { prefersReducedMotion } from '../utils/motion';
+import { MOTION_SLOW_MS, prefersReducedMotion } from '../utils/motion';
+import { ValueTransition } from './utils/ValueTransition';
 import { t } from '../i18n';
-
-/**
- * Text is drawn at scale 0.333 and the viewport zooms to at most 5x, so a
- * resolution of 3 keeps glyphs crisp on HiDPI screens for a medium token without
- * rasterising every nameplate at eight times its size. Larger grids scale the
- * UI up, so its text resolution grows with it.
- */
-const TEXT_RESOLUTION = 3;
-const MAX_TEXT_RESOLUTION = 12;
 
 /**
  * Every token's UI lies in one layer. A selected token's lies above the others,
@@ -36,10 +28,6 @@ const MAX_TEXT_RESOLUTION = 12;
 const RESTING_Z_INDEX = 10;
 const SELECTED_Z_INDEX = 11;
 
-function textResolutionFor(uiScale: number): number {
-  return Math.min(TEXT_RESOLUTION * Math.max(1, uiScale), MAX_TEXT_RESOLUTION);
-}
-
 export class TokenUIRenderer {
   private container: Container;
   /** `update` found a bar, nameplate or condition to show. */
@@ -47,12 +35,16 @@ export class TokenUIRenderer {
   private hiddenWithToken = false;
   /** Bars and nameplate, anchored at the token's bottom edge and scaled with the token. */
   private belowToken: Container;
-  /** Eases the UI between its resting scale (0) and a selected token's on-screen size (1). */
+  /**
+   * Room the wheels leave beside the bars for their +/- buttons: 1 from the moment this token's
+   * controls show them, easing to 0 once they go.
+   */
+  private barButtonRoom: ValueTransition;
   /** The resources of the bar slots, one view per resource. */
   private resources: ResourceStack;
-  /** Anchor past the right resize button on the token's bottom edge (`wheelAnchor`), scaled like `belowToken`; holds the wheels of the right side. */
+  /** Anchor of the right wheels' column (`wheelAnchor`), scaled like `belowToken`; holds the wheels of the right side. */
   private besideToken: Container;
-  /** The mirror of `besideToken` past the left resize button; holds the wheels of the left side. */
+  /** The mirror of `besideToken` on the token's left; holds the wheels of the left side. */
   private leftOfToken: Container;
   /** The resources of the wheel slots, shown on hover and selection; in the players' view at rest. */
   private wheels = new ResourceWheels();
@@ -60,6 +52,8 @@ export class TokenUIRenderer {
   private playersView = false;
   /** The wheels stand at rest instead of answering hover and selection: the players' view has neither. */
   private wheelsAtRest = false;
+  /** Half the width of the nameplate shown, in UI units; 0 without one. The wheels stand clear of it. */
+  private nameplateHalfWidth = 0;
   private difficultyBadge: Container;
   private difficultyText: Text;
   private defeatedOverlay: Graphics;
@@ -123,6 +117,7 @@ export class TokenUIRenderer {
     this.leftOfToken.addChild(this.wheels.left);
     // Conditions come last, so the hover card lies above this token's own bars and wheels
     this.container.addChild(this.belowToken, this.besideToken, this.leftOfToken, this.conditionUI.container);
+    this.barButtonRoom = new ValueTransition(0, MOTION_SLOW_MS, () => this.layoutUIScale());
     
     this.resources = new ResourceStack(ticker);
     this.resources.view.zIndex = 10; // Above the nameplate, below the defeated overlay
@@ -139,7 +134,7 @@ export class TokenUIRenderer {
         fill: 0xffffff,
         fontWeight: 'bold'
       }),
-      resolution: TEXT_RESOLUTION,
+      resolution: TOKEN_TEXT_RESOLUTION,
     });
     // Event mode not set - let events propagate naturally
     
@@ -157,15 +152,15 @@ export class TokenUIRenderer {
     this.nameText = new Text({
       text: '',
       style: new TextStyle({
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial',
-        fontSize: 24, // Base font size for 70px token
+        fontFamily: NAMEPLATE_TEXT.fontFamily,
+        fontSize: NAMEPLATE_TEXT.fontSize,
         fill: 0xffffff,
-        fontWeight: '600'
+        fontWeight: NAMEPLATE_TEXT.fontWeight
         // No stroke for cleaner look in the badge.
       })
     });
-    this.nameText.scale.set(0.333);
-    this.nameText.resolution = TEXT_RESOLUTION;
+    this.nameText.scale.set(NAMEPLATE_TEXT.textScale);
+    this.nameText.resolution = TOKEN_TEXT_RESOLUTION;
     this.nameText.zIndex = 2; // Name text above name badge background
     
     // Add click handler to name badge
@@ -263,6 +258,7 @@ export class TokenUIRenderer {
     this.defeatedOverlay.clear();
     this.nameBadge.clear();
     this.nameText.text = '';
+    this.nameplateHalfWidth = 0;
     
     // Check if we have any data to display
     const hasResources = bars.length > 0 || wheels.length > 0;
@@ -276,10 +272,6 @@ export class TokenUIRenderer {
 
     // Anchor the UI on the token's edges; everything below is laid out from there in UI units
     this.belowToken.position.set(0, spriteWidth / 2);
-    const anchor = this.wheelAnchor();
-    this.besideToken.position.set(anchor.x, anchor.y);
-    this.leftOfToken.position.set(-anchor.x, anchor.y);
-    this.layoutUIScale();
     this.refreshConditions();
 
     // Before the early return: the controls lay out from the stack's slots, which must empty with it
@@ -291,7 +283,10 @@ export class TokenUIRenderer {
 
     this.hasContent = hasResources || showNameplate || hasConditions;
     this.container.visible = this.hasContent && !this.hiddenWithToken;
-    if (!this.hasContent) return;
+    if (!this.hasContent) {
+      this.layoutUIScale();
+      return;
+    }
 
     // A defeated token's first defeating bar is darkened
     const defeatedSlot = defeated ? this.defeatedSlot(shown) : undefined;
@@ -314,14 +309,15 @@ export class TokenUIRenderer {
       // In PIXI v8, text updates automatically when setting the text property
       const textBounds = this.nameText.getLocalBounds();
       
-      this.nameText.alpha = 0.85;
+      this.nameText.alpha = NAMEPLATE_TEXT.alpha;
       
       // Badge dimensions - use fixed sizes  
-      const scaledTextScale = 0.333; // Fixed text scale
+      const scaledTextScale = NAMEPLATE_TEXT.textScale;
       const scaledWidth = textBounds.width * scaledTextScale;
-      const padding = 6; // Fixed padding
+      const padding = NAMEPLATE_TEXT.padding;
       const badgeWidth = Math.max(scaledWidth + padding * 2, 40); // Fixed min width
       const badgeHeight = NAMEPLATE_HEIGHT;
+      this.nameplateHalfWidth = badgeWidth / 2;
       const badgeRadius = badgeHeight / 2;
       
       // Position the name badge so its bottom edge aligns with the token's bottom edge
@@ -339,7 +335,7 @@ export class TokenUIRenderer {
       // Position text in center of badge
       this.nameText.anchor.set(0.5, 0.5);
       this.nameText.position.set(0, nameY);
-      this.nameText.scale.set(0.333); // Fixed text scale
+      this.nameText.scale.set(NAMEPLATE_TEXT.textScale);
     }
     
     // Hide unused elements
@@ -350,6 +346,8 @@ export class TokenUIRenderer {
     const hasDisplayName = showNameplate && !!displayName;
     this.nameBadge.visible = hasDisplayName; // Only show if enabled and has a name
     this.nameText.visible = hasDisplayName;
+    // The wheels stand clear of the bars and nameplate just drawn
+    this.layoutUIScale();
   }
   
   /** The bar of the first shown resource whose spending defeated the token. */
@@ -365,6 +363,16 @@ export class TokenUIRenderer {
       ...(this.resources.view.visible ? this.resources.layout() : []),
       ...(this.besideToken.visible ? this.wheels.layout() : []),
     ];
+  }
+
+  /** Where the lowest bar ends below the token's bottom edge, in UI units; 0 without bars. */
+  private barsBottom(): number {
+    return Math.max(0, ...this.resources.layout().map((slot) => slot.top + slot.height));
+  }
+
+  /** Where the right wheels' column hangs from, in world units from the token's centre; the left one is its mirror. */
+  public getWheelAnchor(): { x: number; y: number } {
+    return { x: this.besideToken.position.x, y: this.besideToken.position.y };
   }
 
   private canAnimateValues(): boolean {
@@ -411,11 +419,6 @@ export class TokenUIRenderer {
     return getTokenRingCenterRadius(this.currentTokenSize * ringScale, computeTokenStrokeWidth(state?.grid?.size ?? 70), ringScale);
   }
 
-  private wheelAnchor(): { x: number; y: number } {
-    const state = this.store?.getState();
-    return wheelAnchor(this.currentTokenSize, state?.grid?.size ?? 70, state?.tokenSettings?.tokenRingSize ?? 1);
-  }
-
   /**
    * The canvas leaves the token out (hidden, or unseen by the players in session view): its UI
    * stays hidden through every `update`, until the token shows again.
@@ -442,13 +445,26 @@ export class TokenUIRenderer {
     return restingTokenUIScale(this.store?.getState().grid?.size ?? 70);
   }
 
-  /** Scales the anchors to the resting UI scale. */
+  /** Scales the anchors to the resting UI scale, and moves the wheels' columns clear of the bars and nameplate. */
   private layoutUIScale(): void {
+    const state = this.store?.getState();
+    const gridSize = state?.grid?.size ?? 70;
     const scale = this.restingScale();
     this.belowToken.scale.set(scale);
     this.besideToken.scale.set(scale);
     this.leftOfToken.scale.set(scale);
-    this.setTextResolution(textResolutionFor(scale));
+    const anchor = wheelAnchor({
+      spriteSize: this.currentTokenSize,
+      gridSize,
+      ringScale: state?.tokenSettings?.tokenRingSize ?? 1,
+      uiScale: scale,
+      barsBottom: this.barsBottom(),
+      barButtons: this.barButtonRoom.value,
+      nameplateHalfWidth: this.nameplateHalfWidth,
+    });
+    this.besideToken.position.set(anchor.x, anchor.y);
+    this.leftOfToken.position.set(-anchor.x, anchor.y);
+    this.setTextResolution(tokenTextResolution(scale));
     this.onScaleChange?.(scale);
   }
 
@@ -493,6 +509,15 @@ export class TokenUIRenderer {
     if (!this.currentToken || this.currentTokenSize <= 0) return;
     this.lastUpdateData = '';
     this.update(this.currentToken, this.currentTokenSize);
+  }
+
+  /**
+   * Whether this token's controls show the bars' +/- buttons. The wheels make room at once, so
+   * they never cover a button, and give it back once the buttons go.
+   */
+  public setBarButtonsShown(shown: boolean): void {
+    if (shown || prefersReducedMotion(document.body)) this.barButtonRoom.jumpTo(shown ? 1 : 0);
+    else this.barButtonRoom.animateTo(0);
   }
 
   /** Shows or hides the wheels of both sides, e.g. during a resize. */
@@ -549,6 +574,7 @@ export class TokenUIRenderer {
   destroy(): void {
     // End any active editing
     this.endNameEdit();
+    this.barButtonRoom.cancel();
     this.resources.destroy();
     this.wheels.destroy();
     
@@ -673,12 +699,15 @@ export class TokenUIRenderer {
       const textBounds = this.nameText.getLocalBounds();
       
       // Badge dimensions (same as normal badge) - use fixed sizes
-      const scaledTextScale = 0.333; // Fixed text scale
+      const scaledTextScale = NAMEPLATE_TEXT.textScale;
       const scaledTextWidth = textBounds.width * scaledTextScale;
-      const padding = 6; // Fixed padding
+      const padding = NAMEPLATE_TEXT.padding;
       const badgeWidth = Math.max(scaledTextWidth + padding * 2, 40); // Fixed min width
       const badgeHeight = 14; // Fixed height
       const badgeRadius = badgeHeight / 2;
+      // A longer name pushes the wheels out, and their controls with them
+      this.nameplateHalfWidth = badgeWidth / 2;
+      this.layoutUIScale();
       
       // Get current name badge position
       const nameY = this.nameText.position.y;

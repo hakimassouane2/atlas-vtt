@@ -28,6 +28,11 @@ export class PageSettings {
     return { ...this.settings, showDiceRolls: true };
   }
 
+  /** The players' lists stand where the local player window's do by default: on the right, from the turn. */
+  initiativeLayout(): ReturnType<SettingsService['initiativeLayout']> {
+    return { fromTurn: true, dock: 'right', collapsed: false };
+  }
+
   onChange(listener: (settings: AtlasSettings) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);

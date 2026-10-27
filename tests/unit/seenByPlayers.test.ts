@@ -68,7 +68,7 @@ describe('PlayerSightTokens.sharesFrameSight', () => {
     players.active = true;
     expect(sight.sharesFrameSight()).toBe(true);
     players.active = false;
-    // The lighting taken off the map (`clearLighting`).
+    // No lighting wired (the player view's tab).
     sight.setProvider(() => undefined);
     expect(sight.sharesFrameSight()).toBe(true);
   });
@@ -118,5 +118,28 @@ describe('PlayerSightTokens.whenSettled', () => {
     sight.destroy();
     await Promise.resolve();
     expect(work).not.toHaveBeenCalled();
+  });
+});
+
+describe('a roof over the players\' picture', () => {
+  const tokens = { open: token('open', 10), roofed: token('roofed', 200), hidden: token('hidden', 210, { isHidden: true }) };
+  const underRoof = (point: { x: number }): boolean => point.x > 150;
+
+  it('hides the tokens whose centre it covers in a frame, lit scene or not, with fog or without', () => {
+    const sight = sightOf(tokens, () => fogCoverage({}));
+    sight.setRoofProvider(underRoof, () => false);
+    const seen = seenByPlayers(tokens, sight.framePerception());
+    expect(['open', 'roofed', 'hidden'].map(seen)).toEqual([true, false, false]);
+    expect(seenByPlayers(tokens, sight.framePerception(() => 'sensed'))('open')).toBe(false);
+  });
+
+  it('hides them on the canvas only while it shows the players\' view', () => {
+    const players = { active: false, playerView: false };
+    const sight = sightOf(tokens, () => fogCoverage({}), players);
+    sight.setRoofProvider(underRoof, () => players.playerView);
+    expect(sight.hides('roofed')).toBe(false);
+    players.playerView = true;
+    expect(sight.hides('roofed')).toBe(true);
+    expect(sight.hides('open')).toBe(false);
   });
 });

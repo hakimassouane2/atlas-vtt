@@ -75,8 +75,38 @@ export function tokenUIScale(spriteSize: number): number {
 /** How far a resource wheel's anchor stands out from the token's ring, before `tokenUIScale`. */
 export const WHEEL_ANCHOR_OFFSET = 20;
 
+/** The label of a resize or rotate handle in its token's group, by which the selection highlight finds it. */
+export const TOKEN_HANDLE_LABEL = 'tokenHandle';
+
 /** Height of the nameplate, which lies on the token's bottom edge, in UI units. */
 export const NAMEPLATE_HEIGHT = 14;
+
+/**
+ * How a nameplate writes, in UI units: drawn at `fontSize` and scaled by `textScale` (8 units
+ * tall), `padding` from the badge's ends. What should read as one family with it (a measurement's
+ * distance) takes the same.
+ */
+export const NAMEPLATE_TEXT = {
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial',
+  fontSize: 24,
+  fontWeight: '600',
+  textScale: 0.333,
+  alpha: 0.85,
+  padding: 6,
+} as const;
+
+/**
+ * Text is drawn at scale 0.333 and the viewport zooms to at most 5x, so a resolution of 3 keeps
+ * glyphs crisp on HiDPI screens for a medium token without rasterising every nameplate at eight
+ * times its size. Larger grids scale the UI up, so its text resolution grows with it.
+ */
+export const TOKEN_TEXT_RESOLUTION = 3;
+const MAX_TOKEN_TEXT_RESOLUTION = 12;
+
+/** Resolution of token UI text at UI scale `uiScale`. */
+export function tokenTextResolution(uiScale: number): number {
+  return Math.min(TOKEN_TEXT_RESOLUTION * Math.max(1, uiScale), MAX_TOKEN_TEXT_RESOLUTION);
+}
 
 /**
  * Scale of a token's bars, nameplate and condition markers, selected or not: a medium
@@ -85,4 +115,18 @@ export const NAMEPLATE_HEIGHT = 14;
  */
 export function restingTokenUIScale(gridSize: number): number {
   return tokenUIScale(computeTokenPixelSize(gridSize, 1));
+}
+
+/**
+ * Screen pixels per UI unit of a measurement's distance label (`measureLabelLayout`), whatever the
+ * zoom. Tokens never take it: their UI keeps its resting size, selected or not (FORK.md).
+ */
+export const SELECTED_TOKEN_UI_SCREEN_SCALE = 2.25;
+
+/**
+ * World scale of a measurement's label at viewport `zoom`: a constant size on screen, like map pins,
+ * but never smaller than the resting size of token UI (when zoomed far in).
+ */
+export function selectedTokenUIScale(restingScale: number, zoom: number): number {
+  return Math.max(restingScale, SELECTED_TOKEN_UI_SCREEN_SCALE / zoom);
 }

@@ -7,9 +7,9 @@
  */
 
 import { DEFAULT_EXPLORED_BRUSH, type ExploredBrushOptions } from '../lighting/exploredEdits';
-import type { HeldTokens, ViewUIState } from '../types/viewUIState';
 import type { RulerPath, SharedRulers } from '../canvas/sharedRulers';
 import type { LaserPiece, SharedLaserPieces, SharedLasers } from '../canvas/sharedLasers';
+import type { DungeonGeneratorRequest, HeldTokens, ViewUIState } from '../types/viewUIState';
 
 /** State fields added to ViewAtlasState */
 export interface UISlice extends ViewUIState {
@@ -35,6 +35,10 @@ export interface UISlice extends ViewUIState {
   closeLightPopover: () => void;
   openLightZonePopover: (zoneId: string) => void;
   closeLightZonePopover: () => void;
+  openLevelLinkPopover: (linkId: string) => void;
+  closeLevelLinkPopover: () => void;
+  openLevelSurfacePopover: (surfaceId: string) => void;
+  closeLevelSurfacePopover: () => void;
   setSceneLightingPanelOpen: (open: boolean) => void;
   setHeldTokens: (held: HeldTokens) => void;
   setLocalRuler: (ruler: RulerPath | null) => void;
@@ -45,6 +49,11 @@ export interface UISlice extends ViewUIState {
   setExploredBrush: (changes: Partial<ExploredBrushOptions>) => void;
   /** Starting the toolbar editor closes the dice tray, which hangs where the tray goes. */
   setToolbarEditing: (on: boolean) => void;
+  /** Opens the dungeon generator over the map, in place of one open already. */
+  openDungeonGenerator: (request: DungeonGeneratorRequest) => void;
+  /** Closes the generator opening `id`; one opened since stays. */
+  closeDungeonGenerator: (id: number) => void;
+  setRoofsHidden: (hidden: boolean) => void;
 }
 
 /** Default state — all panels closed */
@@ -60,6 +69,8 @@ export function createInitialUIState(): Pick<
   | 'isDiceTrayOpen'
   | 'lightPopover'
   | 'lightZonePopover'
+  | 'levelLinkPopover'
+  | 'levelSurfacePopover'
   | 'isSceneLightingPanelOpen'
   | 'heldTokens'
   | 'exploredBrush'
@@ -68,6 +79,8 @@ export function createInitialUIState(): Pick<
   | 'sharedRulers'
   | 'localLaser'
   | 'sharedLasers'
+  | 'dungeonGenerator'
+  | 'roofsHidden'
 > {
   return {
     isGridSettingsOpen: false,
@@ -80,6 +93,8 @@ export function createInitialUIState(): Pick<
     isDiceTrayOpen: false,
     lightPopover: null,
     lightZonePopover: null,
+    levelLinkPopover: null,
+    levelSurfacePopover: null,
     isSceneLightingPanelOpen: false,
     heldTokens: {},
     exploredBrush: DEFAULT_EXPLORED_BRUSH,
@@ -88,6 +103,8 @@ export function createInitialUIState(): Pick<
     sharedRulers: {},
     localLaser: null,
     sharedLasers: {},
+    dungeonGenerator: null,
+    roofsHidden: false,
   };
 }
 
@@ -108,6 +125,10 @@ export function createUIActions(
   | 'closeLightPopover'
   | 'openLightZonePopover'
   | 'closeLightZonePopover'
+  | 'openLevelLinkPopover'
+  | 'closeLevelLinkPopover'
+  | 'openLevelSurfacePopover'
+  | 'closeLevelSurfacePopover'
   | 'setSceneLightingPanelOpen'
   | 'setHeldTokens'
   | 'setLocalRuler'
@@ -116,6 +137,9 @@ export function createUIActions(
   | 'setSharedLasers'
   | 'setExploredBrush'
   | 'setToolbarEditing'
+  | 'openDungeonGenerator'
+  | 'closeDungeonGenerator'
+  | 'setRoofsHidden'
 > {
   return {
     setGridSettingsOpen: (open) => set((draft) => { draft.isGridSettingsOpen = open; }),
@@ -149,6 +173,10 @@ export function createUIActions(
       draft.lightPopover = null;
     }),
     closeLightZonePopover: () => set((draft) => { draft.lightZonePopover = null; }),
+    openLevelLinkPopover: (linkId) => set((draft) => { draft.levelLinkPopover = linkId; }),
+    closeLevelLinkPopover: () => set((draft) => { draft.levelLinkPopover = null; }),
+    openLevelSurfacePopover: (surfaceId) => set((draft) => { draft.levelSurfacePopover = surfaceId; }),
+    closeLevelSurfacePopover: () => set((draft) => { draft.levelSurfacePopover = null; }),
     closeLightPopover: () => set((draft) => { draft.lightPopover = null; }),
     setSceneLightingPanelOpen: (open) => set((draft) => { draft.isSceneLightingPanelOpen = open; }),
     setHeldTokens: (held) => set((draft) => { draft.heldTokens = held; }),
@@ -167,5 +195,13 @@ export function createUIActions(
       draft.isToolbarEditing = on;
       if (on) draft.isDiceTrayOpen = false;
     }),
+    openDungeonGenerator: (request) => set((draft) => {
+      draft.dungeonGenerator = request;
+      draft.isToolbarEditing = false;
+    }),
+    closeDungeonGenerator: (id) => set((draft) => {
+      if (draft.dungeonGenerator?.id === id) draft.dungeonGenerator = null;
+    }),
+    setRoofsHidden: (hidden) => set((draft) => { draft.roofsHidden = hidden; }),
   };
 }

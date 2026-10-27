@@ -6,6 +6,8 @@ import type { MeasurementSettings } from '../../grid/measurementFormat';
 import type { ViewAtlasState } from '../../storeFactory';
 import { DragRulerView } from './DragRulerView';
 import { drawRuler, snapRulerPoint } from './DragRuler';
+import { levelObjects } from '../../levels/levelObjects';
+import { mapTokens } from '../../tokens/offMap';
 
 /**
  * The drag rulers of the others at an online table (`sharedRulers`): the DM's and other players'
@@ -26,7 +28,7 @@ export class SharedDragRulers {
     private readonly settingsProvider: () => MeasurementSettings,
   ) {
     this.unsubscribe = store.subscribe((state, previous) => {
-      if (state.sharedRulers !== previous.sharedRulers || state.objects.tokens !== previous.objects.tokens) this.sync(state);
+      if (state.sharedRulers !== previous.sharedRulers || mapTokens(levelObjects(state)) !== mapTokens(levelObjects(previous))) this.sync(state);
     });
     // The label keeps its size on screen
     viewport.on('zoomed', this.redraw);
@@ -55,13 +57,13 @@ export class SharedDragRulers {
         view = new DragRulerView(this.viewport, this.tokenLayer);
         this.views.set(key, view);
       }
-      const token = state.objects.tokens[ruler.tokenId];
+      const token = mapTokens(levelObjects(state))[ruler.tokenId];
       if (!token || (state.isPlayerView && token.isHidden)) {
         view.clear();
         continue;
       }
       const landing = snapRulerPoint(state, this.gridSystem, token.id, { x: token.x, y: token.y });
-      drawRuler(view, this.gridSystem, settings, state, token.id, [...ruler.waypoints, landing], ruler.color);
+      drawRuler(view, this.gridSystem, settings, state, token.id, [...ruler.waypoints, landing], null, ruler.color);
     }
   }
 }

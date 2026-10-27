@@ -5,7 +5,7 @@
 
 import React, { useId, useMemo, useRef, useState } from 'react';
 import type { App } from 'obsidian';
-import { Notice } from 'obsidian';
+import { showNotice } from '../../../ui/notice';
 import { Upload } from 'lucide-react';
 import { Button } from '../../../packages/components/primitives/button';
 import { DropdownSwatchGrid } from '../../../packages/components/primitives/DropdownSwatchGrid';
@@ -109,8 +109,8 @@ export function TokenRingsTab({ app, collectionId, settings, onChange }: TokenRi
     try {
       for (const file of picked) {
         const result = await importTokenRing(app, collectionId, file);
-        if ('style' in result) new Notice(t('ring.imported', { name: ringDisplayName(result.style) }));
-        else new Notice(t(result.problem === 'not-square' ? 'ring.importNotSquare' : 'ring.importFailed', { name: file.name }));
+        if ('style' in result) showNotice(t('ring.imported', { name: ringDisplayName(result.style) }));
+        else showNotice(t(result.problem === 'not-square' ? 'ring.importNotSquare' : 'ring.importFailed', { name: file.name }));
       }
     } finally {
       setImporting(false);

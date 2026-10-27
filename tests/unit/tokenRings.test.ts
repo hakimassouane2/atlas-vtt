@@ -4,7 +4,7 @@ import { isTokenRingPath, ringDisplayName, tokenRingPath, tokenRingStyleOfPath }
 import { isGreyscale } from '../../src/app/tokenRings/ringTint';
 import { isReservedCollectionPath } from '../../src/app/services/vault-sync/reservedPaths';
 import { bundleFormatFor } from '../../src/app/services/collectionBundle/bundleFormat';
-import { portraitRingStyle } from '../../src/app/packages/components/shared/tokenPortraitElement';
+import { portraitRingStyle } from '../../src/app/packages/components/shared/portraitRingStyle';
 import { sharedRole } from '../../src/app/react/components/context-menu/tokenRoleMenu';
 import type { TokenRingSettings } from '../../src/app/tokenRings/tokenRingTypes';
 

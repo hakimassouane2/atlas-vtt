@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Plugin } from 'obsidian';
 import { createStore } from 'zustand/vanilla';
@@ -15,6 +16,7 @@ function fakeView(state: Partial<SceneState> = {}) {
   const closers: Array<() => void> = [];
   const view = {
     atlasStore,
+    getViewType: () => 'atlas-vtt',
     register: (closer: () => void) => closers.push(closer),
   };
   Object.setPrototypeOf(view, AtlasView.prototype);

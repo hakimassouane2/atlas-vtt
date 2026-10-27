@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { guardNativeContextMenu } from '../../src/app/selfhost/client/pageContextMenuGuard';
 

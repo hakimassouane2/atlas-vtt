@@ -16,7 +16,6 @@ import { tokenLightingEntries } from './tokenLightingMenu';
 import { isKillable, resetLabel } from '../../../resources/resourceValues';
 import { visibleResources } from '../../../resources/visibleResources';
 import { initiativeEntryForToken } from '../../../stores/initiativeEntries';
-import { dynamicLightingOn } from '../../../experimental/experimentalFeatures';
 import { mapLightPresets } from '../../../services/mapCollectionRules';
 import { saveMapTokensAsEncounter } from '../../../encounters/saveMapTokensAsEncounter';
 import { copyMapObjects } from '../../../clipboard/mapClipboardActions';
@@ -29,6 +28,11 @@ import { openEditTokenModal } from '../../../pixi/token-renderer/EditTokenModal'
 import { STATBLOCK_UNLINK_UPDATES } from '../../../pixi/token-renderer/statblockFrontmatter';
 import { DestructiveActionRow } from '../../../pixi/token-renderer/DestructiveActionRow';
 import { resizedTokenCenter } from '../../../grid/gridPlacement';
+import { tokenLevelSubmenu } from './tokenLevelMenu';
+import { selectionResourceEntry } from './selectionResourceMenu';
+import { SelectionResourceEditing } from '../../../pixi/selectionResourceEditor';
+import { levelObjects } from '../../../levels/levelObjects';
+import { mapTokens } from '../../../tokens/offMap';
 import { t } from '../../../i18n';
 
 /** The ring colours of the token menu; "Default" follows the colour the collection gives the token's role. */
@@ -39,21 +43,38 @@ const menuRingColors = (): ReadonlyArray<{ name: string; value: string | null }>
 
 /** The GM's token menu: everything Atlas can do to a token on the map. */
 export function gmTokenMenu(app: App): (canvas: TokenMenuCanvas) => TokenMenu {
-  return (canvas) => (token, at) => openContextMenuGlobal(gmTokenMenuEntries(app, canvas, token), at);
+  return (canvas) => {
+    // The popover of a change for the selection's tokens, made with the first one (`selectionResourceEntry`)
+    let selectionEditing: SelectionResourceEditing | null = null;
+    const editSelection = (): SelectionResourceEditing => (selectionEditing ??= new SelectionResourceEditing(canvas.anchorEl()));
+    return (token, at) => openContextMenuGlobal(gmTokenMenuEntries(app, canvas, token, at, editSelection), at);
+  };
+}
+
+/** The tokens of the level the view shows. */
+function shownTokens({ store }: TokenMenuCanvas): Readonly<Record<string, TokenEntity>> {
+  return mapTokens(levelObjects(store.getState()));
 }
 
 /** The selected tokens when the right-clicked token is one of them, otherwise that token alone. */
-function menuTargets({ store }: TokenMenuCanvas, tokenId: string): string[] {
-  const { selectedIds, objects } = store.getState();
+function menuTargets(canvas: TokenMenuCanvas, tokenId: string): string[] {
+  const { selectedIds } = canvas.store.getState();
   if (!selectedIds.includes(tokenId)) return [tokenId];
-  return selectedIds.filter((id) => objects.tokens[id] !== undefined);
+  const tokens = shownTokens(canvas);
+  return selectedIds.filter((id) => tokens[id] !== undefined);
 }
 
 /**
  * Grouped from what a fight uses most to what it never does: play, the token's own records and look,
  * who sees and moves it, copies, and the destructive row last.
  */
-function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntity): ContextMenuEntry[] {
+function gmTokenMenuEntries(
+  app: App,
+  canvas: TokenMenuCanvas,
+  token: TokenEntity,
+  at: { x: number; y: number },
+  editSelection: () => SelectionResourceEditing,
+): ContextMenuEntry[] {
   const { store, gridSystem } = canvas;
   const character = token.kind === 'character' ? token : undefined;
   const targets = menuTargets(canvas, token.id);
@@ -83,6 +104,12 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
     });
   }
 
+  // One change of a resource for every selected token that holds it (an area's damage)
+  const selectionChange = selectionResourceEntry(store, targets, canvas.resources(), (definition, count, apply) => {
+    editSelection().open({ at, resourceName: definition.name, count, onCommit: apply });
+  });
+  if (selectionChange) entries.push(selectionChange);
+
   // The token itself
   entries.push(
     separator,
@@ -95,6 +122,9 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
     },
     appearanceSubmenu(canvas, token, targets),
   );
+  // Move to another level of the scene, the selection in one undo step
+  const levelMenu = tokenLevelSubmenu(store, targets);
+  if (levelMenu) entries.push(levelMenu);
   // Player character: the library token it was placed from
   const playerCharacter = placedPlayerCharacterEntry(app, token, store);
   if (playerCharacter) entries.push(playerCharacter);
@@ -102,7 +132,7 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   // Who sees it and who moves it
   entries.push(separator);
   // Hide/Show the selection in one undo step; the clicked token decides which way
-  const isHidden = store.getState().objects.tokens[token.id]?.isHidden || false;
+  const isHidden = shownTokens(canvas)[token.id]?.isHidden || false;
   entries.push({
     type: 'item',
     label: isHidden ? t('token.show') : t('token.hide'),
@@ -111,9 +141,7 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
   });
 
   // Vision and carried light, for the selection the token belongs to
-  if (dynamicLightingOn(app)) {
-    entries.push(...tokenLightingEntries(store, token.id, targets, mapLightPresets(app, store.getState())));
-  }
+  entries.push(...tokenLightingEntries(store, token.id, targets, mapLightPresets(app, store.getState())));
 
   // Which online players move the selection
   const players = mapPlayers(AssetService.getInstance(app), store.getState().mapPath);
@@ -150,11 +178,13 @@ function gmTokenMenuEntries(app: App, canvas: TokenMenuCanvas, token: TokenEntit
 }
 
 /** Size, rotation, role and ring colour of the selection the token belongs to (one undo step each); the clicked token's colour is ticked. */
-function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity, targets: string[]): ContextMenuEntry {
+function appearanceSubmenu(canvas: TokenMenuCanvas, token: TokenEntity, targets: string[]): ContextMenuEntry {
+  const { store } = canvas;
   const size = tokenSizeSubmenu(token.size, (newSize) => {
-    const { grid, objects, updateTokens } = store.getState();
+    const { grid, updateTokens } = store.getState();
+    const tokens = shownTokens(canvas);
     updateTokens(targets.flatMap((id) => {
-      const current = objects.tokens[id];
+      const current = tokens[id];
       if (!current) return [];
       const center = resizedTokenCenter(current, current.size || 1, newSize, grid);
       return [{ id, changes: { size: newSize, x: center.x, y: center.y } }];
@@ -174,7 +204,7 @@ function appearanceSubmenu({ store }: TokenMenuCanvas, token: TokenEntity, targe
     })),
   };
   // The role is the library character's: every placement of it follows (`CharacterSync`)
-  const tokens = store.getState().objects.tokens;
+  const tokens = shownTokens(canvas);
   const role = tokenRoleSubmenu(sharedRole(targets.flatMap((id) => tokens[id] ?? [])), (next) => {
     store.getState().updateTokens(targets.map((id) => ({ id, changes: { role: next } })));
   });
@@ -265,12 +295,13 @@ function hasResources(canvas: TokenMenuCanvas, character: Character | undefined)
   return character !== undefined && visibleResources(character, canvas.resources(), 'dm').length > 0;
 }
 
-function toggleInitiative({ store }: TokenMenuCanvas, tokenIds: string[], remove: boolean): void {
+function toggleInitiative(canvas: TokenMenuCanvas, tokenIds: string[], remove: boolean): void {
+  const { store } = canvas;
   if (!store.getState().initiativeTrackerOpen) store.getState().setInitiativeTrackerOpen(true);
   for (const tokenId of tokenIds) {
-    const { initiative, objects, addToInitiative, removeFromInitiative } = store.getState();
+    const { initiative, addToInitiative, removeFromInitiative } = store.getState();
     const entry = initiative.entries.find((e) => e.tokenId === tokenId);
-    const token = objects.tokens[tokenId];
+    const token = shownTokens(canvas)[tokenId];
     if (remove && entry) removeFromInitiative(entry.id);
     else if (!remove && !entry && token) addToInitiative(initiativeEntryForToken(token));
   }
